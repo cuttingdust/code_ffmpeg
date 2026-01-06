@@ -1,7 +1,7 @@
 {
-	"name": "repo-template",
+	"name": "code-ffmpeg",
 	"version-string": "0.1.0",
 	"dependencies": [
-		"opencv"
+		"ffmpeg"
 	]
 }

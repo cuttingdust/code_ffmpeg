@@ -54,14 +54,20 @@ endif()
 # message("Python3_FOUND = ${Python3_FOUND}")
 # message("Python3_VERSION = ${Python3_VERSION}")
 # message("Python3_LIBS = ${Python3_LIBRARIES}")
+
+# #OpenCV
+# find_package(OpenCV CONFIG REQUIRED)
+# message("OpenCV_FOUND = ${OpenCV_FOUND}")
+# message("OpenCV_VERSION = ${OpenCV_VERSION}")
+# message("OpenCV_LIBS = ${OpenCV_LIBS}")
+
+# #ffmepg
+find_package(FFMPEG REQUIRED)
+message("FFMPEG_FOUND = ${FFMPEG_FOUND}")
+# message("FFMPEG_LIBRARIES = ${FFMPEG_LIBRARIES}")
+# message("FFMPEG_LIBRARY_DIRS = ${FFMPEG_LIBRARY_DIRS}")
+# message("FFMPEG_INCLUDE_DIRS = ${FFMPEG_INCLUDE_DIRS}")
 #==================================================================================#
-
-# OpenCV
-find_package(OpenCV CONFIG REQUIRED)
-message("OpenCV_FOUND = ${OpenCV_FOUND}")
-message("OpenCV_VERSION = ${OpenCV_VERSION}")
-message("OpenCV_LIBS = ${OpenCV_LIBS}")
-
 # 外部依赖项
 set(DPS_INCLUDES)
 set(DPS_TARGETS)
@@ -83,7 +89,7 @@ endif()
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(CommonTools)
 
-add_subdirectory(memory_array_opencv)
+add_subdirectory(ffmepg_test)
 
 # 拷贝assert目录到输出目录
 set(ASSERT_PATH ${CMAKE_CURRENT_SOURCE_DIR}/assert)

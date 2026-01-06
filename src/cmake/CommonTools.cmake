@@ -74,6 +74,22 @@ set(PYTHON_MOUDLES
 	Python3::Python
 )
 
+#opencv
+set(Opencv_MOUDLES
+    OpenCV_LIBS
+)
+
+#ffmpeg
+set(FFMEPG_MOUDLES
+    avcodec
+	avdevice
+	avfilter
+	avformat
+	avutil
+	swresample
+	swscale
+)
+
 # 获取当前目录下源码和头文件
 macro(get_src_include)
     aux_source_directory(${CMAKE_CURRENT_LIST_DIR}/src SRC)
@@ -264,7 +280,11 @@ macro(set_cpp name)
 	# message("Libevent_FOUND = ${Libevent_FOUND}")
     # target_link_libraries(${name} ${Libevent_MOUDLES})
 	
-
+	if(FFMPEG_FOUND)
+		target_link_directories(${name} PRIVATE ${FFMPEG_LIBRARY_DIRS})
+        target_include_directories(${name} PRIVATE ${FFMPEG_INCLUDE_DIRS})
+    endif()
+	
     message("DPS_INCLUDES = ${DPS_INCLUDES}")
 
     # 路径被两次引用 1 编译slib库时 2 install export写入config时
