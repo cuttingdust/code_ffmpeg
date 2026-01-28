@@ -21,13 +21,36 @@ set(SDK_LIB_DIRECTORY
 	# $ENV{MYSQL_SERVER80}/lib
 )
 
+# 根据 -A 参数设置输出路径
+if(CMAKE_GENERATOR_PLATFORM)
+    # 将平台名称映射到标准架构名称
+    if(CMAKE_GENERATOR_PLATFORM STREQUAL "Win32")
+        set(ARCH_SUFFIX ".x86")
+    elseif(CMAKE_GENERATOR_PLATFORM STREQUAL "x64")
+        set(ARCH_SUFFIX ".x64")
+    elseif(CMAKE_GENERATOR_PLATFORM STREQUAL "ARM64")
+        set(ARCH_SUFFIX ".arm64")
+    else()
+        set(ARCH_SUFFIX ".${CMAKE_GENERATOR_PLATFORM}")
+    endif()
+else()
+    # 默认架构
+    set(ARCH_SUFFIX ".x64")
+endif()
+
 # 输出路径
 set(OUT ${CMAKE_CURRENT_SOURCE_DIR}/../out)
 message("out = ${OUT}")
+
+set(OUT_DLL_PATH ${OUT}/bin${ARCH_SUFFIX})
 set(OUT_LIB_PATH ${OUT}/lib)
-set(OUT_DLL_PATH ${OUT}/bin.x64)
+set(OUT_DLL_PATH ${OUT}/bin${ARCH_SUFFIX})
 set(OUT_INCLUDE_PATH ${OUT}/include)
-set(OUT_RUN_PATH ${OUT}/bin.x64)
+set(OUT_RUN_PATH ${OUT}/bin${ARCH_SUFFIX})
+
+message(STATUS "输出路径架构后缀: ${ARCH_SUFFIX}")
+message(STATUS "DLL 路径: ${OUT_DLL_PATH}")
+
 
 # 安装与查找
 string(REPLACE "\\" "/" INSTALL_PREFIX ${OUT})
@@ -88,6 +111,11 @@ set(FFMEPG_MOUDLES
 	avutil
 	swresample
 	swscale
+)
+
+#fmt
+set(FMT_MOUDLES
+	fmt::fmt
 )
 
 # 获取当前目录下源码和头文件
@@ -375,8 +403,8 @@ macro(set_cpp name)
 		
 			target_compile_definitions(${name} PRIVATE
 			_CRT_SECURE_NO_WARNINGS
-			_SCL_SECURE_NO_WARNINGS
-			_ITERATOR_DEBUG_LEVEL=0  # 在Debug中禁用迭代器调试
+			# _SCL_SECURE_NO_WARNINGS
+			# _ITERATOR_DEBUG_LEVEL=0  # 在Debug中禁用迭代器调试
 			)
 			
 			set_target_properties(${name} PROPERTIES
@@ -387,8 +415,15 @@ macro(set_cpp name)
 			# set_target_properties(${name} PROPERTIES
 			# COMPILE_FLAGS "-bigobj"
 			# )
-			set_target_properties(${PROJECT_NAME} PROPERTIES
-				MSVC_RUNTIME_LIBRARY MultiThreadedDLL
+			
+			# 为特定目标设置MSVC运行时库
+			target_compile_options(${name} PRIVATE
+				# Debug 配置使用 /MDd
+				"$<$<CONFIG:Debug>:/MDd>"
+				# Release, RelWithDebInfo, MinSizeRel 使用 /MD
+				"$<$<CONFIG:Release>:/MD>"
+				"$<$<CONFIG:RelWithDebInfo>:/MD>"
+				"$<$<CONFIG:MinSizeRel>:/MD>"
 			)
     endif()
 

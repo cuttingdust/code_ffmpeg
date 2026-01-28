@@ -54,20 +54,33 @@ endif()
 # message("Python3_FOUND = ${Python3_FOUND}")
 # message("Python3_VERSION = ${Python3_VERSION}")
 # message("Python3_LIBS = ${Python3_LIBRARIES}")
+#==================================================================================#
 
-# #OpenCV
+# OpenCV
 # find_package(OpenCV CONFIG REQUIRED)
 # message("OpenCV_FOUND = ${OpenCV_FOUND}")
 # message("OpenCV_VERSION = ${OpenCV_VERSION}")
 # message("OpenCV_LIBS = ${OpenCV_LIBS}")
 
-# #ffmepg
+# FFMPEG
 find_package(FFMPEG REQUIRED)
 message("FFMPEG_FOUND = ${FFMPEG_FOUND}")
-# message("FFMPEG_LIBRARIES = ${FFMPEG_LIBRARIES}")
-# message("FFMPEG_LIBRARY_DIRS = ${FFMPEG_LIBRARY_DIRS}")
-# message("FFMPEG_INCLUDE_DIRS = ${FFMPEG_INCLUDE_DIRS}")
-#==================================================================================#
+message("FFMPEG_VERSION = ${FFMPEG_VERSION}")
+message("FFMPEG_LIBS = ${FFMPEG_LIBS}")
+
+
+# Qt6
+# UIC 的自控一下会生成大量的配置文件 和一个ui 和 四个 ui_*.h的情况 ，所以我们采用老办法
+set(CMAKE_AUTOUIC ON)
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
+
+
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
+message("Qt6_FOUND = ${Qt6_FOUND}")
+message("Qt6_VERSION = ${Qt6_VERSION}")
+message("Qt6_LIBS = ${Qt6_LIBS}")
+
 # 外部依赖项
 set(DPS_INCLUDES)
 set(DPS_TARGETS)
@@ -90,6 +103,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(CommonTools)
 
 add_subdirectory(ffmepg_test)
+add_subdirectory(rgb_test)
 
 # 拷贝assert目录到输出目录
 set(ASSERT_PATH ${CMAKE_CURRENT_SOURCE_DIR}/assert)
