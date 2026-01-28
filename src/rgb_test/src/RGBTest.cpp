@@ -1,11 +1,12 @@
 ﻿#include "RGBTest.h"
-
 #include "ui_testrgb.h"
 
-#include <QPainter>
-#include <QImage>
+#include <QtGui/QPainter>
+#include <QtGui/QImage>
+
 static int w = 1280;
 static int h = 720;
+
 RGBTest::RGBTest(QWidget *parent) : QWidget(parent)
 {
     ui = new Ui::TestRGBClass;
