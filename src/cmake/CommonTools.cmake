@@ -118,6 +118,12 @@ set(FMT_MOUDLES
 	fmt::fmt
 )
 
+#sdl2
+set(SDL2_MOUDLES
+	 $<TARGET_NAME_IF_EXISTS:SDL2::SDL2main>
+     $<IF:$<TARGET_EXISTS:SDL2::SDL2>,SDL2::SDL2,SDL2::SDL2-static>
+)
+
 # 获取当前目录下源码和头文件
 macro(get_src_include)
     aux_source_directory(${CMAKE_CURRENT_LIST_DIR}/src SRC)

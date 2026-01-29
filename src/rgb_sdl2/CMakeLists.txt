@@ -3,13 +3,8 @@ get_filename_component(CURRENT_DIR ${CMAKE_CURRENT_SOURCE_DIR} NAME)
 
 project(${CURRENT_DIR})
 
-# UIC 的自控一下会生成大量的配置文件 和一个ui 和 四个 ui_*.h的情况 ，所以我们采用老办法
-set(CMAKE_AUTOUIC ON)
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)
-
 set(DPS_LIBRARYS
-    ${QT6_MOUDLES}
+    ${SDL2_MOUDLES}
 )
 
 cpp_execute(${PROJECT_NAME})

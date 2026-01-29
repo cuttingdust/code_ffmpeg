@@ -68,14 +68,15 @@ message("FFMPEG_FOUND = ${FFMPEG_FOUND}")
 message("FFMPEG_VERSION = ${FFMPEG_VERSION}")
 message("FFMPEG_LIBS = ${FFMPEG_LIBS}")
 
+# SDL2
+find_package(SDL2 REQUIRED)
+message("SDL2_FOUND = ${SDL2_FOUND}")
+message("SDL2_VERSION = ${SDL2_VERSION}")
+message("SDL2_LIBS = ${SDL2_LIBS}")
+
+
 
 # Qt6
-# UIC 的自控一下会生成大量的配置文件 和一个ui 和 四个 ui_*.h的情况 ，所以我们采用老办法
-set(CMAKE_AUTOUIC ON)
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)
-
-
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
 message("Qt6_FOUND = ${Qt6_FOUND}")
 message("Qt6_VERSION = ${Qt6_VERSION}")
@@ -104,6 +105,8 @@ include(CommonTools)
 
 add_subdirectory(ffmepg_test)
 add_subdirectory(rgb_test)
+add_subdirectory(rgb_sdl2)
+
 
 # 拷贝assert目录到输出目录
 set(ASSERT_PATH ${CMAKE_CURRENT_SOURCE_DIR}/assert)
