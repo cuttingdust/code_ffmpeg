@@ -32,13 +32,13 @@ int main(int argc, char *argv[])
     }
 
     /// 4 生成材质
-    auto texture = SDL_CreateTexture(render, SDL_PIXELFORMAT_ARGB8888,
-                                     SDL_TEXTUREACCESS_STREAMING, /// 可加锁
-                                     w, h);
-
-    // auto texture = SDL_CreateTexture(render, SDL_PIXELFORMAT_RGBA8888,
+    // auto texture = SDL_CreateTexture(render, SDL_PIXELFORMAT_ARGB8888,
     //                                  SDL_TEXTUREACCESS_STREAMING, /// 可加锁
     //                                  w, h);
+
+    auto texture = SDL_CreateTexture(render, SDL_PIXELFORMAT_RGBA8888,
+                                     SDL_TEXTUREACCESS_STREAMING, /// 可加锁
+                                     w, h);
     if (!texture)
     {
         std::cout << SDL_GetError() << std::endl;
@@ -64,34 +64,36 @@ int main(int argc, char *argv[])
         {
             tmp--;
 
-            for (int j = 0; j < h; j++)
-            {
-                int b = j * w * 4;
-                for (int i = 0; i < w * 4; i += 4)
-                {
-                    r[b + i]     = 0;   ///< B
-                    r[b + i + 1] = 0;   ///< G
-                    r[b + i + 2] = tmp; ///< R
-                    r[b + i + 3] = 0;   ///< A
-                }
-            }
-
             // for (int j = 0; j < h; j++)
             // {
             //     int b = j * w * 4;
             //     for (int i = 0; i < w * 4; i += 4)
             //     {
-            //         r[b + i]     = tmp; ///< R
+            //         r[b + i]     = 0;   ///< B
             //         r[b + i + 1] = 0;   ///< G
-            //         r[b + i + 2] = 0;   ///< B
-            //         r[b + i + 3] = 255; ///< A
+            //         r[b + i + 2] = tmp; ///< R
+            //         r[b + i + 3] = 0;   ///< A
             //     }
             // }
+
+            for (int j = 0; j < h; j++)
+            {
+                int b = j * w * 4;
+                for (int i = 0; i < w * 4; i += 4)
+                {
+                    r[b + i]     = 0;   ///< A
+                    r[b + i + 1] = 0;   ///< B
+                    r[b + i + 2] = 0; ///< G
+                    r[b + i + 3] = tmp; ///< R
+                }
+            }
 
             /// 5 内存数据写入材质
             SDL_UpdateTexture(texture, nullptr, r, w * 4);
 
             /// 6 清理屏幕
+            /// 先设置清除颜色（比如白色背景）
+            SDL_SetRenderDrawColor(render, 255, 255, 255, 255);
             SDL_RenderClear(render);
             SDL_Rect sdl_rect;
             sdl_rect.x = 0;
