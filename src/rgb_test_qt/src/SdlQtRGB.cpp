@@ -46,14 +46,16 @@ SdlQtRGB::~SdlQtRGB()
 
 void SdlQtRGB::timerEvent(QTimerEvent *event)
 {
+    static unsigned char tmp = 255;
+    tmp--;
     for (int j = 0; j < sdl_height; j++)
     {
         int b = j * sdl_width * pix_size;
         for (int i = 0; i < sdl_width * pix_size; i += pix_size)
         {
             rgb[b + i]     = 0;   ///< B
-            rgb[b + i + 1] = 255; ///< G
-            rgb[b + i + 2] = 0;   ///< R
+            rgb[b + i + 1] = 0;   ///< G
+            rgb[b + i + 2] = tmp; ///< R
             rgb[b + i + 3] = 0;   ///< A
         }
     }
