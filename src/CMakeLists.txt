@@ -75,12 +75,19 @@ message("SDL2_VERSION = ${SDL2_VERSION}")
 message("SDL2_LIBS = ${SDL2_LIBS}")
 
 
-
 # Qt6
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
 message("Qt6_FOUND = ${Qt6_FOUND}")
 message("Qt6_VERSION = ${Qt6_VERSION}")
 message("Qt6_LIBS = ${Qt6_LIBS}")
+
+
+#==================================================================================#
+
+# UIC 的自控一下会生成大量的配置文件 和一个ui 和 四个 ui_*.h的情况 ，所以我们采用老办法
+set(CMAKE_AUTOUIC ON)
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
 
 # 外部依赖项
 set(DPS_INCLUDES)
@@ -106,6 +113,7 @@ include(CommonTools)
 add_subdirectory(ffmepg_test)
 add_subdirectory(rgb_test)
 add_subdirectory(rgb_sdl2)
+add_subdirectory(rgb_test_qt)
 
 
 # 拷贝assert目录到输出目录
