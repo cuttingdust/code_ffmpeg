@@ -98,8 +98,8 @@ void SdlQtRGB::timerEvent(QTimerEvent *event)
         for (int i = 0; i < sdl_width * pix_size; i += pix_size)
         {
             // rgb[b + i]     = 0;   ///< B
-            // rgb[b + i + 1] = tmp; ///< G
-            // rgb[b + i + 2] = 0; ///< R
+            rgb[b + i + 1] = tmp; ///< G
+            // rgb[b + i + 2] = 0;   ///< R
             // rgb[b + i + 3] = 0;   ///< A
         }
     }
