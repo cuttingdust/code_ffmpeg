@@ -114,6 +114,7 @@ add_subdirectory(ffmepg_test)
 add_subdirectory(rgb_test)
 add_subdirectory(rgb_sdl2)
 add_subdirectory(rgb_test_qt)
+add_subdirectory(picture_merge)
 
 
 # 拷贝assert目录到输出目录
