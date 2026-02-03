@@ -6,7 +6,8 @@
 
 #include <QtGui/QImage>
 #include <QtWidgets/QMessageBox>
-#include <algorithm>
+
+#include <fstream>
 
 static int sdl_width  = 0;
 static int sdl_height = 0;
@@ -17,6 +18,7 @@ static SDL_Texture  *sdl_texture = NULL;
 
 static unsigned char *rgb      = NULL;
 static int            pix_size = 4;
+
 
 SdlQtRGB::SdlQtRGB(QWidget *parent) : QWidget(parent)
 {
