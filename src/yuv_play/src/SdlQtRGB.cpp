@@ -74,7 +74,6 @@ void SdlQtRGB::timerEvent(QTimerEvent *event)
     /// yuv 平面存储存储
     /// yyyyyyyy uu vv
 
-
     SDL_UpdateTexture(sdl_texture, NULL, yuv,
                       sdl_width /// 一行 y的字节数
     );
