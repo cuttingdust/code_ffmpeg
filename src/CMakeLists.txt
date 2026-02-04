@@ -116,6 +116,7 @@ add_subdirectory(rgb_sdl2)
 add_subdirectory(rgb_test_qt)
 add_subdirectory(picture_merge)
 add_subdirectory(yuv_play)
+add_subdirectory(XVideoView)
 
 
 # 拷贝assert目录到输出目录
