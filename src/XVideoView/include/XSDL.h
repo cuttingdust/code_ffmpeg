@@ -14,6 +14,10 @@ public:
 public:
     auto init(int w, int h, Format fmt, void *win_id) -> bool override;
 
+    auto isExit() -> bool override;
+
+    auto close() -> void override;
+
     auto draw(const unsigned char *data, int lineSize) -> bool override;
 
 private:

@@ -44,6 +44,9 @@ auto XSDL::PImpl::initVideo() -> bool
         }
         return true;
     }
+    /// 设定缩放算法，解决锯齿问题,线性插值算法
+    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
+
     return false;
 }
 
@@ -71,6 +74,17 @@ auto XSDL::init(int w, int h, Format fmt, void *win_id) -> bool
     impl_->width_  = w;
     impl_->height_ = h;
     impl_->fmt_    = fmt;
+
+    if (impl_->texture_)
+    {
+        SDL_DestroyTexture(impl_->texture_);
+    }
+
+    if (impl_->render_)
+    {
+        SDL_DestroyRenderer(impl_->render_);
+    }
+
 
     ///1 创建窗口
     if (!impl_->win_)
@@ -130,6 +144,41 @@ auto XSDL::init(int w, int h, Format fmt, void *win_id) -> bool
     }
 
     return true;
+}
+
+auto XSDL::isExit() -> bool
+{
+    SDL_Event ev;
+    SDL_WaitEventTimeout(&ev, 1);
+    if (ev.type == SDL_QUIT)
+    {
+        return true;
+    }
+
+    return false;
+}
+
+auto XSDL::close() -> void
+{
+    /// 确保线程安全
+    std::unique_lock<std::mutex> sdl_lock(impl_->mtx_);
+    if (impl_->texture_)
+    {
+        SDL_DestroyTexture(impl_->texture_);
+        impl_->texture_ = nullptr;
+    }
+
+    if (impl_->render_)
+    {
+        SDL_DestroyRenderer(impl_->render_);
+        impl_->render_ = nullptr;
+    }
+
+    if (impl_->win_)
+    {
+        SDL_DestroyWindow(impl_->win_);
+        impl_->win_ = nullptr;
+    }
 }
 
 auto XSDL::draw(const unsigned char *data, int lineSize) -> bool

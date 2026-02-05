@@ -38,8 +38,11 @@ SdlQtRGB::SdlQtRGB(QWidget *parent) : QWidget(parent)
     sdl_height = 300;
     ui_->label->resize(sdl_width, sdl_height);
     view = XVideoView::create();
+    // view->init(sdl_width, sdl_height, XVideoView::YUV420P);
+    // view->close();
     view->init(sdl_width, sdl_height, XVideoView::YUV420P, (void *)ui_->label->winId());
 
+    //////////////////////////////////////////////////////////////////
 
     yuv = new unsigned char[sdl_width * sdl_height * pix_size];
 
@@ -57,6 +60,11 @@ SdlQtRGB::~SdlQtRGB()
 void SdlQtRGB::timerEvent(QTimerEvent *event)
 {
     yuv_file.read((char *)yuv, sdl_width * sdl_height * 1.5);
+    if (view->isExit())
+    {
+        view->close();
+        exit(0);
+    }
     view->draw(yuv);
 
     QWidget::timerEvent(event);
