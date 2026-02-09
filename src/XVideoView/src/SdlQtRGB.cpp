@@ -4,21 +4,27 @@
 #include "XVideoView.h"
 
 #include <SDL2/SDL.h>
+extern "C" {
+#include <libavcodec/avcodec.h>
+}
 
 #include <QtGui/QImage>
 #include <QtWidgets/QMessageBox>
 
-#include <algorithm>
 #include <fstream>
+#include <iostream>
+#include <algorithm>
 
 static int sdl_width  = 0;
 static int sdl_height = 0;
 
-static unsigned char *yuv      = NULL;
-static int            pix_size = 2;
+// static unsigned char *yuv      = NULL;
+// static int pix_size = 2;
 
 static std::ifstream yuv_file;
-static XVideoView   *view = nullptr;
+
+static XVideoView *view  = nullptr;
+static AVFrame    *frame = nullptr;
 
 SdlQtRGB::SdlQtRGB(QWidget *parent) : QWidget(parent)
 {
@@ -31,7 +37,7 @@ SdlQtRGB::SdlQtRGB(QWidget *parent) : QWidget(parent)
     }
 
 
-    ui_ = new Ui::SdlQtRGBClass();
+    ui_ = new Ui::SdlQtRGBClass;
     ui_->setupUi(this);
 
     sdl_width  = 400;
@@ -42,12 +48,26 @@ SdlQtRGB::SdlQtRGB(QWidget *parent) : QWidget(parent)
     // view->close();
     view->init(sdl_width, sdl_height, XVideoView::YUV420P, (void *)ui_->label->winId());
 
+    /// 生成frame对象空间
+    frame         = av_frame_alloc();
+    frame->width  = sdl_width;
+    frame->height = sdl_height;
+    frame->format = AV_PIX_FMT_YUV420P;
     //////////////////////////////////////////////////////////////////
-
-    yuv = new unsigned char[sdl_width * sdl_height * pix_size];
-
-    /// 默认设置为透明
-    memset(yuv, 0, sdl_width * sdl_height * pix_size);
+    ///  Y Y
+    ///   UV
+    ///  Y Y
+    frame->linesize[0] = sdl_width;     /// Y
+    frame->linesize[1] = sdl_width / 2; /// U
+    frame->linesize[2] = sdl_width / 2; /// V
+    /// 生成图像空间 默认32字节对齐
+    auto re = av_frame_get_buffer(frame, 0);
+    if (re != 0)
+    {
+        char buf[1024] = { 0 };
+        av_strerror(re, buf, sizeof(buf));
+        std::cerr << buf << std::endl;
+    }
 
 
     startTimer(10);
@@ -59,13 +79,23 @@ SdlQtRGB::~SdlQtRGB()
 
 void SdlQtRGB::timerEvent(QTimerEvent *event)
 {
-    yuv_file.read((char *)yuv, sdl_width * sdl_height * 1.5);
+    /// yuv_file.read((char*)yuv, sdl_width * sdl_height * 1.5);
+    ///  yuv420p
+    ///  4*2
+    ///  yyyy yyyy
+    ///  u    u
+    ///  v    v
+
+    yuv_file.read((char *)frame->data[0], sdl_width * sdl_height);     /// Y
+    yuv_file.read((char *)frame->data[1], sdl_width * sdl_height / 4); /// U
+    yuv_file.read((char *)frame->data[2], sdl_width * sdl_height / 4); /// V
+
     if (view->isExit())
     {
         view->close();
         exit(0);
     }
-    view->draw(yuv);
+    view->drawFrame(frame);
 
     QWidget::timerEvent(event);
 }

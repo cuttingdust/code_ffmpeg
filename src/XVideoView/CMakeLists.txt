@@ -6,6 +6,7 @@ project(${CURRENT_DIR})
 set(DPS_LIBRARYS
     ${QT6_MOUDLES}
     ${SDL2_MOUDLES}
+    ${FFMEPG_MOUDLES}
 )
 
 cpp_execute(${PROJECT_NAME})

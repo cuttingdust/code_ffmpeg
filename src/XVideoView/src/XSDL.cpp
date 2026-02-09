@@ -227,7 +227,7 @@ auto XSDL::draw(const unsigned char *data, int lineSize) -> bool
     SDL_RenderClear(impl_->render_);
 
     /// 材质复制到渲染器
-    if (scaleWith() <= 0)
+    if (scaleWidth() <= 0)
     {
         setScaleWidth(impl_->width_);
     }
@@ -239,7 +239,52 @@ auto XSDL::draw(const unsigned char *data, int lineSize) -> bool
     SDL_Rect rect;
     rect.x = 0;
     rect.y = 0;
-    rect.w = scaleWith(); /// 渲染的宽高，可缩放
+    rect.w = scaleWidth(); /// 渲染的宽高，可缩放
+    rect.h = scaleHeight();
+    ret    = SDL_RenderCopy(impl_->render_, impl_->texture_, NULL, &rect);
+    if (ret != 0)
+    {
+        std::cout << SDL_GetError() << std::endl;
+        return false;
+    }
+    SDL_RenderPresent(impl_->render_);
+    return true;
+}
+
+auto XSDL::draw(const unsigned char *y, int y_pitch, const unsigned char *u, int u_pitch, const unsigned char *v,
+                int v_pitch) -> bool
+{
+    if (!y || !u || !v)
+    {
+        return false;
+    }
+    std::unique_lock<std::mutex> sdl_lock(impl_->mtx_);
+    if (!impl_->texture_ || !impl_->render_ || !impl_->win_ || impl_->width_ <= 0 || impl_->height_ <= 0)
+    {
+        return false;
+    }
+    /// 复制内存到显显存
+    auto ret = SDL_UpdateYUVTexture(impl_->texture_, NULL, y, y_pitch, u, u_pitch, v, v_pitch);
+    if (ret != 0)
+    {
+        std::cout << SDL_GetError() << std::endl;
+        return false;
+    }
+    /// 清空屏幕
+    SDL_RenderClear(impl_->render_);
+    /// 材质复制到渲染器
+    if (scaleWidth() <= 0)
+    {
+        setScaleWidth(impl_->width_);
+    }
+    if (scaleHeight() <= 0)
+    {
+        setScaleHeight(impl_->height_);
+    }
+    SDL_Rect rect;
+    rect.x = 0;
+    rect.y = 0;
+    rect.w = scaleWidth(); /// 渲染的宽高，可缩放
     rect.h = scaleHeight();
     ret    = SDL_RenderCopy(impl_->render_, impl_->texture_, NULL, &rect);
     if (ret != 0)

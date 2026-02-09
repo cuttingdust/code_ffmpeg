@@ -3,6 +3,8 @@
 
 #include <memory>
 
+struct AVFrame;
+
 class XVideoView
 {
 public:
@@ -44,6 +46,11 @@ public:
     /// \return 渲染是否成功
     virtual auto draw(const unsigned char *data, int lineSize = 0) -> bool = 0;
 
+    virtual auto draw(const unsigned char *y, int y_pitch, const unsigned char *u, int u_pitch, const unsigned char *v,
+                      int v_pitch) -> bool = 0;
+
+    auto drawFrame(AVFrame *frame) -> bool;
+
 public:
     auto scale(int w, int h) -> void;
 
@@ -51,7 +58,7 @@ public:
 
     auto setScaleHeight(int h) -> void;
 
-    auto scaleWith() -> int;
+    auto scaleWidth() -> int;
 
     auto scaleHeight() -> int;
 

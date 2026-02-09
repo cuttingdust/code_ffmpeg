@@ -20,6 +20,9 @@ public:
 
     auto draw(const unsigned char *data, int lineSize) -> bool override;
 
+    auto draw(const unsigned char *y, int y_pitch, const unsigned char *u, int u_pitch, const unsigned char *v,
+              int v_pitch) -> bool override;
+
 private:
     class PImpl;
     std::unique_ptr<PImpl> impl_;

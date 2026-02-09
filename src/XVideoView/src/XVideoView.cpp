@@ -2,6 +2,10 @@
 
 #include "XSDL.h"
 
+extern "C" {
+#include <libavcodec/avcodec.h>
+}
+
 #include <mutex>
 
 class XVideoView::PImpl
@@ -37,12 +41,35 @@ auto XVideoView::create(RenderType type) -> XVideoView *
     switch (type)
     {
         case XVideoView::SDL:
-            return new XSDL();
+            return new XSDL;
             break;
         default:
             break;
     }
     return nullptr;
+}
+
+auto XVideoView::drawFrame(AVFrame *frame) -> bool
+{
+    if (!frame || !frame->data[0])
+    {
+        return false;
+    }
+
+    switch (frame->format)
+    {
+        case AV_PIX_FMT_YUV420P:
+            return draw(frame->data[0], frame->linesize[0], /// Y
+                        frame->data[1], frame->linesize[1], /// U
+                        frame->data[2], frame->linesize[2]  /// V
+            );
+        case AV_PIX_FMT_BGRA:
+            return draw(frame->data[0], frame->linesize[0]);
+        default:
+            break;
+    }
+
+    return false;
 }
 
 auto XVideoView::scale(int w, int h) -> void
@@ -61,7 +88,7 @@ auto XVideoView::setScaleHeight(int h) -> void
     impl_->scale_h_ = h;
 }
 
-auto XVideoView::scaleWith() -> int
+auto XVideoView::scaleWidth() -> int
 {
     return impl_->scale_w_;
 }
