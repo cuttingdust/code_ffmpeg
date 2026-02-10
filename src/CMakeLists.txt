@@ -103,7 +103,7 @@ set(RC_FILE)
 set(QRC_SOURCE_FILES)
 
 # 忽略特定库
-if(MSVC)
+if(MSVC)	
 SET(CMAKE_EXE_LINKER_FLAGS /NODEFAULTLIB:"libcmt.lib;libc.lib;msvcrt.lib")
 endif()
 
@@ -118,6 +118,7 @@ add_subdirectory(picture_merge)
 add_subdirectory(yuv_play)
 add_subdirectory(XVideoView)
 add_subdirectory(avframe_test)
+add_subdirectory(timerFrame_test)
 
 
 # 拷贝assert目录到输出目录

@@ -4,6 +4,7 @@
 #include "XVideoView.h"
 
 #include <SDL2/SDL.h>
+
 extern "C" {
 #include <libavcodec/avcodec.h>
 }
@@ -17,9 +18,6 @@ extern "C" {
 
 static int sdl_width  = 0;
 static int sdl_height = 0;
-
-// static unsigned char *yuv      = NULL;
-// static int pix_size = 2;
 
 static std::ifstream yuv_file;
 
