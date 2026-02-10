@@ -62,6 +62,8 @@ public:
 
     auto scaleHeight() -> int;
 
+    auto renderFps() const -> int;
+
 private:
     class PImpl;
     std::unique_ptr<PImpl> impl_;

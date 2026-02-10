@@ -7,6 +7,20 @@ extern "C" {
 }
 
 #include <mutex>
+#include <utility>
+
+void MSleep(unsigned int ms)
+{
+    const auto beg = clock();
+    for (int i = 0; std::cmp_less(i, ms); i++)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        if (std::cmp_greater_equal((clock() - beg) / (CLOCKS_PER_SEC / 1000), ms))
+        {
+            break;
+        }
+    }
+}
 
 class XVideoView::PImpl
 {
@@ -22,6 +36,10 @@ public:
     int         scale_h_ = 0;
     Format      fmt_     = RGBA; ///< 像素格式
     std::mutex  mtx_;            ///< 确保线程安全
+
+    int       render_fps_ = 0; ///< 显示帧率
+    long long beg_ms_     = 0; ///< 计时开始时间
+    int       count_      = 0; ///< 统计显示次数
 };
 
 XVideoView::PImpl::PImpl(XVideoView *owenr) : owenr_(owenr)
@@ -54,6 +72,19 @@ auto XVideoView::drawFrame(AVFrame *frame) -> bool
     if (!frame || !frame->data[0])
     {
         return false;
+    }
+    impl_->count_++;
+
+    if (impl_->beg_ms_ <= 0)
+    {
+        impl_->beg_ms_ = clock();
+    }
+    /// 计算显示帧率
+    else if ((clock() - impl_->beg_ms_) / (CLOCKS_PER_SEC / 1000) >= 1000) /// 一秒计算一次fps
+    {
+        impl_->render_fps_ = impl_->count_;
+        impl_->count_      = 0;
+        impl_->beg_ms_     = clock();
     }
 
     switch (frame->format)
@@ -96,4 +127,9 @@ auto XVideoView::scaleWidth() -> int
 auto XVideoView::scaleHeight() -> int
 {
     return impl_->scale_h_;
+}
+
+auto XVideoView::renderFps() const -> int
+{
+    return impl_->render_fps_;
 }

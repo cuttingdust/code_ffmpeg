@@ -1,6 +1,8 @@
 ﻿#ifndef SDLQTRGB_H
 #define SDLQTRGB_H
 
+#include <thread>
+
 #include <QtWidgets/QWidget>
 
 namespace Ui
@@ -16,12 +18,23 @@ public:
     ~SdlQtRGB() override;
 
 public:
+    void threadFunc();
+
+protected:
     void timerEvent(QTimerEvent *event) override;
 
     void resizeEvent(QResizeEvent *event) override;
 
+signals:
+    void signalView();
+
+protected slots:
+    void slotView();
+
 private:
     Ui::SdlQtRGBClass *ui_ = nullptr;
+    std::thread        th_;
+    bool               is_exit_ = false; /// 处理线程退出
 };
 
 
