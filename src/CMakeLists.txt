@@ -119,6 +119,8 @@ add_subdirectory(yuv_play)
 add_subdirectory(XVideoView)
 add_subdirectory(avframe_test)
 add_subdirectory(timerFrame_test)
+add_subdirectory(yuv2rgba)
+add_subdirectory(rgba2yuv)
 
 
 # 拷贝assert目录到输出目录

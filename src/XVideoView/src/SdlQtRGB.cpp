@@ -35,7 +35,7 @@ int              fps       = 25;      /// 播放帧率
 SdlQtRGB::SdlQtRGB(QWidget *parent) : QWidget(parent)
 {
     /// 打开yuv文件
-    yuv_file.open(R"(.\assert\400_300_25.yuv)", std::ios::binary);
+    yuv_file.open(R"(.\assert\out_400_300_25.yuv)", std::ios::binary);
     if (!yuv_file)
     {
         QMessageBox::information(this, "", "open yuv failed!");
