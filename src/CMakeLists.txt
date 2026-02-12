@@ -122,6 +122,7 @@ add_subdirectory(timerFrame_test)
 add_subdirectory(yuv2rgba)
 add_subdirectory(rgba2yuv)
 add_subdirectory(XMultiView)
+add_subdirectory(ffmepg_encode)
 
 
 # 拷贝assert目录到输出目录
