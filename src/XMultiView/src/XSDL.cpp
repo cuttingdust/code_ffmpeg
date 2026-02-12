@@ -20,9 +20,6 @@ public:
     XSDL            *owenr_ = nullptr;
     std::atomic_bool isInitFinished_{ false };
     std::mutex       mtx_;
-    Format           fmt_     = RGBA; ///< 像素格式
-    int              width_   = 0;    ///< 窗口宽高
-    int              height_  = 0;
     SDL_Window      *win_     = nullptr;
     SDL_Renderer    *render_  = nullptr;
     SDL_Texture     *texture_ = nullptr;
@@ -60,7 +57,7 @@ XSDL::~XSDL()
 {
 }
 
-auto XSDL::init(int w, int h, Format fmt, void *win_id) -> bool
+auto XSDL::init(int w, int h, Format fmt) -> bool
 {
     if (w <= 0 || h <= 0)
     {
@@ -70,12 +67,11 @@ auto XSDL::init(int w, int h, Format fmt, void *win_id) -> bool
     /// 初始化SDL 视频库
     impl_->initVideo();
 
-
     /// 确保线程安全
     std::unique_lock<std::mutex> sdl_lock(impl_->mtx_);
-    impl_->width_  = w;
-    impl_->height_ = h;
-    impl_->fmt_    = fmt;
+    this->setWidth(w);
+    this->setHeight(h);
+    this->setFormat(fmt);
 
     if (impl_->texture_)
     {
@@ -91,7 +87,7 @@ auto XSDL::init(int w, int h, Format fmt, void *win_id) -> bool
     ///1 创建窗口
     if (!impl_->win_)
     {
-        if (!win_id)
+        if (!hasWin())
         {
             /// 新建窗口
             impl_->win_ = SDL_CreateWindow("", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, w, h,
@@ -99,7 +95,7 @@ auto XSDL::init(int w, int h, Format fmt, void *win_id) -> bool
         }
         else
         {
-            impl_->win_ = SDL_CreateWindowFrom(win_id); /// 渲染到控件窗口
+            impl_->win_ = SDL_CreateWindowFrom(window()); /// 渲染到控件窗口
         }
     }
 
@@ -122,6 +118,10 @@ auto XSDL::init(int w, int h, Format fmt, void *win_id) -> bool
     switch (fmt)
     {
         case XVideoView::RGBA:
+            sdl_fmt = SDL_PIXELFORMAT_RGBA32;
+            break;
+        case XVideoView::BGRA:
+            sdl_fmt = SDL_PIXELFORMAT_BGRA32;
             break;
         case XVideoView::ARGB:
             sdl_fmt = SDL_PIXELFORMAT_ARGB32;
@@ -192,22 +192,32 @@ auto XSDL::draw(const unsigned char *data, int lineSize) -> bool
 
     std::unique_lock<std::mutex> sdl_lock(impl_->mtx_);
 
-    if (!impl_->texture_ || !impl_->render_ || !impl_->win_ || impl_->width_ <= 0 || impl_->height_ <= 0)
+    if (!impl_->texture_ || !impl_->render_ || !impl_->win_)
+    {
+        return false;
+    }
+
+    if (width() <= 0 || height() <= 0)
     {
         return false;
     }
 
     if (lineSize <= 0)
     {
-        switch (impl_->fmt_)
+        switch (auto fmt = format())
         {
+            case XVideoView::BGRA:
             case XVideoView::RGBA:
             case XVideoView::ARGB:
-                lineSize = impl_->width_ * 4;
-                break;
+                {
+                    lineSize = width() * 4;
+                    break;
+                }
             case XVideoView::YUV420P:
-                lineSize = impl_->width_;
-                break;
+                {
+                    lineSize = width();
+                    break;
+                }
             default:
                 break;
         }
@@ -231,11 +241,11 @@ auto XSDL::draw(const unsigned char *data, int lineSize) -> bool
     /// 材质复制到渲染器
     if (scaleWidth() <= 0)
     {
-        setScaleWidth(impl_->width_);
+        setScaleWidth(width());
     }
     if (scaleHeight() <= 0)
     {
-        setScaleHeight(impl_->height_);
+        setScaleHeight(height());
     }
 
     SDL_Rect rect;
@@ -261,10 +271,15 @@ auto XSDL::draw(const unsigned char *y, int y_pitch, const unsigned char *u, int
         return false;
     }
     std::unique_lock<std::mutex> sdl_lock(impl_->mtx_);
-    if (!impl_->texture_ || !impl_->render_ || !impl_->win_ || impl_->width_ <= 0 || impl_->height_ <= 0)
+    if (!impl_->texture_ || !impl_->render_ || !impl_->win_)
     {
         return false;
     }
+    if (width() <= 0 || height() <= 0)
+    {
+        return false;
+    }
+
     /// 复制内存到显显存
     auto ret = SDL_UpdateYUVTexture(impl_->texture_, NULL, y, y_pitch, u, u_pitch, v, v_pitch);
     if (ret != 0)
@@ -277,11 +292,11 @@ auto XSDL::draw(const unsigned char *y, int y_pitch, const unsigned char *u, int
     /// 材质复制到渲染器
     if (scaleWidth() <= 0)
     {
-        setScaleWidth(impl_->width_);
+        setScaleWidth(width());
     }
     if (scaleHeight() <= 0)
     {
-        setScaleHeight(impl_->height_);
+        setScaleHeight(height());
     }
     SDL_Rect rect;
     rect.x = 0;
