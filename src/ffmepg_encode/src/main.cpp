@@ -131,7 +131,6 @@ int main(int argc, char *argv[])
             std::cout << pkt->size << " " << std::flush;
             ofs.write((char *)pkt->data, pkt->size);
             av_packet_unref(pkt);
-            av_packet_unref(pkt);
         }
     }
     ofs.close();
