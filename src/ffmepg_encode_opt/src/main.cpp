@@ -115,6 +115,17 @@ int main(int argc, char *argv[])
     c->bit_rate     = 400000; /// 400kbps 比特率    /// ABR 平均比特率
     c->gop_size     = 12;     /// 每12帧一个关键帧
 
+    //////////////////////////////////////////////////////////////////
+    /// 恒定比特率（CBR） 由于MP4不支持NAL填充，因此输出文件必须为（MPEG - 2 TS）
+    int br            = c->bit_rate;
+    // c->rc_min_rate    = br;
+    // c->rc_max_rate    = br;
+    // c->rc_buffer_size = br;
+
+    /// 约束编码（VBV） Constrained Encoding (VBV)
+    c->rc_max_rate    = br;
+    c->rc_buffer_size = br * 2;
+
 
     /// 使用AVDictionary方式设置参数
     AVDictionary *opts       = NULL;
@@ -146,10 +157,26 @@ int main(int argc, char *argv[])
         /// CQP 恒定质量 H.264中的QP范围从0到51
         ///  x264默认 23   效果较好18
         ///  x265默认28 效果较好25
-        if (set_dict_param(&opts, "qp", "18", codec_name) >= 0)
+        // if (set_dict_param(&opts, "qp", "18", codec_name) >= 0)
+        //     set_count++;
+        // else
+        //     fail_count++;
+
+
+        //////////////////////////////////////////////////////////////////
+        /// 恒定比特率（CBR） 由于MP4不支持NAL填充，因此输出文件必须为（MPEG-2 TS）
+        // if (set_dict_param(&opts, "nal-hrd", "cbr", codec_name) >= 0)
+        //     set_count++;
+        // else
+        //     fail_count++;
+
+        //////////////////////////////////////////////////////////////////
+        /// 恒定速率因子（CRF）  /// 约束编码（VBV） Constrained Encoding (VBV)
+        if (set_dict_param(&opts, "crf", "23", codec_name) >= 0)
             set_count++;
         else
             fail_count++;
+
     }
     else if (codec_id == AV_CODEC_ID_HEVC)
     {
