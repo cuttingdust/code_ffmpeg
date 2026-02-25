@@ -111,9 +111,10 @@ int main(int argc, char *argv[])
     // c->framerate    = { .num = 25, .den = 1 }; // 设置帧率
     c->pix_fmt      = AV_PIX_FMT_YUV420P;
     c->thread_count = 16;
-    c->max_b_frames = 0;      // 0 B帧降低延时
-    // c->bit_rate     = 400000; // 400kbps 比特率
-    c->gop_size     = 12;     // 每12帧一个关键帧
+    c->max_b_frames = 0;      /// 0 B帧降低延时
+    c->bit_rate     = 400000; /// 400kbps 比特率    /// ABR 平均比特率
+    c->gop_size     = 12;     /// 每12帧一个关键帧
+
 
     /// 使用AVDictionary方式设置参数
     AVDictionary *opts       = NULL;
@@ -124,22 +125,31 @@ int main(int argc, char *argv[])
     {
         std::cout << "\n--- 设置H264特定参数 ---" << std::endl;
 
-        if (set_dict_param(&opts, "preset", "ultrafast", codec_name) >= 0)
-            set_count++;
-        else
-            fail_count++;
-
-        if (set_dict_param(&opts, "tune", "zerolatency", codec_name) >= 0)
-            set_count++;
-        else
-            fail_count++;
-        
+        // if (set_dict_param(&opts, "preset", "ultrafast", codec_name) >= 0)
+        //     set_count++;
+        // else
+        //     fail_count++;
+        //
+        // if (set_dict_param(&opts, "tune", "zerolatency", codec_name) >= 0)
+        //     set_count++;
+        // else
+        //     fail_count++;
+        //
         // if (set_dict_param(&opts, "profile", "baseline", codec_name) >= 0)
         //     set_count++;
         // else
         //     fail_count++;
-        
-        set_dict_param(&opts, "level", "3.0", codec_name);
+        //
+        // set_dict_param(&opts, "level", "3.0", codec_name);
+
+        //////////////////////////////////////////////////////////////////
+        /// CQP 恒定质量 H.264中的QP范围从0到51
+        ///  x264默认 23   效果较好18
+        ///  x265默认28 效果较好25
+        if (set_dict_param(&opts, "qp", "18", codec_name) >= 0)
+            set_count++;
+        else
+            fail_count++;
     }
     else if (codec_id == AV_CODEC_ID_HEVC)
     {
@@ -151,6 +161,11 @@ int main(int argc, char *argv[])
             fail_count++;
 
         if (set_dict_param(&opts, "x265-params", "preset=ultrafast:tu-intra-depth=4", codec_name) >= 0)
+            set_count++;
+        else
+            fail_count++;
+
+        if (set_dict_param(&opts, "qp", "18", codec_name) >= 0)
             set_count++;
         else
             fail_count++;
