@@ -3,6 +3,12 @@
 	"version-string": "0.1.0",
 	"dependencies": [
 		"sdl2",
-		"ffmpeg"
+		{
+			"name": "ffmpeg",
+			"features": [
+				"x264",     
+				"x265"
+			]
+		}
 	]
 }
