@@ -73,24 +73,24 @@ int main(int argc, char *argv[])
     int frame_count  = 0;
     int total_frames = 250;
 
-    // 编码循环
+    /// 编码循环
     for (int i = 0; i < total_frames; i++)
     {
-        // 生成测试数据
+        /// 生成测试数据
         for (int y = 0; y < c->height; y++)
             for (int x = 0; x < c->width; x++)
-                frame->data[0][y * frame->linesize[0] + x] = x + y + i * 3;
+                frame->data[0][y * frame->linesize[0] + x] = x + y + i * 3; /// Y
 
         for (int y = 0; y < c->height / 2; y++)
             for (int x = 0; x < c->width / 2; x++)
             {
                 frame->data[1][y * frame->linesize[1] + x] = 128 + y + i * 2;
                 frame->data[2][y * frame->linesize[2] + x] = 64 + x + i * 5;
-            }
+            } /// UV
 
         frame->pts = i;
 
-        // 发送帧
+        /// 发送帧
         re = avcodec_send_frame(c, frame);
         if (re < 0)
         {
@@ -100,7 +100,7 @@ int main(int argc, char *argv[])
             break;
         }
 
-        // 接收所有可用包
+        /// 接收所有可用包
         while (re >= 0)
         {
             re = avcodec_receive_packet(c, pkt);
@@ -123,7 +123,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    // 重要：flush编码器！
+    /// 重要：flush编码器！
     std::cout << "Flushing encoder..." << std::endl;
     avcodec_send_frame(c, nullptr);
     while (true)
@@ -142,7 +142,7 @@ int main(int argc, char *argv[])
 
     std::cout << "总帧数: " << frame_count << " (发送了" << total_frames << "帧)" << std::endl;
 
-    // 清理
+    /// 清理
     ofs.close();
     av_packet_free(&pkt);
     av_frame_free(&frame);

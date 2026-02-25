@@ -36,7 +36,7 @@ void print_dict(const AVDictionary *dict, const std::string &title)
     }
 }
 
-// 检查参数设置是否成功
+/// 检查参数设置是否成功
 int set_dict_param(AVDictionary **opts, const char *key, const char *value, const std::string &codec_name)
 {
     int ret = av_dict_set(opts, key, value, 0);
@@ -105,14 +105,14 @@ int main(int argc, char *argv[])
     }
 
     ///3 设定上下文参数
-    c->width        = 400;
-    c->height       = 300;
-    c->time_base    = { .num = 1, .den = 25 };
-    c->framerate    = { .num = 25, .den = 1 }; // 设置帧率
+    c->width     = 400;
+    c->height    = 300;
+    c->time_base = { .num = 1, .den = 25 };
+    // c->framerate    = { .num = 25, .den = 1 }; // 设置帧率
     c->pix_fmt      = AV_PIX_FMT_YUV420P;
     c->thread_count = 16;
     c->max_b_frames = 0;      // 0 B帧降低延时
-    c->bit_rate     = 400000; // 400kbps 比特率
+    // c->bit_rate     = 400000; // 400kbps 比特率
     c->gop_size     = 12;     // 每12帧一个关键帧
 
     /// 使用AVDictionary方式设置参数
@@ -133,14 +133,13 @@ int main(int argc, char *argv[])
             set_count++;
         else
             fail_count++;
-
-        if (set_dict_param(&opts, "profile", "baseline", codec_name) >= 0)
-            set_count++;
-        else
-            fail_count++;
-
+        
+        // if (set_dict_param(&opts, "profile", "baseline", codec_name) >= 0)
+        //     set_count++;
+        // else
+        //     fail_count++;
+        
         set_dict_param(&opts, "level", "3.0", codec_name);
-        set_dict_param(&opts, "rc", "cbr", codec_name);
     }
     else if (codec_id == AV_CODEC_ID_HEVC)
     {
@@ -170,7 +169,7 @@ int main(int argc, char *argv[])
     std::cout << "\n正在打开编码器..." << std::endl;
     int re = avcodec_open2(c, codec, &opts);
 
-    // 检查未使用的参数
+    /// 检查未使用的参数
     if (opts)
     {
         const AVDictionaryEntry *entry      = nullptr;
@@ -186,7 +185,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    av_dict_free(&opts); // 释放字典
+    av_dict_free(&opts); /// 释放字典
 
     if (re != 0)
     {
@@ -197,7 +196,7 @@ int main(int argc, char *argv[])
     }
     std::cout << "avcodec_open2 success!" << std::endl;
 
-    // 打印最终使用的编码器参数
+    /// 打印最终使用的编码器参数
     print_codec_params(c);
 
     /// 创建AVFrame
@@ -243,14 +242,14 @@ int main(int argc, char *argv[])
 
         frame->pts = i;
 
-        // 设置帧类型 - 每12帧设置一个I帧
+        /// 设置帧类型 - 每12帧设置一个I帧
         if (i % 12 == 0)
         {
-            frame->pict_type = AV_PICTURE_TYPE_I; // 设置为I帧（关键帧）
+            frame->pict_type = AV_PICTURE_TYPE_I; /// 设置为I帧（关键帧）
         }
         else
         {
-            frame->pict_type = AV_PICTURE_TYPE_NONE; // 让编码器自动选择
+            frame->pict_type = AV_PICTURE_TYPE_NONE; /// 让编码器自动选择
         }
 
         /// 发送帧
@@ -285,7 +284,7 @@ int main(int argc, char *argv[])
 
             frame_count++;
 
-            // 统计关键帧 - 使用AVPacket的标志
+            /// 统计关键帧 - 使用AVPacket的标志
             if (pkt->flags & AV_PKT_FLAG_KEY)
             {
                 keyframe_count++;
@@ -295,7 +294,7 @@ int main(int argc, char *argv[])
             std::cout << "帧 " << std::setw(3) << frame_count << " (PTS:" << std::setw(3) << pkt->pts
                       << ") 大小:" << std::setw(6) << pkt->size << " 字节";
 
-            // 显示帧类型
+            /// 显示帧类型
             if (pkt->flags & AV_PKT_FLAG_KEY)
             {
                 std::cout << " [I帧]";
@@ -323,7 +322,7 @@ int main(int argc, char *argv[])
         av_packet_unref(pkt);
     }
 
-    // 获取文件大小
+    /// 获取文件大小
     ofs.seekp(0, std::ios::end);
     std::streampos file_size = ofs.tellp();
     ofs.close();
