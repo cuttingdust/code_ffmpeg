@@ -124,6 +124,8 @@ add_subdirectory(rgba2yuv)
 add_subdirectory(XMultiView)
 add_subdirectory(ffmepg_encode)
 add_subdirectory(ffmepg_encode_opt)
+add_subdirectory(ffmepg_encode_nalu)
+add_subdirectory(XEncode)
 
 
 # 拷贝assert目录到输出目录
