@@ -5,6 +5,7 @@
 #include "CodecContextWrapper.h"
 #include "PacketWrapper.h"
 #include "DictWrapper.h"
+/// ====================================================
 
 extern "C" {
 #include <libavutil/pixdesc.h>
