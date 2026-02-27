@@ -34,6 +34,33 @@ int main(int argc, char *argv[])
     /// 2 创建上下文
     auto c = avcodec_alloc_context3(codec);
 
+    /// 硬件加速格式 DXVA2
+    auto hw_type = AV_HWDEVICE_TYPE_D3D11VA;
+    //////////////////////////////////////////////////////////////////
+    /// 打印所有支持的硬件加速方式
+    for (int i = 0;; i++)
+    {
+        auto config = avcodec_get_hw_config(codec, i);
+        if (!config)
+        {
+            break;
+        }
+
+        if (config->device_type)
+        {
+            std::cout << av_hwdevice_get_type_name(config->device_type) << std::endl;
+        }
+    }
+
+    //////////////////////////////////////////////////////////////////
+    /// 初始化硬件加速上下文
+    AVBufferRef *hw_ctx = nullptr;
+    av_hwdevice_ctx_create(&hw_ctx, hw_type, NULL, NULL, 0);
+    /// 设定硬件GPU加速
+    c->hw_device_ctx = av_buffer_ref(hw_ctx);
+    //////////////////////////////////////////////////////////////////
+
+
     c->thread_count = 16;
     /// 3 打开上下文
     avcodec_open2(c, NULL, NULL);
@@ -52,6 +79,11 @@ int main(int argc, char *argv[])
         if (data_size <= 0)
         {
             break;
+        }
+        if (ifs.eof()) /// 循环播放
+        {
+            ifs.clear();
+            ifs.seekg(0, std::ios::beg);
         }
 
         auto data = inbuf;
@@ -95,7 +127,7 @@ int main(int argc, char *argv[])
 
                     count++;
                     auto cur = NowMs();
-                    if (cur - begin >= 100) /// 1/10秒钟计算一次
+                    if (cur - begin >= 100) /// 每100ms（0.1秒）计算一次
                     {
                         std::cout << "\nfps = " << count * 10 << std::endl;
                         count = 0;
