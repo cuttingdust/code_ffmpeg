@@ -127,6 +127,7 @@ add_subdirectory(ffmepg_encode_opt)
 add_subdirectory(ffmepg_encode_nalu)
 add_subdirectory(XEncode)
 add_subdirectory(ffmepg_decode)
+add_subdirectory(ffmepg_decode_view)
 
 
 # 拷贝assert目录到输出目录
