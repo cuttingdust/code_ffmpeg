@@ -52,13 +52,13 @@ int main(int argc, char *argv[])
         }
     }
 
-    //////////////////////////////////////////////////////////////////
-    /// 初始化硬件加速上下文
-    AVBufferRef *hw_ctx = nullptr;
-    av_hwdevice_ctx_create(&hw_ctx, hw_type, NULL, NULL, 0);
-    /// 设定硬件GPU加速
-    c->hw_device_ctx = av_buffer_ref(hw_ctx);
-    //////////////////////////////////////////////////////////////////
+    // //////////////////////////////////////////////////////////////////
+    // /// 初始化硬件加速上下文
+    // AVBufferRef *hw_ctx = nullptr;
+    // av_hwdevice_ctx_create(&hw_ctx, hw_type, NULL, NULL, 0);
+    // /// 设定硬件GPU加速
+    // c->hw_device_ctx = av_buffer_ref(hw_ctx);
+    // //////////////////////////////////////////////////////////////////
 
 
     c->thread_count = 16;
