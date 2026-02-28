@@ -231,10 +231,10 @@ auto HardwareFrameTransfer::get_sw_format(AVFrame* frame) -> AVPixelFormat
     if (!frame)
         return AV_PIX_FMT_NONE;
 
-    // 如果是硬件帧，尝试找到对应的软件格式
+    /// 如果是硬件帧，尝试找到对应的软件格式
     if (is_hardware_frame(frame))
     {
-        // NV12 是最常见的硬件解码输出格式
+        /// NV12 是最常见的硬件解码输出格式
         return AV_PIX_FMT_NV12;
     }
 

@@ -130,6 +130,8 @@ add_subdirectory(ffmepg_decode)
 add_subdirectory(ffmepg_decode_view)
 add_subdirectory(ffmepg_decode_hard)
 add_subdirectory(XDecode)
+add_subdirectory(ffmepg_decode_d3d9)
+add_subdirectory(ffmepg_decode_d3d11)
 
 
 # 拷贝assert目录到输出目录

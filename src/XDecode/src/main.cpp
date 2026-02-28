@@ -3,6 +3,10 @@
 #include <fstream>
 #include <chrono>
 
+extern "C" {
+#include <libavutil/pixdesc.h>
+}
+
 extern long long NowMs();
 
 int main(int argc, char* argv[])
@@ -29,7 +33,7 @@ int main(int argc, char* argv[])
         config.thread_count = 16;
 
         /// 硬件加速配置
-        config.hardware.enable               = false;
+        config.hardware.enable               = true;
         config.hardware.auto_select          = true;
         config.hardware.preferred_type       = HardwareContext::Type::D3D11VA; /// Windows下优先D3D11
         config.hardware.transfer_to_software = true;                           /// 转换到软件帧用于显示
@@ -69,10 +73,18 @@ int main(int argc, char* argv[])
         while (!ifs.eof())
         {
             ifs.read(reinterpret_cast<char*>(buffer), sizeof(buffer));
+
+
             int bytes_read = ifs.gcount();
 
             if (bytes_read <= 0)
                 break;
+
+            if (ifs.eof()) /// 循环播放
+            {
+                ifs.clear();
+                ifs.seekg(0, std::ios::beg);
+            }
 
             /// 解码
             decoder.decode(buffer, bytes_read, frames);

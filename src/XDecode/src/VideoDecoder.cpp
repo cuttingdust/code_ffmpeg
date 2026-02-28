@@ -90,7 +90,7 @@ auto VideoDecoder::PImpl::setup_hardware() -> void
 
     bool hw_ok = false;
 
-    // 如果指定了首选类型
+    /// 如果指定了首选类型
     if (config_.hardware.preferred_type != HardwareContext::Type::None)
     {
         hw_ok = hw_ctx_->init(config_.hardware.preferred_type);
@@ -101,7 +101,7 @@ auto VideoDecoder::PImpl::setup_hardware() -> void
         }
     }
 
-    // 自动选择
+    /// 自动选择
     if (!hw_ok && config_.hardware.auto_select)
     {
         hw_ok = hw_ctx_->init_auto();
@@ -109,7 +109,7 @@ auto VideoDecoder::PImpl::setup_hardware() -> void
 
     if (hw_ok)
     {
-        // 打印解码器支持的硬件格式
+        /// 打印解码器支持的硬件格式
         std::cout << "\n解码器支持的硬件格式:" << std::endl;
         for (int i = 0;; i++)
         {
@@ -159,27 +159,16 @@ auto VideoDecoder::PImpl::setup_context() -> void
         throw AVException("打开解码器失败", ret);
     }
 
-    std::cout << "\n========== 解码器参数 ==========" << std::endl;
-    std::cout << "宽度: " << avctx->width << std::endl;
-    std::cout << "高度: " << avctx->height << std::endl;
-
-    /// 修复：检查像素格式是否有效
-    if (avctx->pix_fmt != AV_PIX_FMT_NONE)
-    {
-        std::cout << "像素格式: " << av_get_pix_fmt_name(avctx->pix_fmt) << std::endl;
-    }
-    else
-    {
-        std::cout << "像素格式: 未知 (将在解码第一帧后确定)" << std::endl;
-    }
-
+    std::cout << "\n========== 解码器初始化完成 ==========" << std::endl;
+    std::cout << "解码器名称: " << codec_->name << std::endl;
     std::cout << "线程数: " << avctx->thread_count << std::endl;
     std::cout << "硬件加速: " << (is_hw_decoding_ ? "是" : "否") << std::endl;
     if (is_hw_decoding_ && hw_ctx_)
     {
         std::cout << "硬件类型: " << HardwareContext::type_name(hw_ctx_->current_type()) << std::endl;
     }
-    std::cout << "================================\n" << std::endl;
+    std::cout << "视频参数将在解码第一帧后确定" << std::endl;
+    std::cout << "========================================\n" << std::endl;
 }
 
 auto VideoDecoder::PImpl::init_parser() -> void
@@ -199,13 +188,13 @@ auto VideoDecoder::PImpl::update_stats(double decode_time) -> void
     stats_.frames_decoded++;
     frames_in_second_++;
 
-    // 更新平均解码时间
+    /// 更新平均解码时间
     stats_.avg_decode_time_ms =
             (stats_.avg_decode_time_ms * (stats_.frames_decoded - 1) + decode_time) / stats_.frames_decoded;
 
-    // 每秒打印一次fps
+    /// 每秒打印一次fps
     int64_t now = av_gettime_relative();
-    if (now - last_stats_time_ >= 1000000) // 1秒
+    if (now - last_stats_time_ >= 1000000) /// 1秒
     {
         std::cout << "\r解码FPS: " << frames_in_second_ << "    " << std::flush;
         frames_in_second_ = 0;
@@ -213,7 +202,7 @@ auto VideoDecoder::PImpl::update_stats(double decode_time) -> void
     }
 }
 
-// VideoDecoder 公有接口实现
+/// VideoDecoder 公有接口实现
 VideoDecoder::VideoDecoder(const DecoderConfig& cfg) : impl_(std::make_unique<PImpl>(this, cfg))
 {
 }
@@ -293,7 +282,9 @@ auto VideoDecoder::decode_packet(AVPacket* pkt, std::vector<AVFrame*>& out_frame
         throw AVException("发送packet失败", ret);
     }
 
-    int frame_count = 0;
+    int         frame_count    = 0;
+    static bool first_frame    = true;
+    static bool params_printed = false;
 
     /// 接收帧
     while (ret >= 0)
@@ -311,11 +302,38 @@ auto VideoDecoder::decode_packet(AVPacket* pkt, std::vector<AVFrame*>& out_frame
 
         frame_count++;
 
-        // 确定输出帧
+        /// 只在第一帧时打印参数
+        if (first_frame)
+        {
+            first_frame = false;
+
+            /// 现在可以从帧中获取实际的视频参数
+            std::cout << "\n========== 视频参数（从第一帧获取）==========" << std::endl;
+            std::cout << "宽度: " << impl_->frame_->width << std::endl;
+            std::cout << "高度: " << impl_->frame_->height << std::endl;
+
+            auto pix_fmt = static_cast<AVPixelFormat>(impl_->frame_->format);
+            std::cout << "像素格式: " << av_get_pix_fmt_name(pix_fmt) << " (" << pix_fmt << ")" << std::endl;
+
+            /// 检查是否是硬件帧
+            bool is_hw = HardwareFrameTransfer::is_hardware_frame(impl_->frame_);
+            std::cout << "帧类型: " << (is_hw ? "硬件帧" : "软件帧") << std::endl;
+
+            /// 如果有硬件上下文，可以获取更多信息
+            if (is_hw && impl_->hw_ctx_)
+            {
+                std::cout << "硬件类型: " << HardwareContext::type_name(impl_->hw_ctx_->current_type()) << std::endl;
+            }
+
+            std::cout << "============================================\n" << std::endl;
+        }
+
+
+        /// 确定输出帧
         AVFrame* output_frame = impl_->frame_;
         bool     is_hw        = false;
 
-        // 如果是硬件帧且需要转换
+        /// 如果是硬件帧且需要转换
         if (HardwareFrameTransfer::is_hardware_frame(impl_->frame_))
         {
             impl_->stats_.hardware_frames++;
@@ -323,15 +341,15 @@ auto VideoDecoder::decode_packet(AVPacket* pkt, std::vector<AVFrame*>& out_frame
 
             if (impl_->config_.hardware.transfer_to_software)
             {
-                // 设置软件帧格式
+                /// 设置软件帧格式
                 impl_->sw_frame_->format = HardwareFrameTransfer::get_sw_format(impl_->frame_);
                 impl_->sw_frame_->width  = impl_->frame_->width;
                 impl_->sw_frame_->height = impl_->frame_->height;
 
-                // 分配缓冲区
+                /// 分配缓冲区
                 av_frame_get_buffer(impl_->sw_frame_, 0);
 
-                // 传输数据
+                /// 传输数据
                 if (HardwareFrameTransfer::transfer_to_software(impl_->frame_, impl_->sw_frame_))
                 {
                     output_frame = impl_->sw_frame_;
@@ -343,20 +361,20 @@ auto VideoDecoder::decode_packet(AVPacket* pkt, std::vector<AVFrame*>& out_frame
             impl_->stats_.software_frames++;
         }
 
-        // 复制帧（因为我们要存储）
+        /// 复制帧（因为我们要存储）
         AVFrame* new_frame = av_frame_alloc();
         av_frame_ref(new_frame, output_frame);
         out_frames.push_back(new_frame);
 
-        // 调用回调
+        /// 调用回调
         if (impl_->callback_)
         {
             impl_->callback_(output_frame, is_hw);
         }
 
-        // 更新统计
+        /// 更新统计
         int64_t end_time    = av_gettime_relative();
-        double  decode_time = (end_time - start_time) / 1000.0; // 转换为毫秒
+        double  decode_time = (end_time - start_time) / 1000.0; /// 转换为毫秒
         impl_->update_stats(decode_time);
     }
 
@@ -450,4 +468,34 @@ auto VideoDecoder::print_stats() const -> void
 auto VideoDecoder::is_hardware_decoding() const -> bool
 {
     return impl_->is_hw_decoding_;
+}
+
+auto VideoDecoder::get_supported_pixel_formats() const -> std::vector<AVPixelFormat>
+{
+    std::vector<AVPixelFormat> formats;
+
+    if (!impl_->codec_)
+    {
+        return formats;
+    }
+
+
+    const AVPixelFormat* p = impl_->codec_->pix_fmts;
+    if (p)
+    {
+        while (*p != AV_PIX_FMT_NONE)
+        {
+            formats.push_back(*p);
+            p++;
+        }
+    }
+
+    return formats;
+}
+
+auto VideoDecoder::wait_for_pixel_format(int timeout_ms) -> AVPixelFormat
+{
+    // 这个功能需要在解码循环中实现
+    // 这里只是提供一个接口，实际使用时需要在收到第一帧后调用
+    return AV_PIX_FMT_NONE;
 }

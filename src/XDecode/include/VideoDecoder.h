@@ -79,6 +79,12 @@ public:
     /// 检查是否为硬件解码
     auto is_hardware_decoding() const -> bool;
 
+    /// 获取解码器支持的像素格式列表
+    auto get_supported_pixel_formats() const -> std::vector<AVPixelFormat>;
+
+    /// 等待第一帧解码后获取实际像素格式
+    auto wait_for_pixel_format(int timeout_ms = 5000) -> AVPixelFormat;
+
 private:
     class PImpl;
     std::unique_ptr<PImpl> impl_;
