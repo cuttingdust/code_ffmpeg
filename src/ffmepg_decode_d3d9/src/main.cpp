@@ -26,33 +26,102 @@ void DrawFrame(AVFrame *frame, AVCodecContext *c)
 {
     if (!frame->data[3] || !c)
         return;
-    std::cout << "D" << std::flush;
-    auto        surface = (IDirect3DSurface9 *)frame->data[3];
-    auto        ctx     = (AVHWDeviceContext *)c->hw_device_ctx->data;
-    auto        priv    = (DXVA2DevicePriv *)ctx->user_opaque;
-    auto        device  = priv->d3d9device;
-    static HWND hwnd    = nullptr;
-    static RECT viewport;
-    if (!hwnd)
+
+    auto surface = (IDirect3DSurface9 *)frame->data[3];
+    auto ctx     = (AVHWDeviceContext *)c->hw_device_ctx->data;
+    auto priv    = (DXVA2DevicePriv *)ctx->user_opaque;
+    auto device  = priv->d3d9device;
+
+    static HWND               hwnd = nullptr;
+    static RECT               viewport;
+    static IDirect3DSurface9 *back        = nullptr;
+    static bool               initialized = false;
+
+    if (!initialized)
     {
         hwnd = CreateWindow(L"DX", L"Test DXVA", WS_OVERLAPPEDWINDOW, 200, 200, frame->width, frame->height, 0, 0, 0,
                             0);
         ShowWindow(hwnd, 1);
         UpdateWindow(hwnd);
+
         viewport.left   = 0;
         viewport.right  = frame->width;
         viewport.top    = 0;
         viewport.bottom = frame->height;
-    }
-    //设置显示窗口句柄
-    device->Present(&viewport, &viewport, hwnd, 0);
-    //后台缓冲表面
-    static IDirect3DSurface9 *back = nullptr;
-    if (!back)
-        device->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &back);
-    device->StretchRect(surface, 0, back, &viewport, D3DTEXF_LINEAR);
-}
 
+        /// 第一次获取 BackBuffer
+        device->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &back);
+
+        /// 配置 VSync
+        IDirect3DSwapChain9 *swapChain = nullptr;
+        device->GetSwapChain(0, &swapChain);
+        if (swapChain)
+        {
+            D3DPRESENT_PARAMETERS pp;
+            swapChain->GetPresentParameters(&pp);
+            pp.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
+
+            HRESULT hr = device->Reset(&pp);
+            if (SUCCEEDED(hr))
+            {
+                /// 重置成功，重新获取 BackBuffer
+                if (back)
+                    back->Release();
+                device->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &back);
+                std::cout << "VSync disabled" << std::endl;
+            }
+            swapChain->Release();
+        }
+
+        initialized = true;
+    }
+
+    /// 处理窗口消息
+    MSG msg;
+    while (PeekMessage(&msg, hwnd, 0, 0, PM_REMOVE))
+    {
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+    }
+
+    /// 检查设备状态
+    HRESULT hr = device->TestCooperativeLevel();
+    if (hr == D3DERR_DEVICELOST)
+    {
+        return;
+    }
+    else if (hr == D3DERR_DEVICENOTRESET)
+    {
+        /// 设备需要重置
+        D3DPRESENT_PARAMETERS pp;
+        IDirect3DSwapChain9  *swapChain = nullptr;
+        device->GetSwapChain(0, &swapChain);
+        if (swapChain)
+        {
+            swapChain->GetPresentParameters(&pp);
+            device->Reset(&pp);
+            if (back)
+                back->Release();
+            device->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &back);
+            swapChain->Release();
+        }
+        return;
+    }
+
+    /// 复制并显示
+    hr = device->StretchRect(surface, 0, back, &viewport, D3DTEXF_LINEAR);
+    if (FAILED(hr))
+    {
+        /// 如果失败，重新获取 BackBuffer
+        if (back)
+            back->Release();
+        device->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &back);
+        return;
+    }
+
+    device->Present(&viewport, &viewport, hwnd, NULL);
+    std::cout << "D" << std::flush;
+}
 
 int main(int argc, char *argv[])
 {
@@ -110,6 +179,8 @@ int main(int argc, char *argv[])
     av_hwdevice_ctx_create(&hw_ctx, hw_type, NULL, NULL, 0);
     /// 设定硬件GPU加速
     c->hw_device_ctx = av_buffer_ref(hw_ctx);
+
+
     // //////////////////////////////////////////////////////////////////
 
 
@@ -197,9 +268,9 @@ int main(int argc, char *argv[])
 
                     count++;
                     auto cur = NowMs();
-                    if (cur - begin >= 1000) ///  1秒钟计算一次
+                    if (cur - begin >= 100) ///  1秒钟计算一次
                     {
-                        std::cout << "\nfps = " << count << std::endl;
+                        std::cout << "\nfps = " << count * 10 << std::endl;
                         count = 0;
                         begin = cur;
                     }

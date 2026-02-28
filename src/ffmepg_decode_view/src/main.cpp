@@ -80,11 +80,11 @@ int main(int argc, char *argv[])
         {
             break;
         }
-        if (ifs.eof()) /// 循环播放
-        {
-            ifs.clear();
-            ifs.seekg(0, std::ios::beg);
-        }
+        // if (ifs.eof()) /// 循环播放
+        // {
+        //     ifs.clear();
+        //     ifs.seekg(0, std::ios::beg);
+        // }
 
         auto data = inbuf;
         while (data_size > 0) /// 一次有多帧数据

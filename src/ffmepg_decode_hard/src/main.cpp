@@ -55,10 +55,10 @@ int main(int argc, char *argv[])
 
     //////////////////////////////////////////////////////////////////
     /// 初始化硬件加速上下文
-    AVBufferRef *hw_ctx = nullptr;
-    av_hwdevice_ctx_create(&hw_ctx, hw_type, NULL, NULL, 0);
-    /// 设定硬件GPU加速
-    c->hw_device_ctx = av_buffer_ref(hw_ctx);
+    // AVBufferRef *hw_ctx = nullptr;
+    // av_hwdevice_ctx_create(&hw_ctx, hw_type, NULL, NULL, 0);
+    // /// 设定硬件GPU加速
+    // c->hw_device_ctx = av_buffer_ref(hw_ctx);
     // //////////////////////////////////////////////////////////////////
 
 
@@ -147,9 +147,9 @@ int main(int argc, char *argv[])
 
                     count++;
                     auto cur = NowMs();
-                    if (cur - begin >= 1000) ///  1秒钟计算一次
+                    if (cur - begin >= 100) ///  1秒钟计算一次
                     {
-                        std::cout << "\nfps = " << count << std::endl;
+                        std::cout << "\nfps = " << count * 10 << std::endl;
                         count = 0;
                         begin = cur;
                     }
