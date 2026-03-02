@@ -120,9 +120,12 @@ int main(int argc, char *argv[])
         /// 处理视频包
         if (pkt->stream_index == video_stream_idx)
         {
-            std::cout << "\r视频包 #" << ++video_frame_count << " PTS:" << pkt->pts << " DTS:" << pkt->dts
-                      << " 大小:" << pkt->size << " 关键帧:" << ((pkt->flags & AV_PKT_FLAG_KEY) ? "是" : "否")
-                      << std::flush;
+            std::cout << "\r";
+            std::cout << "视频包 #" << ++video_frame_count << " PTS:" << pkt->pts << " DTS:" << pkt->dts
+                      << " 大小:" << pkt->size << " 关键帧:" << ((pkt->flags & AV_PKT_FLAG_KEY) ? "是" : "否");
+
+            // std::cout << std::endl;
+            std::cout << std::flush;
 
             /// 发送到解码器
             re = avcodec_send_packet(video_ctx, pkt);
