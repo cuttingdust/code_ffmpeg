@@ -252,7 +252,7 @@ auto VideoDecoder::decode(const uint8_t* data, int size, std::vector<AVFrame*>& 
         remaining -= consumed;
         total_consumed += consumed;
 
-        // 如果有完整的packet，进行解码
+        /// 如果有完整的packet，进行解码
         if (impl_->pkt_->size > 0)
         {
             decode_packet(impl_->pkt_, out_frames);

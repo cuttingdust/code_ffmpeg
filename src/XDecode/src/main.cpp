@@ -3,9 +3,6 @@
 #include <fstream>
 #include <chrono>
 
-extern "C" {
-#include <libavutil/pixdesc.h>
-}
 
 extern long long NowMs();
 
