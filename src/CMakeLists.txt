@@ -134,6 +134,7 @@ add_subdirectory(ffmepg_decode_d3d9)
 add_subdirectory(ffmepg_demux)
 add_subdirectory(ffmepg_demux_play)
 add_subdirectory(ffmepg_remux)
+add_subdirectory(ffmepg_remux_and_snap)
 
 
 # 拷贝assert目录到输出目录
