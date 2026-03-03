@@ -135,6 +135,7 @@ add_subdirectory(ffmepg_demux)
 add_subdirectory(ffmepg_demux_play)
 add_subdirectory(ffmepg_remux)
 add_subdirectory(ffmepg_remux_and_snap)
+add_subdirectory(XDemutex)
 
 
 # 拷贝assert目录到输出目录
