@@ -55,7 +55,7 @@ int main(int argc, char *argv[])
     int       video_stream_idx = -1;
     int       audio_stream_idx = -1;
     AVStream *video_stream     = nullptr;
-
+    AVStream *audio_stream     = nullptr;
     for (int i = 0; i < ic->nb_streams; i++)
     {
         AVStream *stream = ic->streams[i];
@@ -75,6 +75,7 @@ int main(int argc, char *argv[])
         else if (stream->codecpar->codec_type == AVMEDIA_TYPE_AUDIO && audio_stream_idx == -1)
         {
             audio_stream_idx = i;
+            audio_stream     = stream;
             std::cout << "\n=========音频流信息=========" << std::endl;
             std::cout << "索引: " << i << std::endl;
             std::cout << "编码器: " << avcodec_get_name(stream->codecpar->codec_id) << std::endl;
