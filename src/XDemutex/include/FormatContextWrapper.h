@@ -8,11 +8,13 @@
 class FormatContextWrapper
 {
 public:
+    using Ptr = std::unique_ptr<FormatContextWrapper>;
+
     /// 输入模式构造函数
-    static std::unique_ptr<FormatContextWrapper> createInput(const std::string& url);
+    static auto createInput(const std::string& url) -> FormatContextWrapper::Ptr;
 
     /// 输出模式构造函数
-    static std::unique_ptr<FormatContextWrapper> createOutput(const std::string& url);
+    static auto createOutput(const std::string& url) -> FormatContextWrapper::Ptr;
 
     ~FormatContextWrapper();
 
@@ -45,8 +47,8 @@ public:
 private:
     FormatContextWrapper();
 
-    bool openInput(const std::string& url);
-    bool openOutput(const std::string& url);
+    auto openInput(const std::string& url) -> bool;
+    auto openOutput(const std::string& url) -> bool;
 
 private:
     class PImpl;

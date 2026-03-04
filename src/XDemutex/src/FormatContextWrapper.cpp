@@ -59,20 +59,22 @@ auto FormatContextWrapper::createOutput(const std::string& url) -> std::unique_p
     return wrapper;
 }
 
-bool FormatContextWrapper::openInput(const std::string& url)
+auto FormatContextWrapper::openInput(const std::string& url) -> bool
 {
     impl_->is_input_ = true;
     int ret          = avformat_open_input(&impl_->ctx_, url.c_str(), nullptr, nullptr);
     return ret >= 0;
 }
 
-bool FormatContextWrapper::openOutput(const std::string& url)
+auto FormatContextWrapper::openOutput(const std::string& url) -> bool
 {
     impl_->is_input_ = false;
 
-    int ret = avformat_alloc_output_context2(&impl_->ctx_, nullptr, nullptr, url.c_str());
+    int ret = avformat_alloc_output_context2(&impl_->ctx_, nullptr, nullptr, url.c_str()); /// 后缀名分析
     if (ret < 0 || !impl_->ctx_)
+    {
         return false;
+    }
 
     ret = avio_open(&impl_->ctx_->pb, url.c_str(), AVIO_FLAG_WRITE);
     return ret >= 0;
@@ -91,14 +93,20 @@ FormatContextWrapper::operator AVFormatContext*() const
 auto FormatContextWrapper::findStreamInfo() -> int
 {
     if (!impl_->ctx_ || !impl_->is_input_)
+    {
         return -1;
+    }
+
     return avformat_find_stream_info(impl_->ctx_, nullptr);
 }
 
 auto FormatContextWrapper::addStream() -> AVStream*
 {
     if (!impl_->ctx_ || impl_->is_input_)
+    {
         return nullptr;
+    }
+
     return avformat_new_stream(impl_->ctx_, nullptr);
 }
 
@@ -119,7 +127,10 @@ auto FormatContextWrapper::writeTrailer() -> int
 void FormatContextWrapper::dumpInfo(int index, const char* url, int is_output) const
 {
     if (!impl_->ctx_)
+    {
         return;
+    }
+    /// 0 输入 1 输出
     av_dump_format(impl_->ctx_, index, url, is_output);
 }
 
