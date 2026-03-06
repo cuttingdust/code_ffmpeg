@@ -71,7 +71,9 @@ auto BaseAVFormat::getCodecParameters(int stream_index) const -> std::shared_ptr
 void BaseAVFormat::findStreamIndices()
 {
     if (!fmt_ctx_)
+    {
         return;
+    }
 
     AVFormatContext *ctx = fmt_ctx_->get();
     for (unsigned int i = 0; i < ctx->nb_streams; i++)
