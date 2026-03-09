@@ -3,11 +3,20 @@
 	"version-string": "0.1.0",
 	"dependencies": [
 		"sdl2",
+		"opencv",
 		{
 			"name": "ffmpeg",
 			"features": [
+				"all",
+				"ffmpeg",
+				"ffplay",
+				"ffprobe",
+				"nonfree",  
+				"gpl",      
 				"x264",     
-				"x265"
+				"x265",     
+				"fdk-aac",
+				"openssl"
 			]
 		}
 	]
