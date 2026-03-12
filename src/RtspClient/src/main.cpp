@@ -74,7 +74,7 @@ int main()
                     if (!is_init && frame->width > 0)
                     {
                         is_init = true;
-                        view->init(frame->width, frame->height, (XVideoView::Format)frame->format);
+                        view->init(frame->width, frame->height, static_cast<XVideoView::Format>(frame->format));
                         LOGI("窗口初始化: " << frame->width << "x" << frame->height);
                     }
 
