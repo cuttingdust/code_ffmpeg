@@ -7,7 +7,14 @@ class DictWrapper::PImpl
 {
 public:
     PImpl(DictWrapper *owenr);
-    ~PImpl() = default;
+    ~PImpl();
+
+    /// 移动构造函数
+    PImpl(PImpl &&other) noexcept;
+
+    /// 禁止拷贝
+    PImpl(const PImpl &)            = delete;
+    PImpl &operator=(const PImpl &) = delete;
 
 public:
     DictWrapper  *owenr_ = nullptr;
@@ -16,6 +23,19 @@ public:
 
 DictWrapper::PImpl::PImpl(DictWrapper *owenr) : owenr_(owenr)
 {
+}
+
+DictWrapper::PImpl::~PImpl()
+{
+    if (dict_)
+    {
+        av_dict_free(&dict_);
+    }
+}
+
+DictWrapper::PImpl::PImpl(PImpl &&other) noexcept : dict_(other.dict_)
+{
+    other.dict_ = nullptr;
 }
 
 
@@ -29,6 +49,19 @@ DictWrapper::~DictWrapper()
     {
         av_dict_free(&impl_->dict_);
     }
+}
+
+DictWrapper::DictWrapper(DictWrapper &&other) noexcept : impl_(std::move(other.impl_))
+{
+}
+
+DictWrapper &DictWrapper::operator=(DictWrapper &&other) noexcept
+{
+    if (this != &other)
+    {
+        impl_ = std::move(other.impl_);
+    }
+    return *this;
 }
 
 auto DictWrapper::get_ptr() -> AVDictionary **
@@ -81,4 +114,9 @@ auto DictWrapper::check_unused() const -> void
         }
         std::cout << "  " << entry->key << " = " << entry->value << " (未使用)" << std::endl;
     }
+}
+
+auto DictWrapper::clear() -> void
+{
+    impl_ = std::make_unique<PImpl>(this); /// 重新创建
 }
