@@ -153,9 +153,9 @@ bool XDemuxTask::seek(double timestamp, int stream_index)
     {
         LOGI("定位到 " << timestamp << " 秒");
 
-        // 清空队列
+        /// 清空队列
         {
-            std::lock_guard<std::mutex> lock(queue_mutex_);
+            std::scoped_lock lock(queue_mutex_);
             while (!packet_queue_.empty())
             {
                 packet_queue_.pop();
@@ -175,7 +175,7 @@ auto XDemuxTask::setMaxQueueSize(size_t size) -> void
 
 void XDemuxTask::clearQueue()
 {
-    std::lock_guard<std::mutex> lock(queue_mutex_);
+    std::scoped_lock lock(queue_mutex_);
     while (!packet_queue_.empty())
     {
         packet_queue_.pop();
@@ -241,7 +241,7 @@ void XDemuxTask::run()
         /// 使用移动语义加入队列
         {
             std::scoped_lock lock(queue_mutex_);
-            auto new_pkt = std::make_unique<PacketWrapper>(std::move(pkt));
+            auto             new_pkt = std::make_unique<PacketWrapper>(std::move(pkt));
             packet_queue_.push(std::move(new_pkt));
         }
 
