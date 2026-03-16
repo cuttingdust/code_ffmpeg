@@ -6,8 +6,24 @@ XTask::~XTask()
     LOGD("任务销毁: " << getName());
     stop();
     wait();
+    reset();
+}
 
-    // 清理队列
+void XTask::stop()
+{
+    XThread::stop();
+    queue_cv_.notify_all();
+
+    if (next_)
+    {
+        next_->stop();
+    }
+}
+
+void XTask::reset()
+{
+    LOGD("重置任务: " << getName());
+
     {
         std::scoped_lock lock(queue_mutex_);
         while (!packet_queue_.empty())
@@ -20,6 +36,8 @@ XTask::~XTask()
             frame_queue_.pop();
         }
     }
+
+    eof_reached_ = false;
 }
 
 void XTask::notifyEof()
@@ -27,47 +45,43 @@ void XTask::notifyEof()
     eof_reached_ = true;
     queue_cv_.notify_all();
 
-    // 传递给下一个任务
     if (next_)
     {
         next_->notifyEof();
     }
 }
 
-void XTask::pushPacket(std::unique_ptr<PacketWrapper> pkt)
+auto XTask::pushPacket(PacketWrapper::Ptr pkt) -> void
 {
     std::unique_lock<std::mutex> lock(queue_mutex_);
-
-    // 背压控制：如果队列太大，等待
     queue_cv_.wait(lock, [this]() { return packet_queue_.size() < max_queue_size_ || shouldStop(); });
-
     packet_queue_.push(std::move(pkt));
     queue_cv_.notify_one();
 }
 
-void XTask::pushFrame(AVFrame* frame)
+auto XTask::pushFrame(AVFrame* frame) -> void
 {
     std::unique_lock<std::mutex> lock(queue_mutex_);
-
     queue_cv_.wait(lock, [this]() { return frame_queue_.size() < max_queue_size_ || shouldStop(); });
-
     frame_queue_.push(frame);
     queue_cv_.notify_one();
 }
 
 size_t XTask::getQueueSize() const
 {
-    std::lock_guard<std::mutex> lock(queue_mutex_);
+    std::scoped_lock lock(queue_mutex_);
     return packet_queue_.size() + frame_queue_.size();
 }
 
-std::unique_ptr<PacketWrapper> XTask::popPacket()
+auto XTask::popPacket() -> PacketWrapper::Ptr
 {
     std::unique_lock<std::mutex> lock(queue_mutex_);
-
     auto predicate = [this]() { return !packet_queue_.empty() || eof_reached_ || shouldStop(); };
 
-    queue_cv_.wait(lock, predicate);
+    if (!queue_cv_.wait_for(lock, std::chrono::milliseconds(100), predicate))
+    {
+        return nullptr;
+    }
 
     if (packet_queue_.empty() || shouldStop())
     {
@@ -79,13 +93,15 @@ std::unique_ptr<PacketWrapper> XTask::popPacket()
     return pkt;
 }
 
-AVFrame* XTask::popFrame()
+auto XTask::popFrame() -> AVFrame*
 {
     std::unique_lock<std::mutex> lock(queue_mutex_);
+    auto                         predicate = [this]() { return !frame_queue_.empty() || eof_reached_ || shouldStop(); };
 
-    auto predicate = [this]() { return !frame_queue_.empty() || eof_reached_ || shouldStop(); };
-
-    queue_cv_.wait(lock, predicate);
+    if (!queue_cv_.wait_for(lock, std::chrono::milliseconds(100), predicate))
+    {
+        return nullptr;
+    }
 
     if (frame_queue_.empty() || shouldStop())
     {

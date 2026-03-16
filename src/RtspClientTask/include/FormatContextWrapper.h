@@ -16,14 +16,15 @@ public:
     /// 输出模式构造函数
     static auto createOutput(const std::string& url) -> FormatContextWrapper::Ptr;
 
-
     ~FormatContextWrapper();
-
 
 public:
     /// 获取原始指针
     auto get() const -> AVFormatContext*;
     operator AVFormatContext*() const;
+
+    /// 关闭并释放资源
+    auto close() -> void;
 
     /// 查找流信息（输入模式）
     auto findStreamInfo() -> int;

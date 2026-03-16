@@ -14,6 +14,9 @@ public:
     auto operator->() const -> AVCodecContext*;
     operator AVCodecContext*() const;
 
+    /// 关闭解码器上下文
+    auto close() -> void;
+
 private:
     class PImpl;
     std::shared_ptr<PImpl> impl_;

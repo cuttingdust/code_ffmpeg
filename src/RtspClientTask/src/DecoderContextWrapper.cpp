@@ -9,7 +9,7 @@ class DecoderContextWrapper::PImpl
 {
 public:
     PImpl(DecoderContextWrapper* owner);
-    ~PImpl() = default;
+    ~PImpl();
 
 public:
     DecoderContextWrapper* owner_ = nullptr;
@@ -18,6 +18,14 @@ public:
 
 DecoderContextWrapper::PImpl::PImpl(DecoderContextWrapper* owner) : owner_(owner)
 {
+}
+
+DecoderContextWrapper::PImpl::~PImpl()
+{
+    if (ctx_)
+    {
+        avcodec_free_context(&ctx_);
+    }
 }
 
 DecoderContextWrapper::DecoderContextWrapper(const AVCodec* codec) : impl_(std::make_shared<PImpl>(this))
@@ -31,10 +39,7 @@ DecoderContextWrapper::DecoderContextWrapper(const AVCodec* codec) : impl_(std::
 
 DecoderContextWrapper::~DecoderContextWrapper()
 {
-    if (impl_->ctx_)
-    {
-        avcodec_free_context(&impl_->ctx_);
-    }
+    // PImpl 的析构函数会自动清理
 }
 
 auto DecoderContextWrapper::get() const -> AVCodecContext*
@@ -50,4 +55,14 @@ auto DecoderContextWrapper::operator->() const -> AVCodecContext*
 DecoderContextWrapper::operator AVCodecContext*() const
 {
     return impl_->ctx_;
+}
+
+// ✅ 添加 close 方法
+auto DecoderContextWrapper::close() -> void
+{
+    if (impl_->ctx_)
+    {
+        avcodec_free_context(&impl_->ctx_);
+        impl_->ctx_ = nullptr;
+    }
 }

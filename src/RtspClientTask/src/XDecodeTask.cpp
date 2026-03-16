@@ -1,5 +1,7 @@
 ﻿#include "XDecodeTask.h"
+#include "AVException.h"
 #include "AVLog.h"
+#include "FrameWrapper.h"
 
 XDecodeTask::XDecodeTask()
 {
@@ -10,6 +12,21 @@ XDecodeTask::XDecodeTask()
 XDecodeTask::~XDecodeTask()
 {
     LOGD("解码任务销毁");
+}
+
+void XDecodeTask::reset()
+{
+    XTask::reset();
+
+    LOGD("重置解码任务");
+
+    if (decoder_)
+    {
+        decoder_->close();
+        decoder_.reset();
+    }
+
+    frame_cb_ = nullptr;
 }
 
 bool XDecodeTask::initDecoder(AVCodecID codec_id, AVStream* stream)
@@ -39,75 +56,180 @@ bool XDecodeTask::initDecoder(AVCodecID codec_id, AVStream* stream)
     catch (const std::exception& e)
     {
         LOGE("解码器初始化异常: " << e.what());
-        return false;
+
+        LOGI("尝试软件解码...");
+        try
+        {
+            DecoderConfig sw_config;
+            sw_config.codec_id        = codec_id;
+            sw_config.thread_count    = 16;
+            sw_config.hardware.enable = false;
+
+            decoder_ = VideoDecoder::create(sw_config);
+
+            if (!decoder_->set_parameters_from_stream(stream))
+            {
+                LOGE("软件解码器参数设置失败");
+                return false;
+            }
+
+            decoder_->open();
+            LOGI("软件解码器初始化成功");
+            return true;
+        }
+        catch (const std::exception& sw_e)
+        {
+            LOGE("软件解码也失败: " << sw_e.what());
+            return false;
+        }
     }
+}
+
+auto XDecodeTask::getDecoder() const -> VideoDecoder*
+{
+    return decoder_.get();
+}
+
+auto XDecodeTask::setFrameCallback(DecoderConfig::FrameCallback cb) -> void
+{
+    frame_cb_ = cb;
+}
+
+auto XDecodeTask::getStats() const -> VideoDecoder::Stats
+{
+    return decoder_ ? decoder_->get_stats() : VideoDecoder::Stats();
 }
 
 void XDecodeTask::process()
 {
     LOGI("解码任务开始运行");
 
-    std::vector<AVFrame*> frames;
+    std::vector<AVFrame*> raw_frames;
+    int                   consecutive_errors       = 0;
+    const int             max_consecutive_errors   = 3;
+    int                   consecutive_timeouts     = 0;
+    const int             max_consecutive_timeouts = 30;
+    bool                  decoder_corrupted        = false;
 
-    while (!shouldStop())
+    while (!shouldStop() && !decoder_corrupted)
     {
         auto pkt = popPacket();
         if (!pkt)
         {
-            if (eof_reached_)
+            consecutive_timeouts++;
+
+            if (consecutive_timeouts >= max_consecutive_timeouts)
+            {
+                LOGE("解码任务连续超时 " << consecutive_timeouts << " 次，触发重连");
+                handleError("上游可能卡死");
                 break;
+            }
+
+            if (shouldStop() || (eof_reached_ && packet_queue_.empty()))
+            {
+                break;
+            }
             continue;
         }
 
-        decoder_->decode_packet(*pkt, frames);
+        consecutive_timeouts = 0;
 
-        for (auto* frame : frames)
+        try
         {
-            // 清除帧类型信息，让编码器自己决定
-            frame->pict_type = AV_PICTURE_TYPE_NONE;
+            int ret = decoder_->decode_packet(*pkt, raw_frames);
 
-            if (frame_cb_)
+            if (ret < 0)
             {
-                // 直接回调渲染
-                frame_cb_(frame, false);
-                av_frame_free(&frame);
+                consecutive_errors++;
+                LOGE("解码包错误: " << ret << " (连续错误: " << consecutive_errors << ")");
+
+                if (consecutive_errors >= max_consecutive_errors)
+                {
+                    LOGE("连续解码错误太多，触发重连");
+                    handleError("解码器连续失败");
+                    break;
+                }
+                continue;
             }
-            else if (next_)
+
+            consecutive_errors = 0;
+
+            for (auto* raw_frame : raw_frames)
             {
-                // 传递给下游任务
-                next_->pushFrame(frame);
+                FrameWrapper frame(raw_frame);
+                frame->pict_type = AV_PICTURE_TYPE_NONE;
+
+                if (frame_cb_)
+                {
+                    frame_cb_(frame, false);
+                }
+                else if (next_)
+                {
+                    next_->pushFrame(frame.release());
+                }
             }
-            else
-            {
-                av_frame_free(&frame);
-            }
+            raw_frames.clear();
         }
-        frames.clear();
+        catch (const AVException& e)
+        {
+            LOGE("解码异常: " << e.what());
+
+            if (std::string(e.what()).find("解码器状态损坏") != std::string::npos)
+            {
+                decoder_corrupted = true;
+                handleError("解码器损坏，需要重建");
+                break;
+            }
+
+            handleError(std::string("解码异常: ") + e.what());
+            break;
+        }
+        catch (const std::exception& e)
+        {
+            LOGE("标准异常: " << e.what());
+            handleError(std::string("异常: ") + e.what());
+            break;
+        }
     }
 
-    // 刷新解码器
-    LOGI("刷新解码器...");
-    decoder_->flush(frames);
-    for (auto* frame : frames)
+    if (!decoder_corrupted && decoder_)
     {
-        frame->pict_type = AV_PICTURE_TYPE_NONE;
+        LOGI("刷新解码器...");
+        try
+        {
+            decoder_->flush(raw_frames);
+            for (auto* raw_frame : raw_frames)
+            {
+                FrameWrapper frame(raw_frame);
+                frame->pict_type = AV_PICTURE_TYPE_NONE;
 
-        if (frame_cb_)
-        {
-            frame_cb_(frame, false);
-            av_frame_free(&frame);
+                if (frame_cb_)
+                {
+                    frame_cb_(frame, false);
+                }
+                else if (next_)
+                {
+                    next_->pushFrame(frame.release());
+                }
+            }
         }
-        else if (next_)
+        catch (const std::exception& e)
         {
-            next_->pushFrame(frame);
+            LOGE("刷新解码器异常: " << e.what());
         }
-        else
-        {
-            av_frame_free(&frame);
-        }
+    }
+    else
+    {
+        LOGW("解码器已损坏，跳过刷新");
+    }
+
+    if (next_)
+    {
+        next_->notifyEof();
     }
 
     LOGI("解码任务结束");
 }
 
+// ✅ 添加 create 方法的实现
 IMPLEMENT_CREATE(XDecodeTask)

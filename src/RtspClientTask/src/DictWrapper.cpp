@@ -85,14 +85,17 @@ auto DictWrapper::set(const std::string &key, const std::string &value) -> void
 
 auto DictWrapper::print(const std::string &title) const -> void
 {
-    if (!impl_->dict_)
+    if (!impl_ || !impl_->dict_)
     {
         return;
     }
 
     std::cout << title << ":" << std::endl;
+
+    // ✅ 添加线程安全保护
+    AVDictionary            *dict  = impl_->dict_;
     const AVDictionaryEntry *entry = nullptr;
-    while ((entry = av_dict_get(impl_->dict_, "", entry, AV_DICT_IGNORE_SUFFIX)))
+    while ((entry = av_dict_get(dict, "", entry, AV_DICT_IGNORE_SUFFIX)))
     {
         std::cout << "  " << entry->key << " = " << entry->value << std::endl;
     }

@@ -208,10 +208,48 @@ HardwareFrameTransfer::~HardwareFrameTransfer() = default;
 auto HardwareFrameTransfer::transfer_to_software(AVFrame* hw_frame, AVFrame* sw_frame) -> bool
 {
     if (!hw_frame || !sw_frame)
+    {
+        LOGE("transfer_to_software: 空指针");
         return false;
+    }
 
-    int ret = av_hwframe_transfer_data(sw_frame, hw_frame, 0);
-    return ret >= 0;
+    // ✅ 检查硬件帧是否有效
+    if (!is_hardware_frame(hw_frame))
+    {
+        LOGE("transfer_to_software: 不是硬件帧");
+        return false;
+    }
+
+    // ✅ 检查帧数据指针
+    if (!hw_frame->data[0] && !hw_frame->data[1] && !hw_frame->data[2] && !hw_frame->data[3])
+    {
+        LOGE("transfer_to_software: 硬件帧数据为空");
+        return false;
+    }
+
+    // ✅ 使用 try-catch 保护 FFmpeg 调用
+    try
+    {
+        int ret = av_hwframe_transfer_data(sw_frame, hw_frame, 0);
+        if (ret < 0)
+        {
+            char err_buf[256];
+            av_strerror(ret, err_buf, sizeof(err_buf));
+            LOGE("av_hwframe_transfer_data 失败: " << err_buf);
+            return false;
+        }
+        return true;
+    }
+    catch (const std::exception& e)
+    {
+        LOGE("硬件帧转换异常: " << e.what());
+        return false;
+    }
+    catch (...)
+    {
+        LOGE("硬件帧转换未知异常");
+        return false;
+    }
 }
 
 auto HardwareFrameTransfer::is_hardware_frame(AVFrame* frame) -> bool

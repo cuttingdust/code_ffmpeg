@@ -57,8 +57,10 @@ public:
 
     Stats getStats() const;
 
+    /// 重置任务
+    void reset() override;
+
 protected:
-    /// 任务处理逻辑
     void process() override;
 
 private:

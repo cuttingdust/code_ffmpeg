@@ -12,29 +12,22 @@ public:
 
 public:
     /// 初始化解码器
-    bool initDecoder(AVCodecID codec_id, AVStream* stream);
+    auto initDecoder(AVCodecID codec_id, AVStream *stream) -> bool;
 
     /// 获取解码器
-    VideoDecoder* getDecoder() const
-    {
-        return decoder_.get();
-    }
+    auto getDecoder() const -> VideoDecoder *;
 
     /// 设置帧回调（用于直接渲染，如果不用下游任务）
-    void setFrameCallback(DecoderConfig::FrameCallback cb)
-    {
-        frame_cb_ = cb;
-    }
+    auto setFrameCallback(DecoderConfig::FrameCallback cb) -> void;
 
     /// 获取统计信息
-    VideoDecoder::Stats getStats() const
-    {
-        return decoder_ ? decoder_->get_stats() : VideoDecoder::Stats();
-    }
+    auto getStats() const -> VideoDecoder::Stats;
+
+    auto reset() -> void override;
 
 protected:
     /// 任务处理逻辑
-    void process() override;
+    auto process() -> void override;
 
 private:
     VideoDecoder::Ptr            decoder_;

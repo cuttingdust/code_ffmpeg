@@ -1,6 +1,20 @@
 ﻿#include "Demuxer.h"
 #include "AVException.h"
 #include <iostream>
+#include <thread>
+
+static int safe_av_read_frame(AVFormatContext* ctx, AVPacket* pkt)
+{
+    try
+    {
+        return av_read_frame(ctx, pkt);
+    }
+    catch (...)
+    {
+        LOGE("av_read_frame 崩溃");
+        return -1;
+    }
+}
 
 Demuxer::Demuxer(const std::string& url) : BaseAVFormat(url)
 {
@@ -10,12 +24,10 @@ auto Demuxer::open() -> bool
 {
     try
     {
-        /// 设置中断回调
         AVIOInterruptCB interrupt_cb = { BaseAVFormat::interruptCallback, this };
 
         fmt_ctx_ = FormatContextWrapper::createInput(url_, getOptionsPtr(), &interrupt_cb);
 
-        /// 重置计时器
         resetTimer();
 
         if (fmt_ctx_->findStreamInfo() < 0)
@@ -46,7 +58,25 @@ auto Demuxer::readPacket(AVPacket* pkt) -> int
     {
         return -1;
     }
-    return av_read_frame(fmt_ctx_->get(), pkt);
+
+    resetTimer();
+
+    // 使用安全函数
+    int ret = safe_av_read_frame(fmt_ctx_->get(), pkt);
+
+    if (ret >= 0)
+    {
+        resetTimer();
+    }
+
+    // 如果是致命错误，标记需要重建
+    if (ret == AVERROR(EINVAL) || ret == AVERROR(ENOSYS) || ret < -1000)
+    {
+        LOGE("致命错误 " << ret << "，需要重建解封装器");
+        return -2; // 特殊错误码，表示需要重建
+    }
+
+    return ret;
 }
 
 auto Demuxer::seek(double timestamp, int stream_index, int flags) -> bool
@@ -82,4 +112,23 @@ void Demuxer::dumpInfo() const
         return;
     }
     fmt_ctx_->dumpInfo(0, url_.c_str(), 0);
+}
+
+bool Demuxer::rebuild()
+{
+    LOGI("重建解封装器");
+
+    // 1. 完全销毁旧资源
+    close();
+
+    // 2. 等待一下，让网络恢复
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+    // 3. 重新打开
+    return open();
+}
+
+bool Demuxer::isValid() const
+{
+    return fmt_ctx_ != nullptr;
 }

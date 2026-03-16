@@ -1,6 +1,7 @@
 ﻿#include "XDemuxTask.h"
 #include "AVLog.h"
 
+
 XDemuxTask::XDemuxTask()
 {
     setName("DemuxTask");
@@ -11,6 +12,27 @@ XDemuxTask::~XDemuxTask()
 {
     LOGD("解封装任务销毁");
     close();
+}
+
+void XDemuxTask::reset()
+{
+    XTask::reset();
+
+    LOGD("重置解封装任务");
+
+    if (demuxer_)
+    {
+        demuxer_->close();
+        demuxer_.reset();
+    }
+
+    video_stream_ = nullptr;
+    audio_stream_ = nullptr;
+    streams_.clear();
+
+    total_packets_ = 0;
+    video_packets_ = 0;
+    audio_packets_ = 0;
 }
 
 auto XDemuxTask::open(const std::string& url) -> bool
@@ -29,7 +51,6 @@ auto XDemuxTask::open(const std::string& url) -> bool
 
         demuxer_->dumpInfo();
 
-        /// 获取流信息
         video_stream_ = demuxer_->getVideoStream();
         audio_stream_ = demuxer_->getAudioStream();
         streams_      = demuxer_->getStreams();
@@ -87,14 +108,14 @@ auto XDemuxTask::getCodecParameters(int stream_index) const -> std::shared_ptr<C
     return demuxer_ ? demuxer_->getCodecParameters(stream_index) : nullptr;
 }
 
-bool XDemuxTask::seek(double timestamp, int stream_index)
+auto XDemuxTask::seek(double timestamp, int stream_index) -> bool
 {
     if (!demuxer_)
         return false;
     return demuxer_->seek(timestamp, stream_index);
 }
 
-void XDemuxTask::setRtspOptions(bool use_tcp, int timeout_ms)
+auto XDemuxTask::setRtspOptions(bool use_tcp, int timeout_ms) -> void
 {
     if (demuxer_)
     {
@@ -102,7 +123,7 @@ void XDemuxTask::setRtspOptions(bool use_tcp, int timeout_ms)
     }
 }
 
-XDemuxTask::Stats XDemuxTask::getStats() const
+auto XDemuxTask::getStats() const -> XDemuxTask::Stats
 {
     Stats stats;
     stats.total_packets = total_packets_.load();
@@ -111,15 +132,16 @@ XDemuxTask::Stats XDemuxTask::getStats() const
     return stats;
 }
 
-void XDemuxTask::process()
+auto XDemuxTask::process() -> void
 {
     LOGI("解封装线程开始运行");
 
-    eof_reached_ = false;
+    eof_reached_         = false;
+    int       fail_count = 0;
+    const int max_fails  = 5;
 
     while (!shouldStop())
     {
-        /// 背压控制：如果下游队列太大，等待
         if (next_ && next_->getQueueSize() > max_queue_size_)
         {
             sleep(10);
@@ -127,50 +149,59 @@ void XDemuxTask::process()
         }
 
         PacketWrapper pkt;
-
-        /// 读取数据包
-        int ret = demuxer_->readPacket(pkt);
+        int           ret = demuxer_->readPacket(pkt);
 
         if (ret == AVERROR_EOF)
         {
-            LOGI("文件读取完成，共 " << total_packets_ << " 个包");
-
-            // 使用 notifyEof 通知所有下游任务
+            LOGI("文件读取完成");
             notifyEof();
             break;
         }
+        else if (ret == -2) // 需要重建
+        {
+            LOGE("解封装器需要重建");
+            if (demuxer_->rebuild())
+            {
+                LOGI("解封装器重建成功");
+                fail_count = 0;
+                continue;
+            }
+            else
+            {
+                handleError("解封装器重建失败");
+                break;
+            }
+        }
         else if (ret < 0)
         {
-            LOGE("读取数据包错误，错误码: " << ret);
-            handleError("读取数据包失败");
-            break;
+            fail_count++;
+            LOGE("读取错误: " << ret << " (连续失败: " << fail_count << ")");
+
+            if (fail_count >= max_fails)
+            {
+                handleError("读取连续失败");
+                break;
+            }
+            sleep(100);
+            continue;
         }
 
-        total_packets_++;
+        fail_count = 0;
+        ++total_packets_;
 
-        // 统计
-        AVStream* stream = demuxer_->getStream(pkt->stream_index);
-        if (stream)
+        if (const AVStream* stream = demuxer_->getStream(pkt->stream_index))
         {
             if (stream->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
             {
-                video_packets_++;
-
-                // 只传递视频包给下游
+                ++video_packets_;
                 if (next_)
                 {
                     next_->pushPacket(std::make_unique<PacketWrapper>(std::move(pkt)));
                 }
             }
-            else if (stream->codecpar->codec_type == AVMEDIA_TYPE_AUDIO)
-            {
-                audio_packets_++;
-                // 音频包暂不处理
-            }
         }
     }
-
-    LOGI("解封装线程结束，视频包: " << video_packets_ << ", 音频包: " << audio_packets_);
 }
+
 
 IMPLEMENT_CREATE(XDemuxTask)

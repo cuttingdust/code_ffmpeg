@@ -11,25 +11,24 @@ int main()
     {
         RtspClient client;
         client.setUrl(RTSP_URL);
-        client.setReconnectInterval(5); /// 5秒重连间隔
-        client.setMaxReconnects(3);     /// 最多重连3次
-
-        // 可选：自定义渲染
-        // client.setRenderCallback([&](AVFrame* frame) {
-        //     // 自定义渲染逻辑
-        // });
+        client.setReconnectInterval(5);
+        client.setMaxReconnects(3);
 
         LOGI("RTSP客户端启动...");
         client.start();
 
-        /// 主线程可以干其他事情
         LOGI("主线程空闲，等待播放结束...");
+        LOGI("按回车键退出...");
 
-        /// 按回车退出
+        // 按回车退出
         getchar();
 
-        client.stop();
-        client.wait();
+        LOGI("用户请求退出，开始清理...");
+
+        // 等待一小段时间让画面稳定
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
+        // client 析构时会自动清理
     }
     catch (const std::exception& e)
     {

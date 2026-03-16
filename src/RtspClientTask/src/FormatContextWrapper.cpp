@@ -1,7 +1,6 @@
 ﻿#include "FormatContextWrapper.h"
 #include "AVException.h"
 
-
 class FormatContextWrapper::PImpl
 {
 public:
@@ -12,10 +11,6 @@ public:
     AVFormatContext* ctx_      = nullptr;
     bool             is_input_ = false;
 };
-
-FormatContextWrapper::FormatContextWrapper() : impl_(std::make_unique<PImpl>())
-{
-}
 
 FormatContextWrapper::PImpl::~PImpl()
 {
@@ -36,7 +31,32 @@ FormatContextWrapper::PImpl::~PImpl()
     }
 }
 
+FormatContextWrapper::FormatContextWrapper() : impl_(std::make_unique<PImpl>())
+{
+}
+
 FormatContextWrapper::~FormatContextWrapper() = default;
+
+// ✅ 添加 close 方法
+auto FormatContextWrapper::close() -> void
+{
+    if (impl_->ctx_)
+    {
+        if (impl_->is_input_)
+        {
+            avformat_close_input(&impl_->ctx_);
+        }
+        else
+        {
+            if (impl_->ctx_->pb)
+            {
+                avio_closep(&impl_->ctx_->pb);
+            }
+            avformat_free_context(impl_->ctx_);
+        }
+        impl_->ctx_ = nullptr;
+    }
+}
 
 auto FormatContextWrapper::createInput(const std::string& url, AVDictionary** options, AVIOInterruptCB* interrupt_cb)
         -> FormatContextWrapper::Ptr
@@ -75,7 +95,7 @@ auto FormatContextWrapper::openOutput(const std::string& url) -> bool
 {
     impl_->is_input_ = false;
 
-    int ret = avformat_alloc_output_context2(&impl_->ctx_, nullptr, nullptr, url.c_str()); /// 后缀名分析
+    int ret = avformat_alloc_output_context2(&impl_->ctx_, nullptr, nullptr, url.c_str());
     if (ret < 0 || !impl_->ctx_)
     {
         return false;
@@ -84,7 +104,6 @@ auto FormatContextWrapper::openOutput(const std::string& url) -> bool
     ret = avio_open(&impl_->ctx_->pb, url.c_str(), AVIO_FLAG_WRITE);
     return ret >= 0;
 }
-
 
 auto FormatContextWrapper::get() const -> AVFormatContext*
 {
@@ -136,7 +155,6 @@ void FormatContextWrapper::dumpInfo(int index, const char* url, int is_output) c
     {
         return;
     }
-    /// 0 输入 1 输出
     av_dump_format(impl_->ctx_, index, url, is_output);
 }
 

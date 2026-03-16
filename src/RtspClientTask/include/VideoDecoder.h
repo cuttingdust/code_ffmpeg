@@ -77,6 +77,8 @@ public:
     /// 刷新解码器（获取剩余帧）
     auto flush(std::vector<AVFrame*>& out_frames) -> int;
 
+    void reset();
+
     /// 设置帧回调
     void set_frame_callback(DecoderConfig::FrameCallback callback);
 

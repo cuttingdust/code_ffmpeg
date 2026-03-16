@@ -104,7 +104,6 @@ auto VideoDecoder::PImpl::setup_hardware() -> void
 
     bool hw_ok = false;
 
-    /// 如果指定了首选类型
     if (config_.hardware.preferred_type != HardwareContext::Type::None)
     {
         hw_ok = hw_ctx_->init(config_.hardware.preferred_type);
@@ -115,7 +114,6 @@ auto VideoDecoder::PImpl::setup_hardware() -> void
         }
     }
 
-    /// 自动选择
     if (!hw_ok && config_.hardware.auto_select)
     {
         hw_ok = hw_ctx_->init_auto();
@@ -123,36 +121,13 @@ auto VideoDecoder::PImpl::setup_hardware() -> void
 
     if (hw_ok)
     {
-        /// 打印解码器支持的硬件格式
-        std::cout << "\n解码器支持的硬件格式:" << std::endl;
-        for (int i = 0;; i++)
-        {
-            auto config = avcodec_get_hw_config(codec_, i);
-            if (!config)
-                break;
-
-            if (config->device_type)
-            {
-                std::cout << "  " << av_hwdevice_get_type_name(config->device_type);
-                if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX)
-                {
-                    std::cout << " (支持设备上下文)";
-                }
-
-                if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_FRAMES_CTX)
-                {
-                    std::cout << " (支持帧上下文)";
-                }
-                std::cout << std::endl;
-            }
-        }
-
         is_hw_decoding_ = true;
     }
     else
     {
         std::cout << "硬件加速初始化失败，使用软件解码" << std::endl;
         hw_ctx_.reset();
+        config_.hardware.enable = false; // 禁用硬件加速
     }
 }
 
@@ -341,106 +316,106 @@ auto VideoDecoder::decode_packet(AVPacket* pkt, std::vector<AVFrame*>& out_frame
 
     int64_t start_time = av_gettime_relative();
 
-    /// ===== 处理 MP4 格式的 H.264/H.265 数据 =====
-    AVPacket* input_pkt      = pkt;
-    AVPacket  temp_pkt       = { 0 };
-    bool      need_free_temp = false;
-
     /// 发送packet
-    int ret = avcodec_send_packet(impl_->ctx_->get(), input_pkt);
+    int ret = avcodec_send_packet(impl_->ctx_->get(), pkt);
     if (ret < 0)
     {
-        if (need_free_temp)
-        {
-            av_free(temp_pkt.data);
-        }
         impl_->stats_.errors++;
+
+        // ✅ 特殊处理硬件解码错误
+        char err_buf[256];
+        av_strerror(ret, err_buf, sizeof(err_buf));
+
+        if (ret == AVERROR(EINVAL) || ret == AVERROR(ENOSYS))
+        {
+            // 解码器状态已损坏，需要重建
+            throw AVException("解码器状态损坏，需要重建", ret);
+        }
+
         throw AVException("发送packet失败", ret);
     }
 
-    if (need_free_temp)
-    {
-        av_free(temp_pkt.data);
-    }
-
-    int         frame_count    = 0;
-    static bool first_frame    = true;
-    static bool params_printed = false;
+    int         frame_count = 0;
+    static bool first_frame = true;
 
     /// 接收帧
-    while (ret >= 0)
+    while (true)
     {
         ret = avcodec_receive_frame(impl_->ctx_->get(), impl_->frame_);
-        if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
+        if (ret == AVERROR(EAGAIN))
+        {
+            break;
+        }
+        if (ret == AVERROR_EOF)
         {
             break;
         }
         if (ret < 0)
         {
             impl_->stats_.errors++;
+
+            char err_buf[256];
+            av_strerror(ret, err_buf, sizeof(err_buf));
+
+            // ✅ 特殊处理硬件解码错误
+            if (ret == AVERROR(EINVAL) || ret == AVERROR(ENOSYS))
+            {
+                throw AVException("解码器状态损坏，需要重建", ret);
+            }
+
             throw AVException("接收帧失败", ret);
         }
 
         frame_count++;
 
-        /// 只在第一帧时打印参数
-        if (first_frame && frame_count > 0)
+        if (first_frame)
         {
             first_frame = false;
-
             std::cout << "\n========== 第一帧解码成功 ==========" << std::endl;
             std::cout << "宽度: " << impl_->frame_->width << std::endl;
             std::cout << "高度: " << impl_->frame_->height << std::endl;
             auto pix_fmt = static_cast<AVPixelFormat>(impl_->frame_->format);
-            std::cout << "像素格式: " << av_get_pix_fmt_name(pix_fmt) << " (" << pix_fmt << ")" << std::endl;
-            std::cout << "PTS: " << impl_->frame_->pts << std::endl;
+            std::cout << "像素格式: " << av_get_pix_fmt_name(pix_fmt) << std::endl;
             std::cout << "====================================\n" << std::endl;
         }
 
-
         /// 确定输出帧
         AVFrame* output_frame = impl_->frame_;
-        bool     is_hw        = false;
+        bool     is_hw        = HardwareFrameTransfer::is_hardware_frame(impl_->frame_);
 
         /// 如果是硬件帧且需要转换
-        if (HardwareFrameTransfer::is_hardware_frame(impl_->frame_))
+        if (is_hw && impl_->config_.hardware.transfer_to_software)
         {
-            impl_->stats_.hardware_frames++;
-            is_hw = true;
+            /// 设置软件帧格式
+            impl_->sw_frame_->format = HardwareFrameTransfer::get_sw_format(impl_->frame_);
+            impl_->sw_frame_->width  = impl_->frame_->width;
+            impl_->sw_frame_->height = impl_->frame_->height;
 
-            if (impl_->config_.hardware.transfer_to_software)
+            /// 分配缓冲区
+            if (av_frame_get_buffer(impl_->sw_frame_, 0) >= 0)
             {
-                /// 设置软件帧格式
-                impl_->sw_frame_->format = HardwareFrameTransfer::get_sw_format(impl_->frame_);
-                impl_->sw_frame_->width  = impl_->frame_->width;
-                impl_->sw_frame_->height = impl_->frame_->height;
-
-                /// 分配缓冲区
-                int buffer_ret = av_frame_get_buffer(impl_->sw_frame_, 0);
-                if (buffer_ret < 0)
-                {
-                    std::cerr << "无法分配软件帧缓冲区" << std::endl;
-                    continue;
-                }
-
-                /// 传输数据
                 if (HardwareFrameTransfer::transfer_to_software(impl_->frame_, impl_->sw_frame_))
                 {
                     output_frame = impl_->sw_frame_;
                 }
             }
         }
+
+        /// 统计
+        if (is_hw)
+        {
+            impl_->stats_.hardware_frames++;
+        }
         else
         {
             impl_->stats_.software_frames++;
         }
 
-        /// 复制帧（因为我们要存储）
+        /// 复制帧
         AVFrame* new_frame = av_frame_alloc();
         if (new_frame)
         {
-            int ref_ret = av_frame_ref(new_frame, output_frame);
-            if (ref_ret >= 0)
+            if (av_frame_ref(new_frame, output_frame) >= 0)
             {
                 out_frames.push_back(new_frame);
             }
@@ -458,7 +433,7 @@ auto VideoDecoder::decode_packet(AVPacket* pkt, std::vector<AVFrame*>& out_frame
 
         /// 更新统计
         int64_t end_time    = av_gettime_relative();
-        double  decode_time = (end_time - start_time) / 1000.0; /// 转换为毫秒
+        double  decode_time = (end_time - start_time) / 1000.0;
         impl_->update_stats(decode_time);
     }
 
@@ -497,22 +472,60 @@ auto VideoDecoder::flush(std::vector<AVFrame*>& out_frames) -> int
 
         AVFrame* output_frame = impl_->frame_;
 
+        // ✅ 添加硬件帧转换保护
         if (HardwareFrameTransfer::is_hardware_frame(impl_->frame_) && impl_->config_.hardware.transfer_to_software)
         {
+            // 检查硬件上下文是否有效
+            if (!impl_->ctx_ || !impl_->ctx_->get()->hw_device_ctx)
+            {
+                LOGW("硬件上下文无效，跳过硬件帧转换");
+                continue;
+            }
+
             impl_->sw_frame_->format = HardwareFrameTransfer::get_sw_format(impl_->frame_);
             impl_->sw_frame_->width  = impl_->frame_->width;
             impl_->sw_frame_->height = impl_->frame_->height;
-            av_frame_get_buffer(impl_->sw_frame_, 0);
 
-            if (HardwareFrameTransfer::transfer_to_software(impl_->frame_, impl_->sw_frame_))
+            if (av_frame_get_buffer(impl_->sw_frame_, 0) < 0)
             {
-                output_frame = impl_->sw_frame_;
+                LOGW("无法分配软件帧缓冲区");
+                continue;
+            }
+
+            // ✅ 使用 try-catch 保护硬件转换
+            try
+            {
+                if (HardwareFrameTransfer::transfer_to_software(impl_->frame_, impl_->sw_frame_))
+                {
+                    output_frame = impl_->sw_frame_;
+                }
+                else
+                {
+                    LOGW("硬件帧转换失败");
+                    continue;
+                }
+            }
+            catch (const std::exception& e)
+            {
+                LOGE("硬件帧转换异常: " << e.what());
+                continue;
+            }
+            catch (...)
+            {
+                LOGE("硬件帧转换未知异常");
+                continue;
             }
         }
 
         AVFrame* new_frame = av_frame_alloc();
-        av_frame_ref(new_frame, output_frame);
-        out_frames.push_back(new_frame);
+        if (av_frame_ref(new_frame, output_frame) >= 0)
+        {
+            out_frames.push_back(new_frame);
+        }
+        else
+        {
+            av_frame_free(&new_frame);
+        }
 
         if (impl_->callback_)
         {
@@ -524,6 +537,19 @@ auto VideoDecoder::flush(std::vector<AVFrame*>& out_frames) -> int
     }
 
     return frame_count;
+}
+
+void VideoDecoder::reset()
+{
+    impl_->is_hw_decoding_ = false;
+    if (impl_->ctx_)
+    {
+        impl_->ctx_->close();
+        impl_->ctx_.reset();
+    }
+    impl_->codec_params_.reset();
+    impl_->hw_ctx_.reset();
+    impl_->stats_ = Stats{};
 }
 
 void VideoDecoder::set_frame_callback(DecoderConfig::FrameCallback callback)

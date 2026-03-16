@@ -33,4 +33,10 @@ public:
 
     /// 打印文件信息
     void dumpInfo() const override;
+
+    /// 完全重建解封装器
+    bool rebuild();
+
+    /// 检查是否有效
+    bool isValid() const;
 };

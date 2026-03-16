@@ -13,6 +13,7 @@ extern "C" {
 #include <libavutil/time.h>
 #include <libavcodec/packet.h>
 #include <libavutil/dict.h>
+#include <libavutil/frame.h>
 }
 
 /// ==================== 时间工具 ====================

@@ -1,5 +1,7 @@
 ﻿#include "BaseAVFormat.h"
 
+#include <mutex>
+
 auto BaseAVFormat::isTimeout() const -> bool
 {
     if (timeout_ms_ <= 0)
@@ -7,10 +9,10 @@ auto BaseAVFormat::isTimeout() const -> bool
         return false;
     }
 
-
     auto now     = std::chrono::steady_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_activity_time_).count();
 
+    // 如果超过超时时间，返回 true（中断）
     return elapsed > timeout_ms_;
 }
 
@@ -154,6 +156,10 @@ void BaseAVFormat::findStreamIndices()
 
 auto BaseAVFormat::getOptionsPtr() -> AVDictionary **
 {
+    // ✅ 添加静态标志，避免重连时重复构建
+    static std::mutex           options_mutex;
+    std::lock_guard<std::mutex> lock(options_mutex);
+
     if (!options_dirty_)
     {
         return options_.get_ptr();
@@ -170,20 +176,20 @@ auto BaseAVFormat::getOptionsPtr() -> AVDictionary **
         if (transport_ == "udp")
         {
             /// UDP 专用配置
-            options_.set("stimeout", std::to_string(timeout_ms_ * 1000)); /// UDP读取超时
-            options_.set("buffer_size", "2048000");                       /// 2MB 缓冲区
-            options_.set("udp_buffer_size", "2048000");                   /// UDP 缓冲区
-            options_.set("max_delay", "500000");                          /// 500ms 重排序延迟
-            options_.set("reorder_queue_size", "1000");                   /// 重排序队列
+            options_.set("stimeout", std::to_string(timeout_ms_ * 1000));
+            options_.set("buffer_size", "2048000");
+            options_.set("udp_buffer_size", "2048000");
+            options_.set("max_delay", "500000");
+            options_.set("reorder_queue_size", "1000");
 
             LOGI("UDP 模式配置完成");
         }
         else if (transport_ == "tcp")
         {
             /// TCP 专用配置
-            options_.set("rtsp_flags", "prefer_tcp"); /// 偏好 TCP
-            options_.set("tcp_nodelay", "1");         /// 禁用 Nagle 算法，降低延迟
-            options_.set("buffer_size", "102400");    /// 100KB 缓冲区就够了
+            options_.set("rtsp_flags", "prefer_tcp");
+            options_.set("tcp_nodelay", "1");
+            options_.set("buffer_size", "102400");
 
             LOGI("TCP 模式配置完成");
         }

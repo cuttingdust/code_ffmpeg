@@ -37,7 +37,7 @@ public:
     }
 
     /// 开始播放
-    auto start() -> void;
+    auto start() -> bool;
 
     /// 停止播放
     auto stop() -> void;
@@ -90,13 +90,15 @@ private:
     std::atomic<RtspState> state_{ RtspState::DISCONNECTED };
 
     /// 任务链
-    XDemuxTask::Ptr   demux_task_   = nullptr;
-    XDecodeTask::Ptr  decode_task_  = nullptr;
-    XDisplayTask::Ptr display_task_ = nullptr;
+    XDemuxTask::Ptr   demux_task_;
+    XDecodeTask::Ptr  decode_task_;
+    XDisplayTask::Ptr display_task_;
 
     /// 重连配置
     int                                   reconnect_interval_ = 3;
     int                                   max_reconnects_     = 0;
     int                                   reconnect_count_    = 0;
     std::chrono::steady_clock::time_point last_reconnect_time_;
+
+    std::atomic<bool> use_hardware_{ true }; /// 是否使用硬件解码
 };

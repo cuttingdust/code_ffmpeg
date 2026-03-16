@@ -1,7 +1,5 @@
 ﻿#pragma once
 
-#pragma once
-
 #include <iostream>
 #include <string>
 #include <chrono>
@@ -12,8 +10,9 @@ enum XLogLevel
 {
     XLOG_LEVEL_DEBUG = 0,
     XLOG_LEVEL_INFO  = 1,
-    XLOG_LEVEL_ERROR = 2,
-    XLOG_LEVEL_FATAL = 3
+    XLOG_LEVEL_WARN  = 2, // ✅ 新增警告级别
+    XLOG_LEVEL_ERROR = 3,
+    XLOG_LEVEL_FATAL = 4
 };
 
 // 默认日志级别，可以在编译时修改
@@ -49,6 +48,8 @@ inline const char* getLevelString(XLogLevel level)
             return "DEBUG";
         case XLOG_LEVEL_INFO:
             return "INFO ";
+        case XLOG_LEVEL_WARN: // ✅ 新增
+            return "WARN ";
         case XLOG_LEVEL_ERROR:
             return "ERROR";
         case XLOG_LEVEL_FATAL:
@@ -68,6 +69,7 @@ inline const char* getLevelString(XLogLevel level)
 /// 简化的日志宏
 #define LOGD(s) AVLOG(s, XLOG_LEVEL_DEBUG)
 #define LOGI(s) AVLOG(s, XLOG_LEVEL_INFO)
+#define LOGW(s) AVLOG(s, XLOG_LEVEL_WARN) // ✅ 新增警告宏
 #define LOGE(s) AVLOG(s, XLOG_LEVEL_ERROR)
 #define LOGF(s) AVLOG(s, XLOG_LEVEL_FATAL)
 
@@ -75,7 +77,12 @@ inline const char* getLevelString(XLogLevel level)
 #define LOGD_IF(cond, s) \
     if (cond)            \
     LOGD(s)
-
 #define LOGI_IF(cond, s) \
     if (cond)            \
     LOGI(s)
+#define LOGW_IF(cond, s) \
+    if (cond)            \
+    LOGW(s) // ✅ 新增
+#define LOGE_IF(cond, s) \
+    if (cond)            \
+    LOGE(s)

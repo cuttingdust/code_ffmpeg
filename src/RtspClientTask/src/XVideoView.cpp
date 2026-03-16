@@ -1,12 +1,7 @@
 ﻿#include "XVideoView.h"
 
+#include "AVConst.h"
 #include "XSDL.h"
-
-#include <iostream>
-
-extern "C" {
-#include <libavcodec/avcodec.h>
-}
 
 #include <mutex>
 #include <fstream>
@@ -24,10 +19,6 @@ void MSleep(unsigned int ms)
     }
 }
 
-long long NowMs()
-{
-    return clock() / (CLOCKS_PER_SEC / 1000);
-}
 
 class XVideoView::PImpl
 {
