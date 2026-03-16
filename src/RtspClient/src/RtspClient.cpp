@@ -243,13 +243,13 @@ void RtspClient::readLoop()
         }
         else if (ret < 0)
         {
-            // 网络错误，需要重连
+            /// 网络错误，需要重连
             LOGE("读取 RTSP 包错误: " << ret << "，触发重连");
             handleConnectionFailure();
             break;
         }
 
-        // 成功读取到数据包
+        /// 成功读取到数据包
         last_data_time   = std::chrono::steady_clock::now();
         empty_read_count = 0;
         ++total_packets_;
@@ -276,14 +276,14 @@ void RtspClient::run()
         switch (state_)
         {
             case RtspState::DISCONNECTED:
-                // 如果是正常结束，不再重连
+                /// 如果是正常结束，不再重连
                 if (disconnect_reason_ == DisconnectReason::NORMAL_EOF)
                 {
                     LOGI("视频正常播放结束，退出线程");
                     return;
                 }
-                // 否则尝试重连
-                // fall through
+                /// 否则尝试重连
+                /// fall through
 
             case RtspState::RECONNECTING:
                 if (connect())
