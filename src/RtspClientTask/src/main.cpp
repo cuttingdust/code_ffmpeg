@@ -12,7 +12,7 @@ int main()
         RtspClient client;
         client.setUrl(RTSP_URL);
         client.setReconnectInterval(5);
-        client.setMaxReconnects(3);
+        client.set_max_reconnects(3);
 
         LOGI("RTSP客户端启动...");
         client.start();

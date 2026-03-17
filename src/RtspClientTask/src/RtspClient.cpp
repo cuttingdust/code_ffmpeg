@@ -31,7 +31,7 @@ RtspClient::~RtspClient()
 {
     LOGI("RTSP客户端销毁 - 开始");
 
-    // 1. 先停止所有任务
+    /// 1. 先停止所有任务
     LOGI("停止所有任务...");
     if (demux_task_)
         demux_task_->stop();
@@ -40,10 +40,10 @@ RtspClient::~RtspClient()
     if (display_task_)
         display_task_->stop();
 
-    // 2. 等待一小段时间让任务停止
+    /// 2. 等待一小段时间让任务停止
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
-    // 3. 等待任务结束
+    /// 3. 等待任务结束
     LOGI("等待任务结束...");
     if (demux_task_)
         demux_task_->wait();
@@ -54,12 +54,22 @@ RtspClient::~RtspClient()
 
     LOGI("所有任务已停止");
 
-    // 4. 最后重置智能指针（会触发析构）
+    /// 4. 最后重置智能指针（会触发析构）
     demux_task_.reset();
     decode_task_.reset();
     display_task_.reset();
 
     LOGI("RTSP客户端销毁 - 结束");
+}
+
+auto RtspClient::setUrl(const std::string& url) -> void
+{
+    url_ = url;
+}
+
+auto RtspClient::getState() const -> RtspState
+{
+    return state_;
 }
 
 auto RtspClient::start() -> bool
@@ -142,6 +152,16 @@ auto RtspClient::wait() -> void
     LOGI("RTSP客户端已停止");
 }
 
+auto RtspClient::setReconnectInterval(int seconds) -> void
+{
+    reconnect_interval_ = seconds;
+}
+
+auto RtspClient::set_max_reconnects(int count) -> void
+{
+    max_reconnects_ = count;
+}
+
 void RtspClient::setRenderCallback(XDisplayTask::RenderCallback cb)
 {
     if (display_task_)
@@ -165,7 +185,7 @@ void RtspClient::reconnect()
         return;
     }
 
-    // 检查是否达到最大重连次数
+    /// 检查是否达到最大重连次数
     if (max_reconnects_ > 0 && reconnect_count_ >= max_reconnects_)
     {
         LOGE("达到最大重连次数(" << max_reconnects_ << ")，停止重连");
@@ -181,7 +201,7 @@ void RtspClient::reconnect()
     std::thread(
             [this]()
             {
-                // 停止所有任务
+                /// 停止所有任务
                 LOGI("停止所有任务...");
                 demux_task_->stop();
                 decode_task_->stop();
@@ -198,7 +218,7 @@ void RtspClient::reconnect()
 
                 LOGI("重置完成，开始重新启动...");
 
-                // ✅ 在这里循环重试，不增加 reconnect_count_
+                /// 在这里循环重试，不增加 reconnect_count_
                 const int max_start_retries = 5;
                 bool      started           = false;
 
@@ -225,15 +245,15 @@ void RtspClient::reconnect()
                 {
                     LOGE("第 " << reconnect_count_ << " 次重连失败，将在 " << reconnect_interval_ << " 秒后再次尝试");
 
-                    // 等待重连间隔
+                    /// 等待重连间隔
                     std::this_thread::sleep_for(std::chrono::seconds(reconnect_interval_));
 
-                    // 再次触发重连（会增加 reconnect_count_）
+                    /// 再次触发重连（会增加 reconnect_count_）
                     reconnecting = false;
 
                     if (max_reconnects_ == 0 || reconnect_count_ < max_reconnects_)
                     {
-                        reconnect(); // 再次尝试，会增加计数
+                        reconnect(); /// 再次尝试，会增加计数
                     }
                 }
                 else

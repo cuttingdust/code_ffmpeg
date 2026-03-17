@@ -16,9 +16,17 @@ XDisplayTask::~XDisplayTask()
     LOGD("显示任务销毁");
 }
 
-// 移除 processMainThreadTasks 和 initWindowOnMainThread，不再需要
+auto XDisplayTask::setRenderCallback(RenderCallback cb) -> void
+{
+    render_cb_ = cb;
+}
 
-void XDisplayTask::reset()
+auto XDisplayTask::getFPS() const -> int
+{
+    return fps_;
+}
+
+auto XDisplayTask::reset() -> void
 {
     XTask::reset();
 
@@ -136,7 +144,7 @@ void XDisplayTask::defaultRender(FrameWrapper& frame)
     }
 }
 
-void XDisplayTask::process()
+auto XDisplayTask::process() -> void
 {
     LOGI("显示任务开始运行");
 
@@ -150,7 +158,7 @@ void XDisplayTask::process()
         auto now       = std::chrono::steady_clock::now();
         auto idle_time = std::chrono::duration_cast<std::chrono::seconds>(now - last_frame_time_).count();
 
-        // 只有在收到过帧且没有帧时才进入重连状态
+        /// 只有在收到过帧且没有帧时才进入重连状态
         if (idle_time > 3 && window_created_ && !reconnecting_ &&
             last_frame_time_ != std::chrono::steady_clock::time_point{})
         {

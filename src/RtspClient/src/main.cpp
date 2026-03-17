@@ -13,7 +13,7 @@ int main()
         RtspClient client;
         client.setUrl(RTSP_URL);
         client.setReconnectInterval(5); /// 3秒重连间隔
-        client.setMaxReconnects(3);     /// 无限重连
+        client.set_max_reconnects(3);   /// 无限重连
 
         auto view    = XVideoView::create();
         bool is_init = false;

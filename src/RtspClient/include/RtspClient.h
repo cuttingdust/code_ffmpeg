@@ -75,7 +75,7 @@ public:
     }
 
     /// 设置最大重连次数（0表示无限）
-    void setMaxReconnects(int count)
+    void set_max_reconnects(int count)
     {
         max_reconnects_ = count;
     }

@@ -25,16 +25,10 @@ public:
 
 public:
     /// 设置 RTSP URL
-    void setUrl(const std::string& url)
-    {
-        url_ = url;
-    }
+    auto setUrl(const std::string &url) -> void;
 
     /// 获取当前状态
-    RtspState getState() const
-    {
-        return state_;
-    }
+    auto getState() const -> RtspState;
 
     /// 开始播放
     auto start() -> bool;
@@ -43,25 +37,19 @@ public:
     auto stop() -> void;
 
     /// 等待所有线程结束
-    void wait();
+    auto wait() -> void;
 
     /// 设置重连间隔（秒）
-    void setReconnectInterval(int seconds)
-    {
-        reconnect_interval_ = seconds;
-    }
+    auto setReconnectInterval(int seconds) -> void;
 
     /// 设置最大重连次数（0表示无限）
-    void setMaxReconnects(int count)
-    {
-        max_reconnects_ = count;
-    }
+    auto set_max_reconnects(int count) -> void;
 
     /// 设置自定义渲染回调
-    void setRenderCallback(XDisplayTask::RenderCallback cb);
+    auto setRenderCallback(XDisplayTask::RenderCallback cb) -> void;
 
     /// 获取解码器（用于高级配置）
-    VideoDecoder* getDecoder();
+    VideoDecoder *getDecoder();
 
     /// 获取解封装任务（用于高级配置）
     auto getDemuxTask() -> XDemuxTask::Ptr

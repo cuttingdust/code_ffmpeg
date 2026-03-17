@@ -15,22 +15,16 @@ public:
     /// 自定义渲染回调
     using RenderCallback = std::function<void(FrameWrapper&)>;
 
-    void setRenderCallback(RenderCallback cb)
-    {
-        render_cb_ = cb;
-    }
+    auto setRenderCallback(RenderCallback cb) -> void;
 
     /// 获取FPS统计
-    int getFPS() const
-    {
-        return fps_;
-    }
+    auto getFPS() const -> int;
 
     /// 重置任务
-    void reset() override;
+    auto reset() -> void override;
 
 protected:
-    void process() override;
+    auto process() -> void override;
 
 private:
     void defaultRender(FrameWrapper& frame);
