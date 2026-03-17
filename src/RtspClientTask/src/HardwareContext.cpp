@@ -95,7 +95,9 @@ auto HardwareContext::get_available_types() const -> std::vector<Type>
         auto hw_type = static_cast<AVHWDeviceType>(i);
         hw_type      = av_hwdevice_iterate_types(hw_type);
         if (hw_type == AV_HWDEVICE_TYPE_NONE)
+        {
             break;
+        }
 
         switch (hw_type)
         {
@@ -201,7 +203,7 @@ auto HardwareContext::get() const -> AVBufferRef*
     return hw_ctx_;
 }
 
-// HardwareFrameTransfer实现
+/// HardwareFrameTransfer实现
 HardwareFrameTransfer::HardwareFrameTransfer()  = default;
 HardwareFrameTransfer::~HardwareFrameTransfer() = default;
 
@@ -213,21 +215,20 @@ auto HardwareFrameTransfer::transfer_to_software(AVFrame* hw_frame, AVFrame* sw_
         return false;
     }
 
-    // ✅ 检查硬件帧是否有效
+    /// ✅ 检查硬件帧是否有效
     if (!is_hardware_frame(hw_frame))
     {
         LOGE("transfer_to_software: 不是硬件帧");
         return false;
     }
 
-    // ✅ 检查帧数据指针
+    /// ✅ 检查帧数据指针
     if (!hw_frame->data[0] && !hw_frame->data[1] && !hw_frame->data[2] && !hw_frame->data[3])
     {
         LOGE("transfer_to_software: 硬件帧数据为空");
         return false;
     }
 
-    // ✅ 使用 try-catch 保护 FFmpeg 调用
     try
     {
         int ret = av_hwframe_transfer_data(sw_frame, hw_frame, 0);
@@ -255,11 +256,16 @@ auto HardwareFrameTransfer::transfer_to_software(AVFrame* hw_frame, AVFrame* sw_
 auto HardwareFrameTransfer::is_hardware_frame(AVFrame* frame) -> bool
 {
     if (!frame)
+    {
         return false;
+    }
+
 
     auto desc = av_pix_fmt_desc_get(static_cast<AVPixelFormat>(frame->format));
     if (!desc)
+    {
         return false;
+    }
 
     return !!(desc->flags & AV_PIX_FMT_FLAG_HWACCEL);
 }

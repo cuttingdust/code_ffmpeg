@@ -20,7 +20,7 @@ public:
     auto open() -> bool;
 
     /// 关闭媒体文件
-    void close();
+    auto close() -> void;
 
     /// 读取下一个数据包
     auto readPacket(AVPacket* pkt) -> int;
@@ -32,11 +32,11 @@ public:
     auto getDuration() const -> double;
 
     /// 打印文件信息
-    void dumpInfo() const override;
+    auto dumpInfo() const -> void override;
 
     /// 完全重建解封装器
-    bool rebuild();
+    auto rebuild() -> bool;
 
     /// 检查是否有效
-    bool isValid() const;
+    auto isValid() const -> bool;
 };

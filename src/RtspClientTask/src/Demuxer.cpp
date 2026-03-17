@@ -25,9 +25,7 @@ auto Demuxer::open() -> bool
     try
     {
         AVIOInterruptCB interrupt_cb = { BaseAVFormat::interruptCallback, this };
-
-        fmt_ctx_ = FormatContextWrapper::createInput(url_, getOptionsPtr(), &interrupt_cb);
-
+        fmt_ctx_                     = FormatContextWrapper::createInput(url_, getOptionsPtr(), &interrupt_cb);
         resetTimer();
 
         if (fmt_ctx_->findStreamInfo() < 0)
@@ -45,7 +43,7 @@ auto Demuxer::open() -> bool
     }
 }
 
-void Demuxer::close()
+auto Demuxer::close() -> void
 {
     fmt_ctx_.reset();
     video_stream_index_ = -1;
@@ -61,19 +59,18 @@ auto Demuxer::readPacket(AVPacket* pkt) -> int
 
     resetTimer();
 
-    // 使用安全函数
+    /// 使用安全函数
     int ret = safe_av_read_frame(fmt_ctx_->get(), pkt);
-
     if (ret >= 0)
     {
         resetTimer();
     }
 
-    // 如果是致命错误，标记需要重建
+    /// 如果是致命错误，标记需要重建
     if (ret == AVERROR(EINVAL) || ret == AVERROR(ENOSYS) || ret < -1000)
     {
         LOGE("致命错误 " << ret << "，需要重建解封装器");
-        return -2; // 特殊错误码，表示需要重建
+        return -2; /// 特殊错误码，表示需要重建
     }
 
     return ret;
@@ -101,11 +98,14 @@ auto Demuxer::seek(double timestamp, int stream_index, int flags) -> bool
 auto Demuxer::getDuration() const -> double
 {
     if (!fmt_ctx_)
+    {
         return 0.0;
+    }
+
     return fmt_ctx_->getDuration();
 }
 
-void Demuxer::dumpInfo() const
+auto Demuxer::dumpInfo() const -> void
 {
     if (!fmt_ctx_)
     {
@@ -118,17 +118,17 @@ bool Demuxer::rebuild()
 {
     LOGI("重建解封装器");
 
-    // 1. 完全销毁旧资源
+    /// 1. 完全销毁旧资源
     close();
 
-    // 2. 等待一下，让网络恢复
+    /// 2. 等待一下，让网络恢复
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
-    // 3. 重新打开
+    /// 3. 重新打开
     return open();
 }
 
-bool Demuxer::isValid() const
+auto Demuxer::isValid() const -> bool
 {
     return fmt_ctx_ != nullptr;
 }

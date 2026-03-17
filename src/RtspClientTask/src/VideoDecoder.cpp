@@ -127,7 +127,7 @@ auto VideoDecoder::PImpl::setup_hardware() -> void
     {
         std::cout << "硬件加速初始化失败，使用软件解码" << std::endl;
         hw_ctx_.reset();
-        config_.hardware.enable = false; // 禁用硬件加速
+        config_.hardware.enable = false; /// 禁用硬件加速
     }
 }
 
@@ -216,13 +216,15 @@ VideoDecoder::VideoDecoder(const DecoderConfig& cfg) : impl_(std::make_unique<PI
 
 VideoDecoder::~VideoDecoder() = default;
 
-// 添加设置参数的方法
+/// 添加设置参数的方法
 auto VideoDecoder::set_parameters(const AVCodecParameters* par) -> bool
 {
     if (!par)
+    {
         return false;
+    }
 
-    impl_->codec_params_ = std::make_shared<CodecParametersWrapper>();
+    impl_->codec_params_ = CodecParametersWrapper::create();
     return impl_->codec_params_->copy_from(par);
 }
 
@@ -283,7 +285,7 @@ auto VideoDecoder::decode(const uint8_t* data, int size, std::vector<AVFrame*>& 
 
     while (remaining > 0)
     {
-        // 解析数据
+        /// 解析数据
         int consumed = impl_->parser_->parse(impl_->ctx_->get(), impl_->pkt_, input_data, remaining);
         if (consumed < 0)
         {
@@ -322,13 +324,11 @@ auto VideoDecoder::decode_packet(AVPacket* pkt, std::vector<AVFrame*>& out_frame
     {
         impl_->stats_.errors++;
 
-        // ✅ 特殊处理硬件解码错误
         char err_buf[256];
         av_strerror(ret, err_buf, sizeof(err_buf));
 
         if (ret == AVERROR(EINVAL) || ret == AVERROR(ENOSYS))
         {
-            // 解码器状态已损坏，需要重建
             throw AVException("解码器状态损坏，需要重建", ret);
         }
 
@@ -357,7 +357,7 @@ auto VideoDecoder::decode_packet(AVPacket* pkt, std::vector<AVFrame*>& out_frame
             char err_buf[256];
             av_strerror(ret, err_buf, sizeof(err_buf));
 
-            // ✅ 特殊处理硬件解码错误
+            /// 特殊处理硬件解码错误
             if (ret == AVERROR(EINVAL) || ret == AVERROR(ENOSYS))
             {
                 throw AVException("解码器状态损坏，需要重建", ret);
@@ -464,18 +464,24 @@ auto VideoDecoder::flush(std::vector<AVFrame*>& out_frames) -> int
     {
         ret = avcodec_receive_frame(impl_->ctx_->get(), impl_->frame_);
         if (ret == AVERROR_EOF)
+        {
             break;
+        }
+
         if (ret < 0)
+        {
             break;
+        }
+
 
         frame_count++;
 
         AVFrame* output_frame = impl_->frame_;
 
-        // ✅ 添加硬件帧转换保护
+        /// 添加硬件帧转换保护
         if (HardwareFrameTransfer::is_hardware_frame(impl_->frame_) && impl_->config_.hardware.transfer_to_software)
         {
-            // 检查硬件上下文是否有效
+            /// 检查硬件上下文是否有效
             if (!impl_->ctx_ || !impl_->ctx_->get()->hw_device_ctx)
             {
                 LOGW("硬件上下文无效，跳过硬件帧转换");
@@ -492,7 +498,6 @@ auto VideoDecoder::flush(std::vector<AVFrame*>& out_frames) -> int
                 continue;
             }
 
-            // ✅ 使用 try-catch 保护硬件转换
             try
             {
                 if (HardwareFrameTransfer::transfer_to_software(impl_->frame_, impl_->sw_frame_))
@@ -590,8 +595,7 @@ auto VideoDecoder::get_supported_pixel_formats() const -> std::vector<AVPixelFor
     }
 
 
-    const AVPixelFormat* p = impl_->codec_->pix_fmts;
-    if (p)
+    if (const AVPixelFormat* p = impl_->codec_->pix_fmts)
     {
         while (*p != AV_PIX_FMT_NONE)
         {
@@ -605,7 +609,7 @@ auto VideoDecoder::get_supported_pixel_formats() const -> std::vector<AVPixelFor
 
 auto VideoDecoder::wait_for_pixel_format(int timeout_ms) -> AVPixelFormat
 {
-    // 这个功能需要在解码循环中实现
-    // 这里只是提供一个接口，实际使用时需要在收到第一帧后调用
+    /// 这个功能需要在解码循环中实现
+    /// 这里只是提供一个接口，实际使用时需要在收到第一帧后调用
     return AV_PIX_FMT_NONE;
 }

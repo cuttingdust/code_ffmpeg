@@ -2,6 +2,7 @@
 #include "AVLog.h"
 #include "FrameWrapper.h"
 #include <sstream>
+#include <utility>
 
 XDisplayTask::XDisplayTask()
 {
@@ -18,7 +19,7 @@ XDisplayTask::~XDisplayTask()
 
 auto XDisplayTask::setRenderCallback(RenderCallback cb) -> void
 {
-    render_cb_ = cb;
+    render_cb_ = std::move(cb);
 }
 
 auto XDisplayTask::getFPS() const -> int
@@ -37,13 +38,13 @@ auto XDisplayTask::reset() -> void
         view_->resetRenderer();
     }
 
-    // 重置状态，但保留窗口
+    /// 重置状态，但保留窗口
     is_init_         = false;
     fps_             = 0;
     frame_count_     = 0;
     last_stats_      = std::chrono::steady_clock::now();
     last_frame_time_ = std::chrono::steady_clock::now();
-    reconnecting_    = true; // 标记正在重连
+    reconnecting_    = true; /// 标记正在重连
 }
 
 void XDisplayTask::updateFPS()
@@ -64,7 +65,9 @@ void XDisplayTask::updateFPS()
 void XDisplayTask::drawReconnectingMessage()
 {
     if (!view_ || !window_created_)
+    {
         return;
+    }
 
     static int counter = 0;
     counter++;
@@ -77,7 +80,7 @@ void XDisplayTask::drawReconnectingMessage()
 
 void XDisplayTask::defaultRender(FrameWrapper& frame)
 {
-    // 如果还没创建渲染器，先创建
+    /// 如果还没创建渲染器，先创建
     if (!view_)
     {
         view_.reset(XVideoView::create());
@@ -89,7 +92,7 @@ void XDisplayTask::defaultRender(FrameWrapper& frame)
         LOGD("渲染器创建成功");
     }
 
-    // 如果窗口还没创建，直接在子线程初始化
+    /// 如果窗口还没创建，直接在子线程初始化
     if (!window_created_ && frame->width > 0 && frame->height > 0)
     {
         LOGI("尝试在子线程初始化窗口: " << frame->width << "x" << frame->height);
@@ -107,7 +110,7 @@ void XDisplayTask::defaultRender(FrameWrapper& frame)
         }
     }
 
-    // 如果窗口已创建但需要重新初始化渲染器
+    /// 如果窗口已创建但需要重新初始化渲染器
     if (window_created_ && !is_init_)
     {
         LOGI("重新初始化渲染器");
@@ -132,7 +135,7 @@ void XDisplayTask::defaultRender(FrameWrapper& frame)
             LOGE("drawFrame 失败");
         }
 
-        // 收到帧时清除重连状态
+        /// 收到帧时清除重连状态
         if (reconnecting_)
         {
             LOGI("网络已恢复，继续播放");
@@ -148,8 +151,8 @@ auto XDisplayTask::process() -> void
 {
     LOGI("显示任务开始运行");
 
-    int       consecutive_timeouts     = 0;
-    const int max_consecutive_timeouts = 30;
+    int           consecutive_timeouts     = 0;
+    constexpr int max_consecutive_timeouts = 30;
 
     while (!shouldStop())
     {

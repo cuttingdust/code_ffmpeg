@@ -6,8 +6,16 @@
 class CodecParametersWrapper
 {
 public:
-    CodecParametersWrapper();
+    explicit CodecParametersWrapper();
     explicit CodecParametersWrapper(AVCodecParameters *par);
+
+    using Ptr = std::shared_ptr<CodecParametersWrapper>;
+    static auto create() -> CodecParametersWrapper::Ptr
+    {
+        return std::make_shared<CodecParametersWrapper>();
+    }
+
+
     ~CodecParametersWrapper();
 
 public:

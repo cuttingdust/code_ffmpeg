@@ -1,10 +1,6 @@
 ﻿#include "DecoderContextWrapper.h"
 #include "AVException.h"
 
-extern "C" {
-#include <libavcodec/codec.h>
-}
-
 class DecoderContextWrapper::PImpl
 {
 public:
@@ -57,7 +53,6 @@ DecoderContextWrapper::operator AVCodecContext*() const
     return impl_->ctx_;
 }
 
-// ✅ 添加 close 方法
 auto DecoderContextWrapper::close() -> void
 {
     if (impl_->ctx_)

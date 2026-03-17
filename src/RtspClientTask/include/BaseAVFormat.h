@@ -3,9 +3,7 @@
 #include "AVConst.h"
 #include "FormatContextWrapper.h"
 #include "CodecParametersWrapper.h"
-#include <string>
 #include <vector>
-#include <memory>
 
 /// ==================== 基础格式类 ====================
 class BaseAVFormat

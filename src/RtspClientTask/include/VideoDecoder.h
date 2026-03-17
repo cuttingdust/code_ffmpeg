@@ -9,7 +9,6 @@
 #include "PacketWrapper.h"
 
 #include <functional>
-#include <atomic>
 
 /// ==================== 视频解码器配置 ====================
 struct DecoderConfig
@@ -57,7 +56,7 @@ public:
     auto set_parameters_from_stream(AVStream* stream) -> bool;
 
     /// 获取编码参数
-    auto get_parameters() const -> std::shared_ptr<CodecParametersWrapper>;
+    auto get_parameters() const -> CodecParametersWrapper::Ptr;
 
     /// 打开解码器
     auto open() -> void;
@@ -77,10 +76,10 @@ public:
     /// 刷新解码器（获取剩余帧）
     auto flush(std::vector<AVFrame*>& out_frames) -> int;
 
-    void reset();
+    auto reset() -> void;
 
     /// 设置帧回调
-    void set_frame_callback(DecoderConfig::FrameCallback callback);
+    auto set_frame_callback(DecoderConfig::FrameCallback callback) -> void;
 
     /// 获取解码统计
     struct Stats

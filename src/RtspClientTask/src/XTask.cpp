@@ -113,7 +113,7 @@ auto XTask::popFrame() -> AVFrame*
     return frame;
 }
 
-void XTask::handleError(const std::string& msg)
+auto XTask::handleError(const std::string& msg) -> void
 {
     LOGE("任务错误 [" << getName() << "]: " << msg);
     if (error_cb_)

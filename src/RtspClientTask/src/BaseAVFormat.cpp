@@ -12,7 +12,7 @@ auto BaseAVFormat::isTimeout() const -> bool
     auto now     = std::chrono::steady_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_activity_time_).count();
 
-    // 如果超过超时时间，返回 true（中断）
+    /// 如果超过超时时间，返回 true（中断）
     return elapsed > timeout_ms_;
 }
 
@@ -109,7 +109,10 @@ auto BaseAVFormat::getStreams() const -> std::vector<AVStream *>
 auto BaseAVFormat::getCodecParameters(int stream_index) const -> std::shared_ptr<CodecParametersWrapper>
 {
     if (!fmt_ctx_)
+    {
         return nullptr;
+    }
+
 
     AVFormatContext *ctx = fmt_ctx_->get();
     if (stream_index < 0 || stream_index >= static_cast<int>(ctx->nb_streams))
@@ -156,9 +159,8 @@ void BaseAVFormat::findStreamIndices()
 
 auto BaseAVFormat::getOptionsPtr() -> AVDictionary **
 {
-    // ✅ 添加静态标志，避免重连时重复构建
-    static std::mutex           options_mutex;
-    std::lock_guard<std::mutex> lock(options_mutex);
+    static std::mutex options_mutex;
+    std::scoped_lock  lock(options_mutex);
 
     if (!options_dirty_)
     {

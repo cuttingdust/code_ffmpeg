@@ -49,25 +49,16 @@ public:
     auto setRenderCallback(XDisplayTask::RenderCallback cb) -> void;
 
     /// 获取解码器（用于高级配置）
-    VideoDecoder *getDecoder();
+    auto getDecoder() -> VideoDecoder *;
 
     /// 获取解封装任务（用于高级配置）
-    auto getDemuxTask() -> XDemuxTask::Ptr
-    {
-        return demux_task_;
-    }
+    auto getDemuxTask() -> XDemuxTask::Ptr;
 
     /// 获取解码任务（用于高级配置）
-    auto getDecodeTask() -> XDecodeTask::Ptr
-    {
-        return decode_task_;
-    }
+    auto getDecodeTask() -> XDecodeTask::Ptr;
 
     /// 获取显示任务（用于高级配置）
-    auto getDisplayTask() -> XDisplayTask::Ptr
-    {
-        return display_task_;
-    }
+    auto getDisplayTask() -> XDisplayTask::Ptr;
 
 private:
     /// 重连逻辑

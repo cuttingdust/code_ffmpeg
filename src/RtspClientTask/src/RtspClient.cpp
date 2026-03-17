@@ -162,7 +162,7 @@ auto RtspClient::set_max_reconnects(int count) -> void
     max_reconnects_ = count;
 }
 
-void RtspClient::setRenderCallback(XDisplayTask::RenderCallback cb)
+auto RtspClient::setRenderCallback(XDisplayTask::RenderCallback cb) -> void
 {
     if (display_task_)
     {
@@ -170,9 +170,24 @@ void RtspClient::setRenderCallback(XDisplayTask::RenderCallback cb)
     }
 }
 
-VideoDecoder* RtspClient::getDecoder()
+auto RtspClient::getDecoder() -> VideoDecoder*
 {
     return decode_task_ ? decode_task_->getDecoder() : nullptr;
+}
+
+auto RtspClient::getDemuxTask() -> XDemuxTask::Ptr
+{
+    return demux_task_;
+}
+
+auto RtspClient::getDecodeTask() -> XDecodeTask::Ptr
+{
+    return decode_task_;
+}
+
+auto RtspClient::getDisplayTask() -> XDisplayTask::Ptr
+{
+    return display_task_;
 }
 
 void RtspClient::reconnect()

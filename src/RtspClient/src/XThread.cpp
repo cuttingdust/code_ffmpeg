@@ -20,6 +20,7 @@ XThread::PImpl::PImpl(XThread* owner) : owner_(owner)
 {
 }
 
+
 auto XThread::PImpl::exec() -> void
 {
     thread_id_ = std::this_thread::get_id();

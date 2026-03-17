@@ -1,4 +1,6 @@
 ﻿#include "XDecodeTask.h"
+
+#include <utility>
 #include "AVException.h"
 #include "AVLog.h"
 #include "FrameWrapper.h"
@@ -92,7 +94,7 @@ auto XDecodeTask::getDecoder() const -> VideoDecoder*
 
 auto XDecodeTask::setFrameCallback(DecoderConfig::FrameCallback cb) -> void
 {
-    frame_cb_ = cb;
+    frame_cb_ = std::move(cb);
 }
 
 auto XDecodeTask::getStats() const -> VideoDecoder::Stats
@@ -106,9 +108,9 @@ void XDecodeTask::process()
 
     std::vector<AVFrame*> raw_frames;
     int                   consecutive_errors       = 0;
-    const int             max_consecutive_errors   = 3;
+    constexpr int         max_consecutive_errors   = 3;
     int                   consecutive_timeouts     = 0;
-    const int             max_consecutive_timeouts = 30;
+    constexpr int         max_consecutive_timeouts = 30;
     bool                  decoder_corrupted        = false;
 
     while (!shouldStop() && !decoder_corrupted)
@@ -231,5 +233,4 @@ void XDecodeTask::process()
     LOGI("解码任务结束");
 }
 
-// ✅ 添加 create 方法的实现
 IMPLEMENT_CREATE(XDecodeTask)

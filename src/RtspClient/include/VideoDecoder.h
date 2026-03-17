@@ -9,7 +9,6 @@
 #include "PacketWrapper.h"
 
 #include <functional>
-#include <atomic>
 
 /// ==================== 视频解码器配置 ====================
 struct DecoderConfig
@@ -72,7 +71,7 @@ public:
     auto decode(const uint8_t* data, int size, std::vector<AVFrame*>& out_frames) -> int;
 
     /// 解码单个packet
-    auto decode_packet(AVPacket* pkt, std::vector<AVFrame*>& out_frames) -> int;
+    auto decode_packet(const AVPacket* pkt, std::vector<AVFrame*>& out_frames) -> int;
 
     /// 刷新解码器（获取剩余帧）
     auto flush(std::vector<AVFrame*>& out_frames) -> int;

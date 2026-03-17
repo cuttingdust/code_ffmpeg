@@ -30,22 +30,22 @@ public:
     auto getCodecParameters(int stream_index) const -> std::shared_ptr<CodecParametersWrapper>;
 
     /// 获取文件总时长
-    double getDuration() const
+    auto getDuration() const -> double
     {
         return demuxer_ ? demuxer_->getDuration() : 0.0;
     }
 
     /// 获取文件名
-    std::string getFilename() const
+    auto getFilename() const -> std::string
     {
         return url_;
     }
 
     /// 定位到指定时间（秒）
-    bool seek(double timestamp, int stream_index = -1);
+    auto seek(double timestamp, int stream_index = -1) -> bool;
 
     /// 设置RTSP选项
-    void setRtspOptions(bool use_tcp, int timeout_ms);
+    auto setRtspOptions(bool use_tcp, int timeout_ms) -> void;
 
     /// 获取统计信息
     struct Stats
@@ -55,13 +55,13 @@ public:
         int64_t audio_packets = 0;
     };
 
-    Stats getStats() const;
+    auto getStats() const -> Stats;
 
     /// 重置任务
-    void reset() override;
+    auto reset() -> void override;
 
 protected:
-    void process() override;
+    auto process() -> void override;
 
 private:
     Demuxer::Ptr demuxer_;

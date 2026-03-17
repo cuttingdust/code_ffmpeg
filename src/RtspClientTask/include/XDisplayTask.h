@@ -39,7 +39,7 @@ private:
     bool                                  reconnecting_   = false;
     std::chrono::steady_clock::time_point last_frame_time_;
 
-    // FPS统计
+    /// FPS统计
     int                                   fps_         = 0;
     int                                   frame_count_ = 0;
     std::chrono::steady_clock::time_point last_stats_;

@@ -4,38 +4,42 @@
 class XThread::PImpl
 {
 public:
-    PImpl(XThread* owner) : owner_(owner)
-    {
-    }
+    explicit PImpl(XThread* owner);
     ~PImpl() = default;
 
-    void exec()
-    {
-        thread_id_ = std::this_thread::get_id();
-        LOGD("线程 [" << owner_->getName() << "] 启动，ID: " << thread_id_);
-
-        try
-        {
-            owner_->run();
-        }
-        catch (const std::exception& e)
-        {
-            LOGE("线程 [" << owner_->getName() << "] 异常: " << e.what());
-        }
-        catch (...)
-        {
-            LOGE("线程 [" << owner_->getName() << "] 未知异常");
-        }
-
-        LOGD("线程 [" << owner_->getName() << "] 结束");
-        owner_->thread_started_ = false;
-        owner_->is_running_     = false;
-    }
+    auto exec() -> void;
 
     XThread*        owner_ = nullptr;
     std::thread     thread_;
     std::thread::id thread_id_;
 };
+
+XThread::PImpl::PImpl(XThread* owner) : owner_(owner)
+{
+}
+
+auto XThread::PImpl::exec() -> void
+{
+    thread_id_ = std::this_thread::get_id();
+    LOGD("线程 [" << owner_->getName() << "] 启动，ID: " << thread_id_);
+
+    try
+    {
+        owner_->run();
+    }
+    catch (const std::exception& e)
+    {
+        LOGE("线程 [" << owner_->getName() << "] 异常: " << e.what());
+    }
+    catch (...)
+    {
+        LOGE("线程 [" << owner_->getName() << "] 未知异常");
+    }
+
+    LOGD("线程 [" << owner_->getName() << "] 结束");
+    owner_->thread_started_ = false;
+    owner_->is_running_     = false;
+}
 
 XThread::XThread()
 {
@@ -126,4 +130,14 @@ auto XThread::isRunning() const -> bool
 auto XThread::getThreadId() const -> std::thread::id
 {
     return impl_->thread_id_;
+}
+
+auto XThread::shouldStop() const -> bool
+{
+    return !is_running_;
+}
+
+auto XThread::sleep(int ms) -> void
+{
+    std::this_thread::sleep_for(std::chrono::milliseconds(ms));
 }

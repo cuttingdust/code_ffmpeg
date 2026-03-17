@@ -161,7 +161,10 @@ void FormatContextWrapper::dumpInfo(int index, const char* url, int is_output) c
 auto FormatContextWrapper::getDuration() const -> double
 {
     if (!impl_->ctx_ || impl_->ctx_->duration == AV_NOPTS_VALUE)
+    {
         return 0.0;
+    }
+
     return impl_->ctx_->duration / (double)AV_TIME_BASE;
 }
 

@@ -1,7 +1,6 @@
 ﻿#include "XDemuxTask.h"
 #include "AVLog.h"
 
-
 XDemuxTask::XDemuxTask()
 {
     setName("DemuxTask");
@@ -111,7 +110,10 @@ auto XDemuxTask::getCodecParameters(int stream_index) const -> std::shared_ptr<C
 auto XDemuxTask::seek(double timestamp, int stream_index) -> bool
 {
     if (!demuxer_)
+    {
         return false;
+    }
+
     return demuxer_->seek(timestamp, stream_index);
 }
 
@@ -157,7 +159,7 @@ auto XDemuxTask::process() -> void
             notifyEof();
             break;
         }
-        else if (ret == -2) // 需要重建
+        else if (ret == -2) /// 需要重建
         {
             LOGE("解封装器需要重建");
             if (demuxer_->rebuild())

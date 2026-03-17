@@ -241,11 +241,13 @@ VideoDecoder::VideoDecoder(const DecoderConfig& cfg) : impl_(std::make_unique<PI
 
 VideoDecoder::~VideoDecoder() = default;
 
-// 添加设置参数的方法
+/// 添加设置参数的方法
 auto VideoDecoder::set_parameters(const AVCodecParameters* par) -> bool
 {
     if (!par)
+    {
         return false;
+    }
 
     impl_->codec_params_ = std::make_shared<CodecParametersWrapper>();
     return impl_->codec_params_->copy_from(par);
@@ -330,7 +332,7 @@ auto VideoDecoder::decode(const uint8_t* data, int size, std::vector<AVFrame*>& 
     return total_consumed;
 }
 
-auto VideoDecoder::decode_packet(AVPacket* pkt, std::vector<AVFrame*>& out_frames) -> int
+auto VideoDecoder::decode_packet(const AVPacket* pkt, std::vector<AVFrame*>& out_frames) -> int
 {
     if (!impl_->ctx_)
     {
