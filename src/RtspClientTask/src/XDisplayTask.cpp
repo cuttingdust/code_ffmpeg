@@ -147,12 +147,16 @@ void XDisplayTask::defaultRender(FrameWrapper& frame)
     }
 }
 
-auto XDisplayTask::process() -> void
+void XDisplayTask::process()
 {
     LOGI("显示任务开始运行");
 
     int           consecutive_timeouts     = 0;
     constexpr int max_consecutive_timeouts = 30;
+
+    // 增加初始等待：给解码任务一些时间准备第一帧
+    int           initial_wait     = 0;
+    constexpr int max_initial_wait = 100; // 最多等待5秒 (100 * 50ms)
 
     while (!shouldStop())
     {
@@ -171,6 +175,14 @@ auto XDisplayTask::process() -> void
 
         if (!raw_frame)
         {
+            // 如果是刚开始，等待一段时间，不计数超时
+            if (initial_wait < max_initial_wait && last_frame_time_ == std::chrono::steady_clock::time_point{})
+            {
+                initial_wait++;
+                std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                continue;
+            }
+
             consecutive_timeouts++;
 
             if (consecutive_timeouts >= max_consecutive_timeouts)
@@ -194,6 +206,8 @@ auto XDisplayTask::process() -> void
             continue;
         }
 
+        // 收到帧后重置初始等待计数
+        initial_wait         = 0;
         consecutive_timeouts = 0;
 
         FrameWrapper frame(raw_frame);
