@@ -43,6 +43,12 @@ public:
         max_queue_size_ = size;
     }
 
+    /// 获取最大队列大小
+    size_t getMaxQueueSize() const
+    {
+        return max_queue_size_;
+    }
+
     /// 设置空闲超时时间（毫秒）
     void setIdleTimeoutMs(int ms)
     {
@@ -76,6 +82,17 @@ public:
     /// 重写stop方法，唤醒等待
     void stop() override;
 
+    // ==================== 观察者模式支持 ====================
+
+    /// 添加观察者
+    void addObserver(std::shared_ptr<XTask> observer);
+
+    /// 移除观察者
+    void removeObserver(std::shared_ptr<XTask> observer);
+
+    /// 通知所有观察者（数据包）
+    void notifyObservers(PacketWrapper::Ptr pkt);
+
 protected:
     /// 从队列获取数据包（阻塞，带超时）
     auto popPacket() -> PacketWrapper::Ptr;
@@ -107,4 +124,9 @@ protected:
 
     // 错误回调
     std::function<void(const std::string&)> error_cb_;
+
+
+    /// ==================== 观察者相关成员 ====================
+    std::vector<std::shared_ptr<XTask>> observers_;
+    mutable std::mutex                  observer_mutex_;
 };

@@ -13,7 +13,6 @@ public:
         return std::make_unique<PacketWrapper>();
     }
 
-
     ~PacketWrapper();
 
     /// 移动构造函数
@@ -37,6 +36,8 @@ public:
 
     /// 检查是否有效
     explicit operator bool() const;
+
+    auto clone() const -> PacketWrapper::Ptr;
 
 private:
     class PImpl;

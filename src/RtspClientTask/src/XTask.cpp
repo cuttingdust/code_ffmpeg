@@ -20,6 +20,84 @@ void XTask::stop()
     }
 }
 
+void XTask::addObserver(std::shared_ptr<XTask> observer)
+{
+    if (!observer)
+    {
+        LOGW("尝试添加空观察者: " << getName());
+        return;
+    }
+
+    std::scoped_lock lock(observer_mutex_);
+
+    /// 避免重复添加
+    if (std::ranges::find(observers_, observer) != observers_.end())
+    {
+        LOGW("观察者已存在: " << observer->getName());
+        return;
+    }
+
+    observers_.push_back(observer);
+    LOGI("添加观察者: " << observer->getName() << " -> " << getName());
+}
+
+void XTask::removeObserver(std::shared_ptr<XTask> observer)
+{
+    if (!observer)
+    {
+        return;
+    }
+
+    std::scoped_lock lock(observer_mutex_);
+
+    auto it = std::ranges::find(observers_, observer);
+    if (it != observers_.end())
+    {
+        observers_.erase(it);
+        LOGI("移除观察者: " << observer->getName());
+    }
+}
+
+void XTask::notifyObservers(PacketWrapper::Ptr pkt)
+{
+    if (!pkt || observers_.empty())
+    {
+        return;
+    }
+
+    /// 复制观察者列表，避免在遍历时被修改
+    std::vector<std::shared_ptr<XTask>> observers_copy;
+    {
+        std::scoped_lock lock(observer_mutex_);
+        observers_copy = observers_;
+    }
+
+    for (auto& observer : observers_copy)
+    {
+        if (!observer)
+        {
+            continue;
+        }
+
+        auto clone = pkt->clone();
+        try
+        {
+            if (observer->getQueueSize() < observer->getMaxQueueSize())
+            {
+                observer->pushPacket(std::move(clone));
+            }
+            else
+            {
+                LOGW("观察者队列已满，丢弃包: " << observer->getName());
+            }
+        }
+        catch (const std::exception& e)
+        {
+            LOGE("克隆数据包失败，观察者: " << observer->getName() << ", 错误: " << e.what());
+        }
+    }
+}
+
 void XTask::reset()
 {
     LOGD("重置任务: " << getName());

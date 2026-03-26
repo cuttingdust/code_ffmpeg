@@ -25,6 +25,10 @@ RtspClient::RtspClient()
     demux_task_->setErrorCallback(error_cb);
     decode_task_->setErrorCallback(error_cb);
     display_task_->setErrorCallback(error_cb);
+
+    record_task_ = XRecordTask::create();
+    demux_task_->addObserver(record_task_);
+    record_task_->start();
 }
 
 RtspClient::~RtspClient()
@@ -39,6 +43,8 @@ RtspClient::~RtspClient()
         decode_task_->stop();
     if (display_task_)
         display_task_->stop();
+    if (record_task_)
+        record_task_->stop();
 
     /// 2. 等待一小段时间让任务停止
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -51,6 +57,8 @@ RtspClient::~RtspClient()
         decode_task_->wait();
     if (display_task_)
         display_task_->wait();
+    if (record_task_)
+        record_task_->wait();
 
     LOGI("所有任务已停止");
 
@@ -58,6 +66,7 @@ RtspClient::~RtspClient()
     demux_task_.reset();
     decode_task_.reset();
     display_task_.reset();
+    record_task_.reset();
 
     LOGI("RTSP客户端销毁 - 结束");
 }
@@ -168,6 +177,46 @@ auto RtspClient::setRenderCallback(XDisplayTask::RenderCallback cb) -> void
     {
         display_task_->setRenderCallback(cb);
     }
+}
+
+auto RtspClient::startRecording(const std::string& filename, int duration_sec) -> bool
+{
+    if (!record_task_)
+    {
+        LOGE("录制任务未初始化");
+        return false;
+    }
+
+    auto video_stream = demux_task_->getVideoStream();
+    if (!video_stream)
+    {
+        LOGE("未找到视频流");
+        return false;
+    }
+
+    return record_task_->beginRecord(filename, video_stream, duration_sec);
+}
+
+auto RtspClient::stopRecording() -> void
+{
+    if (record_task_)
+    {
+        record_task_->endRecord();
+    }
+}
+
+auto RtspClient::isRecording() const -> bool
+{
+    return record_task_ ? record_task_->isRecording() : false;
+}
+
+auto RtspClient::getRecordingStatus() const -> XRecordTask::Status
+{
+    if (record_task_)
+    {
+        return record_task_->getStatus();
+    }
+    return XRecordTask::Status{};
 }
 
 auto RtspClient::getDecoder() -> VideoDecoder*

@@ -90,3 +90,20 @@ PacketWrapper::operator bool() const
 {
     return impl_ && impl_->pkt_;
 }
+
+auto PacketWrapper::clone() const -> PacketWrapper::Ptr
+{
+    if (!impl_ || !impl_->pkt_)
+    {
+        throw AVException("克隆空包");
+    }
+
+    auto new_packet = std::make_unique<PacketWrapper>();
+    int  ret        = av_packet_ref(new_packet->get(), impl_->pkt_);
+    if (ret < 0)
+    {
+        throw AVException("克隆数据包失败", ret);
+    }
+
+    return new_packet;
+}

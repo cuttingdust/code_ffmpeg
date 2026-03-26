@@ -3,6 +3,8 @@
 #include "XDemuxTask.h"
 #include "XDecodeTask.h"
 #include "XDisplayTask.h"
+#include "XRecordTask.h"
+
 #include <atomic>
 #include <chrono>
 
@@ -48,6 +50,15 @@ public:
     /// 设置自定义渲染回调
     auto setRenderCallback(XDisplayTask::RenderCallback cb) -> void;
 
+    //////////////////////////////////////////////////////////////////
+
+    auto startRecording(const std::string &filename, int duration_sec = 0) -> bool;
+    auto stopRecording() -> void;
+    auto isRecording() const -> bool;
+    auto getRecordingStatus() const -> XRecordTask::Status;
+
+    //////////////////////////////////////////////////////////////////
+
     /// 获取解码器（用于高级配置）
     auto getDecoder() -> VideoDecoder *;
 
@@ -59,6 +70,7 @@ public:
 
     /// 获取显示任务（用于高级配置）
     auto getDisplayTask() -> XDisplayTask::Ptr;
+
 
 private:
     /// 重连逻辑
@@ -72,6 +84,7 @@ private:
     XDemuxTask::Ptr   demux_task_;
     XDecodeTask::Ptr  decode_task_;
     XDisplayTask::Ptr display_task_;
+    XRecordTask::Ptr  record_task_;
 
     /// 重连配置
     int                                   reconnect_interval_ = 3;

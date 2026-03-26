@@ -152,7 +152,6 @@ auto XDemuxTask::process() -> void
 
         PacketWrapper pkt;
         int           ret = demuxer_->readPacket(pkt);
-
         if (ret == AVERROR_EOF)
         {
             LOGI("文件读取完成");
@@ -196,6 +195,10 @@ auto XDemuxTask::process() -> void
             if (stream->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
             {
                 ++video_packets_;
+
+                auto pkt_clone = pkt.clone();
+                notifyObservers(std::move(pkt_clone));
+
                 if (next_)
                 {
                     next_->pushPacket(std::make_unique<PacketWrapper>(std::move(pkt)));
