@@ -10,7 +10,7 @@ enum XLogLevel
 {
     XLOG_LEVEL_DEBUG = 0,
     XLOG_LEVEL_INFO  = 1,
-    XLOG_LEVEL_WARN  = 2, // ✅ 新增警告级别
+    XLOG_LEVEL_WARN  = 2,
     XLOG_LEVEL_ERROR = 3,
     XLOG_LEVEL_FATAL = 4
 };
@@ -48,7 +48,7 @@ inline const char* getLevelString(XLogLevel level)
             return "DEBUG";
         case XLOG_LEVEL_INFO:
             return "INFO ";
-        case XLOG_LEVEL_WARN: // ✅ 新增
+        case XLOG_LEVEL_WARN:
             return "WARN ";
         case XLOG_LEVEL_ERROR:
             return "ERROR";
@@ -69,7 +69,7 @@ inline const char* getLevelString(XLogLevel level)
 /// 简化的日志宏
 #define LOGD(s) AVLOG(s, XLOG_LEVEL_DEBUG)
 #define LOGI(s) AVLOG(s, XLOG_LEVEL_INFO)
-#define LOGW(s) AVLOG(s, XLOG_LEVEL_WARN) // ✅ 新增警告宏
+#define LOGW(s) AVLOG(s, XLOG_LEVEL_WARN)
 #define LOGE(s) AVLOG(s, XLOG_LEVEL_ERROR)
 #define LOGF(s) AVLOG(s, XLOG_LEVEL_FATAL)
 
@@ -82,7 +82,7 @@ inline const char* getLevelString(XLogLevel level)
     LOGI(s)
 #define LOGW_IF(cond, s) \
     if (cond)            \
-    LOGW(s) // ✅ 新增
+    LOGW(s)
 #define LOGE_IF(cond, s) \
     if (cond)            \
     LOGE(s)

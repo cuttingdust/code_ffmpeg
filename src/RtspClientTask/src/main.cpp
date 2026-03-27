@@ -56,7 +56,7 @@ int main()
         LOGI("RTSP客户端启动...");
         client.start();
 
-        // 等待流稳定
+        /// 等待流稳定
         LOGI("等待流稳定...");
         for (int i = 0; i < 10; i++)
         {
@@ -76,14 +76,14 @@ int main()
             return -1;
         }
 
-        // 再等待2秒让解码器稳定
+        /// 再等待2秒让解码器稳定
         std::this_thread::sleep_for(std::chrono::seconds(2));
 
-        // 开始录制20秒
+        /// 开始录制20秒
         LOGI("开始录制20秒...");
         if (client.startRecording("output.mp4", 20))
         {
-            // 等待录制完成，但不退出
+            /// 等待录制完成，但不退出
             while (client.isRecording())
             {
                 auto status = client.getRecordingStatus();
@@ -102,13 +102,13 @@ int main()
             LOGE("启动录制失败");
         }
 
-        // 录制完成后继续播放，等待用户按回车退出
+        /// 录制完成后继续播放，等待用户按回车退出
         LOGI("========================================");
         LOGI("录制完成，继续播放...");
         LOGI("按回车键退出程序");
         LOGI("========================================");
 
-        getchar(); // 等待用户按回车
+        getchar(); /// 等待用户按回车
 
         LOGI("用户请求退出，程序结束");
     }
