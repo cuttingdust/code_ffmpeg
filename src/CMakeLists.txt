@@ -140,6 +140,8 @@ add_subdirectory(XTranscode)
 add_subdirectory(XDemuTask)
 add_subdirectory(RtspClient)
 add_subdirectory(RtspClientTask)
+add_subdirectory(XCodec)
+add_subdirectory(XCodecTest)
 
 
 # 拷贝assert目录到输出目录
