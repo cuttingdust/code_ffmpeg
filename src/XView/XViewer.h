@@ -15,6 +15,9 @@ class XViewer : public QWidget
 public:
     XViewer(QWidget *parent = Q_NULLPTR);
 
+protected:
+    bool eventFilter(QObject *pObj, QEvent *pEvent) override;
+
 private:
     Ui::XViewerClass *ui_ = nullptr;
 };
