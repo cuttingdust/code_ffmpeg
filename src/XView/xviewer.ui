@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>XViewerClass</class>
+ <widget class="QWidget" name="XViewerClass">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>600</width>
+    <height>400</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>XViewer</string>
+  </property>
+  <property name="windowIcon">
+   <iconset resource="xviewer.qrc">
+    <normaloff>:/XViewer/img/xv.ico</normaloff>:/XViewer/img/xv.ico</iconset>
+  </property>
+ </widget>
+ <layoutdefault spacing="6" margin="11"/>
+ <resources>
+  <include location="xviewer.qrc"/>
+ </resources>
+ <connections/>
+</ui>

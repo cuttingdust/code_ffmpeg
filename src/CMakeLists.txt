@@ -142,6 +142,7 @@ add_subdirectory(RtspClient)
 add_subdirectory(RtspClientTask)
 add_subdirectory(XCodec)
 add_subdirectory(XCodecTest)
+add_subdirectory(XView)
 
 
 # 拷贝assert目录到输出目录
