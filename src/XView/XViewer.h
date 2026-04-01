@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <QtWidgets/QWidget>
 
@@ -17,6 +17,13 @@ public:
 
 protected:
     bool eventFilter(QObject *pObj, QEvent *pEvent) override;
+
+protected:
+    void resizeEvent(QResizeEvent *event) override;
+
+protected slots:
+    void MaxWindow();
+    void NormalWindow();
 
 private:
     Ui::XViewerClass *ui_ = nullptr;
