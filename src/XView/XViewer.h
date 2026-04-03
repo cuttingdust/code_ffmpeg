@@ -36,7 +36,7 @@ protected slots:
     void View4();
     void View9();
     void View16();
-
+    void AddCam(); /// 新增摄像机配置
 private:
     Ui::XViewerClass *ui_ = nullptr;
     QMenu             left_menu_;
