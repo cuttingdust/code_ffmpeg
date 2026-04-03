@@ -28,6 +28,10 @@ public:
 
     auto getCameraCount() -> int;
 
+    auto save(const char *path) -> bool;
+
+    auto load(const char *path) -> bool;
+
 private:
     XCameraConfig();
 

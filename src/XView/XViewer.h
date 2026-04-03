@@ -25,7 +25,9 @@ protected:
 
     void contextMenuEvent(QContextMenuEvent *event) override;
 
-    void View(int count);
+    void view(int count);
+
+    void refreshCameras();
 
 protected slots:
     void MaxWindow();

@@ -1,9 +1,12 @@
 ﻿#include "XViewer.h"
 
 #include "ui_xviewer.h"
+#include "XCameraConfig.h"
 
 #include <QtGui/QMouseEvent>
 #include <QtWidgets/QVBoxLayout>
+
+#define CAM_CONF_PATH "cams.db"
 
 static QWidget *cam_wids[16] = { 0 };
 
@@ -50,6 +53,20 @@ XViewer::XViewer(QWidget *parent) : QWidget(parent)
 
     /// 默认九窗口
     View9();
+
+
+    /// 刷新左侧摄像机列表
+    XCameraConfig::instance()->load(CAM_CONF_PATH);
+    {
+        XCameraData cd;
+        strcpy(cd.name, "camera1");
+        strcpy(cd.save_path, ".\\camera1\\");
+        strcpy(cd.url, "rtsp://test:x12345678@192.168.2.64/h264/ch1/main/av_stream");
+        strcpy(cd.sub_url, "rtsp://test:x12345678@192.168.2.64/h264/ch1/sub/av_stream");
+        XCameraConfig::instance()->addCamera(cd);
+    }
+
+    refreshCameras();
 }
 
 bool XViewer::eventFilter(QObject *pObj, QEvent *pEvent)
@@ -98,9 +115,9 @@ void XViewer::contextMenuEvent(QContextMenuEvent *event)
     event->accept();
 }
 
-void XViewer::View(int count)
+void XViewer::view(int count)
 {
-    qDebug() << "View" << count;
+    qDebug() << "view" << count;
     /// 2X2 3X3 4X4
     /// 确定列数 根号
     int cols = sqrt(count);
@@ -138,6 +155,19 @@ void XViewer::View(int count)
     }
 }
 
+void XViewer::refreshCameras()
+{
+    auto c = XCameraConfig::instance();
+    ui_->cam_list->clear();
+    int count = c->getCameraCount();
+    for (int i = 0; i < count; i++)
+    {
+        auto cam  = c->getCamera(i);
+        auto item = new QListWidgetItem(QIcon(":/XViewer/img/cam.png"), cam->name);
+        ui_->cam_list->addItem(item);
+    }
+}
+
 void XViewer::MaxWindow()
 {
     ui_->max->setVisible(false);
@@ -154,20 +184,20 @@ void XViewer::NormalWindow()
 
 void XViewer::View1()
 {
-    View(1);
+    view(1);
 }
 
 void XViewer::View4()
 {
-    View(4);
+    view(4);
 }
 
 void XViewer::View9()
 {
-    View(9);
+    view(9);
 }
 
 void XViewer::View16()
 {
-    View(16);
+    view(16);
 }

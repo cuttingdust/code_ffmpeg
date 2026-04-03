@@ -5,11 +5,14 @@
 
 #include <iostream>
 
+#define TEST_CAM_PATH "test.db"
+
 int main(int argc, char *argv[])
 {
     qputenv("QT_LOGGING_RULES", "qt.gui.imageio=false");
 
     auto *xc = XCameraConfig::instance();
+    xc->load(TEST_CAM_PATH);
     {
         XCameraData cd;
         strcpy(cd.name, "camera1");
@@ -56,6 +59,8 @@ int main(int argc, char *argv[])
             qDebug() << "Camera not found at index" << i;
         }
     }
+    xc->save(TEST_CAM_PATH);
+
     qDebug() << "=================Del=====================";
     xc->deleteCamera(1);
     cam_count = xc->getCameraCount();
