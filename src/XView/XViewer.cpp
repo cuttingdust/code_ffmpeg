@@ -379,7 +379,7 @@ void XViewer::updateCam(int index)
     strcpy(data.url, url_edit.text().toStdString().data());
     strcpy(data.sub_url, sub_url_edit.text().toStdString().data());
     strcpy(data.save_path, save_path_edit.text().toStdString().data());
-    if (index > 0) /// 修改
+    if (index >= 0) /// 修改
     {
         c->updateCamera(index, data);
     }
