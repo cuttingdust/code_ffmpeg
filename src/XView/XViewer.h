@@ -29,6 +29,8 @@ protected:
 
     void refreshCameras();
 
+    void updateCam(int index);
+
 protected slots:
     void MaxWindow();
     void NormalWindow();
@@ -37,6 +39,9 @@ protected slots:
     void View9();
     void View16();
     void AddCam(); /// 新增摄像机配置
+    void SetCam(); /// 修改摄像机配置
+    void DelCam(); /// 删除摄像机配置
+
 private:
     Ui::XViewerClass *ui_ = nullptr;
     QMenu             left_menu_;
