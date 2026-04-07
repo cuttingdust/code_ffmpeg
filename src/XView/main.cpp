@@ -10,6 +10,7 @@
 int main(int argc, char *argv[])
 {
     qputenv("QT_LOGGING_RULES", "qt.gui.imageio=false");
+    setlocale(LC_ALL, "zh_CN.UTF-8");
 
     // auto *xc = XCameraConfig::instance();
     // xc->load(TEST_CAM_PATH);

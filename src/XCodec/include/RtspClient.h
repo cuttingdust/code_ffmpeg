@@ -41,6 +41,9 @@ public:
     /// 等待所有线程结束
     auto wait() -> void;
 
+    /// 检查是否正在运行
+    auto isRunning() const -> bool;
+
     /// 设置重连间隔（秒）
     auto setReconnectInterval(int seconds) -> void;
 
@@ -71,6 +74,7 @@ public:
     /// 获取显示任务（用于高级配置）
     auto getDisplayTask() -> XDisplayTask::Ptr;
 
+    auto setFirstFrameCallback(XDisplayTask::FirstFrameCallback cb) -> void;
 
 private:
     /// 重连逻辑

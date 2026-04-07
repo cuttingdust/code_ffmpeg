@@ -47,6 +47,17 @@ auto XDisplayTask::reset() -> void
     reconnecting_    = true; /// 标记正在重连
 }
 
+auto XDisplayTask::getVideoView() -> XVideoView*
+{
+    return view_.get();
+}
+
+auto XDisplayTask::setWindow(void* win) -> void
+{
+    external_win_ = win;
+}
+
+
 void XDisplayTask::updateFPS()
 {
     frame_count_++;
@@ -90,6 +101,10 @@ void XDisplayTask::defaultRender(FrameWrapper& frame)
             return;
         }
         LOGD("渲染器创建成功");
+        if (external_win_)
+        {
+            view_->setWindow(external_win_);
+        }
     }
 
     /// 如果窗口还没创建，直接在子线程初始化
@@ -129,6 +144,16 @@ void XDisplayTask::defaultRender(FrameWrapper& frame)
 
     if (is_init_ && view_)
     {
+        /// 首帧回调
+        if (!first_frame_received_ && frame->width > 0)
+        {
+            first_frame_received_ = true;
+            if (first_frame_cb_)
+            {
+                first_frame_cb_();
+            }
+        }
+
         bool draw_result = view_->drawFrame(frame);
         if (!draw_result)
         {

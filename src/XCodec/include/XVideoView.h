@@ -1,6 +1,8 @@
 ﻿#ifndef XVIDEOVIEW_H
 #define XVIDEOVIEW_H
 
+#include "XCodec_Global.h"
+
 #include <memory>
 #include <string>
 
@@ -12,7 +14,7 @@ struct AVFrame;
  * 提供统一的视频渲染接口，支持多种渲染后端（如SDL）
  * 负责视频帧的显示、窗口管理、FPS统计等功能
  */
-class XVideoView
+class XCODEC_EXPORT XVideoView
 {
 public:
     /**

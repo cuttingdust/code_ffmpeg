@@ -211,67 +211,7 @@ void XViewer::View16()
 
 void XViewer::AddCam()
 {
-    QDialog dlg(this);
-    dlg.resize(800, 200);
-    QFormLayout lay;
-    dlg.setLayout(&lay);
-    ///  标题1 输入框1
-    ///  标题2 输入框2
-    QLineEdit name_edit;
-    lay.addRow("名称", &name_edit);
-
-    QLineEdit url_edit;
-    lay.addRow("主码流", &url_edit);
-
-    QLineEdit sub_url_edit;
-    lay.addRow("辅码流", &sub_url_edit);
-
-    QLineEdit save_path_edit;
-    lay.addRow("保存目录", &save_path_edit);
-
-    QPushButton save;
-    save.setText("保存");
-
-    connect(&save, SIGNAL(clicked()), &dlg, SLOT(accept()));
-
-    lay.addRow("", &save);
-    for (;;)
-    {
-        if (dlg.exec() == QDialog::Accepted) /// 点击了保存
-        {
-            if (name_edit.text().isEmpty())
-            {
-                QMessageBox::information(0, "error", "请输入名称");
-                continue;
-            }
-            if (url_edit.text().isEmpty())
-            {
-                QMessageBox::information(0, "error", "请输入主码流");
-                continue;
-            }
-            if (sub_url_edit.text().isEmpty())
-            {
-                QMessageBox::information(0, "error", "请输入辅码流");
-                continue;
-            }
-            if (save_path_edit.text().isEmpty())
-            {
-                QMessageBox::information(0, "error", "请输入保存目录");
-                continue;
-            }
-            break;
-        }
-        return;
-    }
-
-    XCameraData data;
-    strcpy(data.name, name_edit.text().toLocal8Bit());
-    strcpy(data.url, url_edit.text().toLocal8Bit());
-    strcpy(data.sub_url, sub_url_edit.text().toLocal8Bit());
-    strcpy(data.save_path, save_path_edit.text().toLocal8Bit());
-    XCameraConfig::instance()->addCamera(data);     /// 插入数据
-    XCameraConfig::instance()->save(CAM_CONF_PATH); /// 保存到文件
-    refreshCameras();                               /// 刷新显示
+    updateCam(-1);
 }
 
 void XViewer::SetCam()

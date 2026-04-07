@@ -26,9 +26,9 @@ RtspClient::RtspClient()
     decode_task_->setErrorCallback(error_cb);
     display_task_->setErrorCallback(error_cb);
 
-    record_task_ = XRecordTask::create();
-    demux_task_->addObserver(record_task_);
-    record_task_->start();
+    // record_task_ = XRecordTask::create();
+    // demux_task_->addObserver(record_task_);
+    // record_task_->start();
 }
 
 RtspClient::~RtspClient()
@@ -161,6 +161,11 @@ auto RtspClient::wait() -> void
     LOGI("RTSP客户端已停止");
 }
 
+auto RtspClient::isRunning() const -> bool
+{
+    return state_ == RtspState::CONNECTED;
+}
+
 auto RtspClient::setReconnectInterval(int seconds) -> void
 {
     reconnect_interval_ = seconds;
@@ -237,6 +242,14 @@ auto RtspClient::getDecodeTask() -> XDecodeTask::Ptr
 auto RtspClient::getDisplayTask() -> XDisplayTask::Ptr
 {
     return display_task_;
+}
+
+auto RtspClient::setFirstFrameCallback(XDisplayTask::FirstFrameCallback cb) -> void
+{
+    if (display_task_)
+    {
+        display_task_->setFirstFrameCallback(cb);
+    }
 }
 
 void RtspClient::reconnect()
