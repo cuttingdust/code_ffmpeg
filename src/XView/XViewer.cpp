@@ -2,6 +2,7 @@
 
 #include "ui_xviewer.h"
 #include "XCameraConfig.h"
+#include "XCameraWidget.h"
 
 #include <QtGui/QMouseEvent>
 #include <QtWidgets/QVBoxLayout>
@@ -14,7 +15,7 @@
 
 #define CAM_CONF_PATH "cams.db"
 
-static QWidget *cam_wids[16] = { 0 };
+static XCameraWidget *cam_wids[16] = { 0 };
 
 XViewer::XViewer(QWidget *parent) : QWidget(parent)
 {
@@ -144,7 +145,7 @@ void XViewer::view(int count)
     {
         if (!cam_wids[i])
         {
-            cam_wids[i] = new QWidget();
+            cam_wids[i] = new XCameraWidget;
             cam_wids[i]->setStyleSheet("background-color:rgb(51,51,51);");
         }
         lay->addWidget(cam_wids[i], i / cols, i % cols);

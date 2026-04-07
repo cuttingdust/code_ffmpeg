@@ -25,6 +25,8 @@ protected:
 
     void contextMenuEvent(QContextMenuEvent *event) override;
 
+    /// \brief 预览视频窗口
+    /// \param count
     void view(int count);
 
     void refreshCameras();
