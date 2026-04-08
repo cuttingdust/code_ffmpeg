@@ -1,5 +1,7 @@
-﻿#include <RtspClient.h>
-#include <AVLog.h>
+﻿#include "RtspClient.h"
+#include "AVLog.h"
+#include <thread>
+#include <chrono>
 
 #define RTSP_URL "rtsp://localhost:8554/test"
 
@@ -9,27 +11,27 @@ int main()
 
     try
     {
-        RtspClient client;
-        client.setUrl(RTSP_URL);
-        client.setReconnectInterval(5);
-        client.set_max_reconnects(3);
+        auto client = RtspClient::create();
+        client->setUrl(RTSP_URL);
+        client->setReconnectInterval(5);
+        client->setMaxReconnects(3);
 
         LOGI("RTSP客户端启动...");
-        client.start();
+        client->start();
 
         /// 等待流稳定
         LOGI("等待流稳定...");
         for (int i = 0; i < 10; i++)
         {
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
-            if (client.getState() == RtspState::CONNECTED)
+            if (client->getState() == MediaClientState::CONNECTED)
             {
                 LOGI("连接成功");
                 break;
             }
         }
 
-        if (client.getState() != RtspState::CONNECTED)
+        if (client->getState() != MediaClientState::CONNECTED)
         {
             LOGE("RTSP连接失败");
             LOGI("按回车键退出...");
@@ -42,12 +44,12 @@ int main()
 
         /// 开始录制20秒
         LOGI("开始录制20秒...");
-        if (client.startRecording("output.mp4", 20))
+        if (client->startRecording("output.mp4", 20))
         {
             /// 等待录制完成，但不退出
-            while (client.isRecording())
+            while (client->isRecording())
             {
-                auto status = client.getRecordingStatus();
+                auto status = client->getRecordingStatus();
                 if (status.packet_count > 0)
                 {
                     LOGI("录制进度: " << status.recorded_sec << "/" << status.total_sec

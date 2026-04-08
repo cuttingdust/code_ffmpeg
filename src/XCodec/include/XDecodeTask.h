@@ -11,6 +11,8 @@ public:
     ~XDecodeTask() override;
 
 public:
+    auto setHardwareDecode(bool enable) -> void;
+
     /// 初始化解码器
     auto initDecoder(AVCodecID codec_id, AVStream *stream) -> bool;
 
@@ -30,6 +32,7 @@ protected:
     auto process() -> void override;
 
 private:
-    VideoDecoder::Ptr            decoder_;
-    DecoderConfig::FrameCallback frame_cb_;
+    VideoDecoder::Ptr            decoder_      = nullptr;
+    DecoderConfig::FrameCallback frame_cb_     = nullptr;
+    bool                         use_hardware_ = true;
 };

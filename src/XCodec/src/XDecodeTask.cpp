@@ -16,6 +16,11 @@ XDecodeTask::~XDecodeTask()
     LOGD("解码任务销毁");
 }
 
+auto XDecodeTask::setHardwareDecode(bool enable) -> void
+{
+    use_hardware_ = enable;
+}
+
 void XDecodeTask::reset()
 {
     XTask::reset();
@@ -38,7 +43,7 @@ bool XDecodeTask::initDecoder(AVCodecID codec_id, AVStream* stream)
         DecoderConfig config;
         config.codec_id                      = codec_id;
         config.thread_count                  = 16;
-        config.hardware.enable               = true;
+        config.hardware.enable               = use_hardware_;
         config.hardware.auto_select          = true;
         config.hardware.preferred_type       = HardwareContext::Type::D3D11VA;
         config.hardware.transfer_to_software = true;

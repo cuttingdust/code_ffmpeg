@@ -4,53 +4,272 @@
 RtspClient::RtspClient()
 {
     LOGI("RTSP客户端创建");
-
-    demux_task_   = XDemuxTask::create();
-    decode_task_  = XDecodeTask::create();
-    display_task_ = XDisplayTask::create();
-
-    demux_task_->setIdleTimeoutMs(5000);
-    decode_task_->setIdleTimeoutMs(3000);
-    display_task_->setIdleTimeoutMs(3000);
-
-    demux_task_->setNext(decode_task_);
-    decode_task_->setNext(display_task_);
-
-    auto error_cb = [this](const std::string& msg)
-    {
-        LOGE("任务错误，触发重连: " << msg);
-        reconnect();
-    };
-
-    demux_task_->setErrorCallback(error_cb);
-    decode_task_->setErrorCallback(error_cb);
-    display_task_->setErrorCallback(error_cb);
-
-    // record_task_ = XRecordTask::create();
-    // demux_task_->addObserver(record_task_);
-    // record_task_->start();
+    createTasks();
 }
 
 RtspClient::~RtspClient()
 {
     LOGI("RTSP客户端销毁 - 开始");
+    stop();
+    wait();
+    destroyTasks();
+    LOGI("RTSP客户端销毁 - 结束");
+}
 
-    /// 1. 先停止所有任务
-    LOGI("停止所有任务...");
-    if (demux_task_)
-        demux_task_->stop();
+auto RtspClient::create() -> std::shared_ptr<RtspClient>
+{
+    return std::make_shared<RtspClient>();
+}
+
+void RtspClient::initTasks()
+{
+    // 基类纯虚函数实现，直接调用 createTasks
+    createTasks();
+}
+
+void RtspClient::createTasks()
+{
+    // 创建基础任务
+    demux_task_   = XDemuxTask::create();
+    decode_task_  = XDecodeTask::create();
+    display_task_ = XDisplayTask::create();
+
+    // 设置超时
+    demux_task_->setIdleTimeoutMs(5000);
+    decode_task_->setIdleTimeoutMs(3000);
+    display_task_->setIdleTimeoutMs(3000);
+
+    // 设置任务链
+    demux_task_->setNext(decode_task_);
+    decode_task_->setNext(display_task_);
+
+    // 设置错误回调
+    auto error_cb = [this](const std::string& msg) { handleError(msg); };
+
+    demux_task_->setErrorCallback(error_cb);
+    decode_task_->setErrorCallback(error_cb);
+    display_task_->setErrorCallback(error_cb);
+
+    // 设置窗口
+    if (external_win_)
+    {
+        display_task_->setWindow(external_win_);
+    }
+}
+
+void RtspClient::destroyTasks()
+{
+    if (display_task_)
+    {
+        display_task_->stop();
+        display_task_->wait();
+        display_task_.reset();
+    }
     if (decode_task_)
+    {
         decode_task_->stop();
+        decode_task_->wait();
+        decode_task_.reset();
+    }
+    if (demux_task_)
+    {
+        demux_task_->stop();
+        demux_task_->wait();
+        demux_task_.reset();
+    }
+    if (record_task_)
+    {
+        record_task_->stop();
+        record_task_->wait();
+        record_task_.reset();
+    }
+}
+
+void RtspClient::enableRecord()
+{
+    if (record_enabled_)
+        return;
+
+    LOGI("启用录制功能");
+    record_task_ = XRecordTask::create();
+    demux_task_->addObserver(record_task_);
+    record_enabled_ = true;
+}
+
+void RtspClient::startTasks()
+{
+    XMediaClient::startTasks();
+    if (display_task_)
+        display_task_->start();
+    if (record_task_)
+        record_task_->start();
+}
+
+void RtspClient::stopTasks()
+{
+    XMediaClient::stopTasks();
     if (display_task_)
         display_task_->stop();
     if (record_task_)
         record_task_->stop();
+}
 
-    /// 2. 等待一小段时间让任务停止
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+void RtspClient::resetTasks()
+{
+    XMediaClient::resetTasks();
+    if (display_task_)
+        display_task_->reset();
+    if (record_task_)
+        record_task_->reset();
+}
 
-    /// 3. 等待任务结束
-    LOGI("等待任务结束...");
+void RtspClient::reconnectImpl()
+{
+    LOGI("RtspClient 重连实现 - 重新创建任务");
+
+    // 1. 彻底释放旧任务
+    destroyTasks();
+
+    // 2. 重新创建任务
+    createTasks();
+
+    // 3. 如果之前启用了录制，重新创建录制任务
+    if (record_enabled_)
+    {
+        record_task_ = XRecordTask::create();
+        demux_task_->addObserver(record_task_);
+    }
+
+    // 4. 重试打开 URL（最多5次）
+    const int max_retries = 5;
+    bool      opened      = false;
+
+    for (int i = 0; i < max_retries; i++)
+    {
+        if (demux_task_->open(url_))
+        {
+            opened = true;
+            break;
+        }
+
+        LOGE("重连打开URL失败 (尝试 " << i + 1 << "/" << max_retries << "): " << url_);
+
+        if (i < max_retries - 1)
+        {
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
+    }
+
+    if (!opened)
+    {
+        LOGE("重连打开URL最终失败: " << url_);
+        setState(MediaClientState::ERROR);
+        return;
+    }
+
+    demux_task_->setRtspOptions(true, 5000);
+
+    // 5. 重新获取视频流
+    video_stream_ = demux_task_->getVideoStream();
+    if (!video_stream_)
+    {
+        LOGE("重连未找到视频流");
+        setState(MediaClientState::ERROR);
+        return;
+    }
+
+    // 6. 重新初始化解码器
+    if (!initDecoder())
+    {
+        LOGE("重连初始化解码器失败");
+        setState(MediaClientState::ERROR);
+        return;
+    }
+
+    // 7. 重新启动任务
+    startTasks();
+
+    setState(MediaClientState::CONNECTED);
+    LOGI("RtspClient 重连成功");
+}
+
+bool RtspClient::start()
+{
+    LOGI("RTSP客户端启动..." << (use_hardware_ ? "(硬件解码)" : "(软件解码)"));
+    setState(MediaClientState::CONNECTING);
+
+    // 打开解封装
+    if (!demux_task_->open(url_))
+    {
+        LOGE("打开RTSP失败: " << url_);
+        setState(MediaClientState::ERROR);
+        return false;
+    }
+
+    demux_task_->setRtspOptions(true, 5000);
+
+    // 获取视频流
+    video_stream_ = demux_task_->getVideoStream();
+    if (!video_stream_)
+    {
+        LOGE("未找到视频流");
+        setState(MediaClientState::ERROR);
+        return false;
+    }
+
+    // 初始化解码器
+    if (!initDecoder())
+    {
+        LOGE("初始化解码器失败");
+
+        // 如果硬件解码失败，尝试软件解码
+        if (use_hardware_)
+        {
+            LOGE("硬件解码失败，尝试软件解码");
+            use_hardware_ = false;
+
+            if (!initDecoder())
+            {
+                LOGE("软件解码也失败");
+                setState(MediaClientState::ERROR);
+                return false;
+            }
+        }
+        else
+        {
+            setState(MediaClientState::ERROR);
+            return false;
+        }
+    }
+
+    // 启动所有任务
+    startTasks();
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+    if (demux_task_->isRunning() && decode_task_->isRunning() && display_task_->isRunning())
+    {
+        setState(MediaClientState::CONNECTED);
+        LOGI("RTSP客户端启动成功");
+        return true;
+    }
+    else
+    {
+        LOGE("任务启动失败");
+        setState(MediaClientState::ERROR);
+        return false;
+    }
+}
+
+void RtspClient::stop()
+{
+    LOGI("RTSP客户端停止");
+    setState(MediaClientState::DISCONNECTED);
+    stopTasks();
+}
+
+void RtspClient::wait()
+{
     if (demux_task_)
         demux_task_->wait();
     if (decode_task_)
@@ -59,150 +278,57 @@ RtspClient::~RtspClient()
         display_task_->wait();
     if (record_task_)
         record_task_->wait();
-
-    LOGI("所有任务已停止");
-
-    /// 4. 最后重置智能指针（会触发析构）
-    demux_task_.reset();
-    decode_task_.reset();
-    display_task_.reset();
-    record_task_.reset();
-
-    LOGI("RTSP客户端销毁 - 结束");
-}
-
-auto RtspClient::setUrl(const std::string& url) -> void
-{
-    url_ = url;
-}
-
-auto RtspClient::getState() const -> RtspState
-{
-    return state_;
-}
-
-auto RtspClient::start() -> bool
-{
-    LOGI("RTSP客户端启动..." << (use_hardware_ ? "(硬件解码)" : "(软件解码)"));
-
-    if (!demux_task_->open(url_))
-    {
-        LOGE("打开RTSP失败: " << url_);
-        state_ = RtspState::ERROR;
-        return false;
-    }
-
-    demux_task_->setRtspOptions(true, 5000);
-
-    auto video_stream = demux_task_->getVideoStream();
-    if (!video_stream)
-    {
-        LOGE("未找到视频流");
-        state_ = RtspState::ERROR;
-        return false;
-    }
-
-    if (!decode_task_->initDecoder(video_stream->codecpar->codec_id, video_stream))
-    {
-        LOGE("初始化解码器失败");
-
-        if (use_hardware_)
-        {
-            LOGE("硬件解码失败，尝试软件解码");
-            use_hardware_ = false;
-
-            if (!decode_task_->initDecoder(video_stream->codecpar->codec_id, video_stream))
-            {
-                LOGE("软件解码也失败");
-                state_ = RtspState::ERROR;
-                return false;
-            }
-        }
-        else
-        {
-            state_ = RtspState::ERROR;
-            return false;
-        }
-    }
-
-    demux_task_->start();
-    decode_task_->start();
-    display_task_->start();
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-
-    if (demux_task_->isRunning() && decode_task_->isRunning() && display_task_->isRunning())
-    {
-        state_ = RtspState::CONNECTED;
-        LOGI("RTSP客户端启动成功");
-        return true;
-    }
-    else
-    {
-        LOGE("任务启动失败");
-        state_ = RtspState::ERROR;
-        return false;
-    }
-}
-
-auto RtspClient::stop() -> void
-{
-    demux_task_->stop();
-    decode_task_->stop();
-    display_task_->stop();
-}
-
-auto RtspClient::wait() -> void
-{
-    demux_task_->wait();
-    decode_task_->wait();
-    display_task_->wait();
-    state_ = RtspState::DISCONNECTED;
     LOGI("RTSP客户端已停止");
 }
 
-auto RtspClient::isRunning() const -> bool
+void RtspClient::setRenderWindow(void* winId)
 {
-    return state_ == RtspState::CONNECTED;
-}
-
-auto RtspClient::setReconnectInterval(int seconds) -> void
-{
-    reconnect_interval_ = seconds;
-}
-
-auto RtspClient::set_max_reconnects(int count) -> void
-{
-    max_reconnects_ = count;
-}
-
-auto RtspClient::setRenderCallback(XDisplayTask::RenderCallback cb) -> void
-{
+    external_win_ = winId;
     if (display_task_)
     {
-        display_task_->setRenderCallback(cb);
+        display_task_->setWindow(winId);
     }
 }
 
-auto RtspClient::startRecording(const std::string& filename, int duration_sec) -> bool
+void RtspClient::setRenderCallback(XDisplayTask::RenderCallback cb)
 {
+    if (display_task_)
+    {
+        display_task_->setRenderCallback(std::move(cb));
+    }
+}
+
+void RtspClient::setFirstFrameCallback(XDisplayTask::FirstFrameCallback cb)
+{
+    if (display_task_)
+    {
+        display_task_->setFirstFrameCallback(std::move(cb));
+    }
+}
+
+bool RtspClient::startRecording(const std::string& filename, int duration_sec)
+{
+    if (!record_enabled_)
+    {
+        enableRecord();
+    }
+
     if (!record_task_)
     {
         LOGE("录制任务未初始化");
         return false;
     }
 
-    auto video_stream = demux_task_->getVideoStream();
-    if (!video_stream)
+    if (!video_stream_)
     {
-        LOGE("未找到视频流");
+        LOGE("视频流未获取");
         return false;
     }
 
-    return record_task_->beginRecord(filename, video_stream, duration_sec);
+    return record_task_->beginRecord(filename, video_stream_, duration_sec);
 }
 
-auto RtspClient::stopRecording() -> void
+void RtspClient::stopRecording()
 {
     if (record_task_)
     {
@@ -210,7 +336,7 @@ auto RtspClient::stopRecording() -> void
     }
 }
 
-auto RtspClient::isRecording() const -> bool
+bool RtspClient::isRecording() const
 {
     return record_task_ ? record_task_->isRecording() : false;
 }
@@ -242,101 +368,4 @@ auto RtspClient::getDecodeTask() -> XDecodeTask::Ptr
 auto RtspClient::getDisplayTask() -> XDisplayTask::Ptr
 {
     return display_task_;
-}
-
-auto RtspClient::setFirstFrameCallback(XDisplayTask::FirstFrameCallback cb) -> void
-{
-    if (display_task_)
-    {
-        display_task_->setFirstFrameCallback(cb);
-    }
-}
-
-void RtspClient::reconnect()
-{
-    static std::atomic<bool> reconnecting{ false };
-
-    if (reconnecting.exchange(true))
-    {
-        LOGW("重连已在进行中，忽略本次请求");
-        return;
-    }
-
-    /// 检查是否达到最大重连次数
-    if (max_reconnects_ > 0 && reconnect_count_ >= max_reconnects_)
-    {
-        LOGE("达到最大重连次数(" << max_reconnects_ << ")，停止重连");
-        state_       = RtspState::ERROR;
-        reconnecting = false;
-        return;
-    }
-
-    reconnect_count_++;
-    LOGI("===== 开始第 " << reconnect_count_ << " 次重连 =====");
-    last_reconnect_time_ = std::chrono::steady_clock::now();
-
-    std::thread(
-            [this]()
-            {
-                /// 停止所有任务
-                LOGI("停止所有任务...");
-                demux_task_->stop();
-                decode_task_->stop();
-                display_task_->stop();
-
-                demux_task_->wait();
-                decode_task_->wait();
-                display_task_->wait();
-
-                LOGI("所有任务已停止，开始重置...");
-                demux_task_->reset();
-                decode_task_->reset();
-                display_task_->reset();
-
-                LOGI("重置完成，开始重新启动...");
-
-                /// 在这里循环重试，不增加 reconnect_count_
-                const int max_start_retries = 5;
-                bool      started           = false;
-
-                for (int i = 0; i < max_start_retries; i++)
-                {
-                    LOGI("启动尝试 " << i + 1 << "/" << max_start_retries);
-
-                    if (start())
-                    {
-                        started = true;
-                        LOGI("===== 第 " << reconnect_count_ << " 次重连成功！ =====");
-                        break;
-                    }
-
-                    if (i < max_start_retries - 1)
-                    {
-                        int retry_wait = (i + 1) * 1000;
-                        LOGI("启动失败，等待 " << retry_wait << "ms 后重试...");
-                        std::this_thread::sleep_for(std::chrono::milliseconds(retry_wait));
-                    }
-                }
-
-                if (!started)
-                {
-                    LOGE("第 " << reconnect_count_ << " 次重连失败，将在 " << reconnect_interval_ << " 秒后再次尝试");
-
-                    /// 等待重连间隔
-                    std::this_thread::sleep_for(std::chrono::seconds(reconnect_interval_));
-
-                    /// 再次触发重连（会增加 reconnect_count_）
-                    reconnecting = false;
-
-                    if (max_reconnects_ == 0 || reconnect_count_ < max_reconnects_)
-                    {
-                        reconnect(); /// 再次尝试，会增加计数
-                    }
-                }
-                else
-                {
-                    reconnecting = false;
-                }
-            })
-            .detach();
 }
