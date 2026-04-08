@@ -93,16 +93,17 @@ void RtspClient::enableRecord()
     LOGI("启用录制功能");
     record_task_ = XRecordTask::create();
     demux_task_->addObserver(record_task_);
+    record_task_->start();
     record_enabled_ = true;
 }
 
 void RtspClient::startTasks()
 {
+    if (record_task_)
+        record_task_->start();
     XMediaClient::startTasks();
     if (display_task_)
         display_task_->start();
-    if (record_task_)
-        record_task_->start();
 }
 
 void RtspClient::stopTasks()

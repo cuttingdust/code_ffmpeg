@@ -220,25 +220,26 @@ void XRecordTask::reset()
 
 void XRecordTask::process()
 {
-    LOGI("录制任务线程启动");
-
+    LOGI("RecordTask 线程启动");
+    int count = 0;
     while (!shouldStop())
     {
-        // 从队列取出数据包
         auto pkt = popPacket();
         if (pkt)
         {
-            // 调用 feedPacket 处理
+            count++;
+            if (count % 100 == 0)
+            {
+                LOGI("RecordTask 已处理 " << count << " 个包");
+            }
             feedPacket(std::move(pkt));
         }
         else
         {
-            // 没有数据时短暂休眠，避免CPU空转
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
     }
-
-    LOGI("录制任务线程结束");
+    LOGI("RecordTask 线程结束");
 }
 
 IMPLEMENT_CREATE(XRecordTask)

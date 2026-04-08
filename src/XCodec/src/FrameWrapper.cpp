@@ -1,10 +1,6 @@
 ﻿#include "FrameWrapper.h"
 #include "AVException.h"
 
-extern "C" {
-#include <libavutil/frame.h>
-}
-
 class FrameWrapper::PImpl
 {
 public:
