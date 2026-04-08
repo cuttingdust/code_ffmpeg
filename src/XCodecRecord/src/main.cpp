@@ -21,19 +21,18 @@ int main()
         /// 配置编码参数
         EncoderConfig config;
         config.codec_id     = AV_CODEC_ID_H264;
-        config.width        = 400;
-        config.height       = 300;
-        config.bitrate      = 1500000; // 1.5Mbps 足够
+        config.bitrate      = 0;
         config.framerate    = 25;
         config.gop_size     = 25; // 1秒一个关键帧
         config.max_b_frames = 0;  // 无 B 帧
         config.pix_fmt      = AV_PIX_FMT_YUV420P;
 
-        // H264 参数 - 提高质量
-        config.h264.preset    = "slow"; // medium → slow
-        config.h264.profile   = "high";
-        config.h264.crf       = 18; // 23 → 18
-        config.h264.force_idr = true;
+        // // H264 参数 - 提高质量
+        // config.h264.preset    = "veryslow"; // medium → slow
+        // config.h264.profile   = "high";
+        // config.h264.crf       = 15; // 23 → 18
+        // config.h264.force_idr = true;
+        // config.thread_count   = 4;
 
         recorder->setEncodeConfig(config);
 
@@ -44,7 +43,7 @@ int main()
         LOGI("码率: " << config.bitrate / 1000 << "kbps");
 
         /// 开始录制（录制30秒）
-        if (!recorder->startRecording("output.mp4", 30))
+        if (!recorder->startRecording("output.mp4", 10))
         {
             LOGE("启动录制失败");
             return -1;

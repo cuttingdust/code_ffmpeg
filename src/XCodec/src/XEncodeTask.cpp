@@ -93,6 +93,37 @@ void XEncodeTask::process()
         {
             LOGI("帧 " << frame_count << " 格式: " << av_get_pix_fmt_name((AVPixelFormat)raw_frame->format)
                        << ", 宽度: " << raw_frame->width << ", 高度: " << raw_frame->height);
+
+            // 保存第一帧到文件
+            if (frame_count == 0)
+            {
+                LOGI("保存第一帧到 debug_frame.yuv");
+                FILE* f = fopen("debug_frame.yuv", "wb");
+                if (f)
+                {
+                    // Y 平面
+                    for (int i = 0; i < raw_frame->height; i++)
+                    {
+                        fwrite(raw_frame->data[0] + i * raw_frame->linesize[0], 1, raw_frame->width, f);
+                    }
+                    // U 平面
+                    for (int i = 0; i < raw_frame->height / 2; i++)
+                    {
+                        fwrite(raw_frame->data[1] + i * raw_frame->linesize[1], 1, raw_frame->width / 2, f);
+                    }
+                    // V 平面
+                    for (int i = 0; i < raw_frame->height / 2; i++)
+                    {
+                        fwrite(raw_frame->data[2] + i * raw_frame->linesize[2], 1, raw_frame->width / 2, f);
+                    }
+                    fclose(f);
+                    LOGI("debug_frame.yuv 保存成功");
+                }
+                else
+                {
+                    LOGE("无法创建 debug_frame.yuv 文件");
+                }
+            }
             frame_count++;
         }
 
