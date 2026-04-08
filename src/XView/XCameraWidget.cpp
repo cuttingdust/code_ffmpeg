@@ -6,6 +6,7 @@
 
 #include <QtWidgets/QListWidget>
 #include <QtWidgets/QMessageBox>
+#include <QtWidgets/QApplication>
 #include <QtGui/QtEvents>
 #include <QtGui/QPainter>
 #include <QtCore/QTimer>
@@ -76,17 +77,25 @@ bool XCameraWidget::open(const QString &url)
                     }
                 });
     }
-    impl_->loading_timer_->start(10000);
+    impl_->loading_timer_->start(8000);
 
     /// 设置首帧回调，加载完成后关闭 loading 提示
     impl_->rtsp_client_->setFirstFrameCallback(
             [this]()
             {
-                if (impl_->loading_timer_)
-                    impl_->loading_timer_->stop();
-                impl_->is_loading_ = false;
-                /// 需要在主线程更新 UI
-                QMetaObject::invokeMethod(this, [this]() { update(); });
+                LOGI("首帧回调被触发"); // 添加这行日志
+                QMetaObject::invokeMethod(this,
+                                          [this]()
+                                          {
+                                              LOGI("主线程执行首帧回调"); // 添加这行日志
+                                              if (impl_->loading_timer_)
+                                              {
+                                                  impl_->loading_timer_->stop();
+                                                  LOGI("定时器已停止");
+                                              }
+                                              impl_->is_loading_ = false;
+                                              update();
+                                          });
             });
 
     /// 启动播放
@@ -133,6 +142,9 @@ void XCameraWidget::dropEvent(QDropEvent *event)
             /// 先显示 loading
             impl_->is_loading_ = true;
             update();
+
+            // 强制立即处理重绘事件，确保"加载中..."立即显示
+            QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
 
             /// 使用 QTimer 延迟执行，不阻塞 UI
             QTimer::singleShot(0, this, [this, url = QString::fromStdString(cam->sub_url)]() { open(url); });

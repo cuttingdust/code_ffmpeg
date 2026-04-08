@@ -151,6 +151,7 @@ void XDisplayTask::defaultRender(FrameWrapper& frame)
             if (first_frame_cb_)
             {
                 first_frame_cb_();
+                LOGI("首帧回调触发");
             }
         }
 

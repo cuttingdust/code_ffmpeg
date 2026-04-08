@@ -34,23 +34,23 @@ void RtspClient::createTasks()
     decode_task_  = XDecodeTask::create();
     display_task_ = XDisplayTask::create();
 
-    // 设置超时
+    /// 设置超时
     demux_task_->setIdleTimeoutMs(5000);
     decode_task_->setIdleTimeoutMs(3000);
-    display_task_->setIdleTimeoutMs(3000);
+    display_task_->setIdleTimeoutMs(10000);
 
-    // 设置任务链
+    /// 设置任务链
     demux_task_->setNext(decode_task_);
     decode_task_->setNext(display_task_);
 
-    // 设置错误回调
+    /// 设置错误回调
     auto error_cb = [this](const std::string& msg) { handleError(msg); };
 
     demux_task_->setErrorCallback(error_cb);
     decode_task_->setErrorCallback(error_cb);
     display_task_->setErrorCallback(error_cb);
 
-    // 设置窗口
+    /// 设置窗口
     if (external_win_)
     {
         display_task_->setWindow(external_win_);
