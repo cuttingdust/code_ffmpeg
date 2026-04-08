@@ -1,5 +1,5 @@
 ﻿#pragma once
-
+#include "XCodec_Global.h"
 #include "XDemuxTask.h"
 #include "XDecodeTask.h"
 #include <atomic>
@@ -17,7 +17,7 @@ enum class MediaClientState
 };
 
 /// 媒体客户端基类
-class XMediaClient
+class XCODEC_EXPORT XMediaClient
 {
 public:
     virtual ~XMediaClient() = default;

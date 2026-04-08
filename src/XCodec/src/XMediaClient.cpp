@@ -82,7 +82,7 @@ void XMediaClient::reconnect()
     std::thread(
             [this]()
             {
-                // 停止所有任务
+                /// 停止所有任务
                 stopTasks();
 
                 if (demux_task_)
@@ -90,19 +90,19 @@ void XMediaClient::reconnect()
                 if (decode_task_)
                     decode_task_->wait();
 
-                // 重置任务状态
+                /// 重置任务状态
                 resetTasks();
 
-                // 调用子类的重连实现
+                /// 调用子类的重连实现
                 reconnectImpl();
 
-                // 如果重连失败，且还有重连次数，继续重试
+                /// 如果重连失败，且还有重连次数，继续重试
                 if (state_ == MediaClientState::ERROR && (max_reconnects_ == 0 || reconnect_count_ < max_reconnects_))
                 {
                     LOGI("重连失败，等待 " << reconnect_interval_ << " 秒后再次尝试");
                     std::this_thread::sleep_for(std::chrono::seconds(reconnect_interval_));
                     reconnecting_ = false;
-                    reconnect(); // 继续重试
+                    reconnect(); /// 继续重试
                 }
                 else
                 {

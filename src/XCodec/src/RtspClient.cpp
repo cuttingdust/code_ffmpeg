@@ -127,20 +127,30 @@ void RtspClient::reconnectImpl()
 {
     LOGI("RtspClient 重连实现 - 重新创建任务");
 
-    // 1. 彻底释放旧任务
+    /// 保存当前窗口句柄（因为 destroyTasks 后会被清空）
+    void* saved_win = external_win_;
+
+    /// 1. 彻底释放旧任务
     destroyTasks();
 
-    // 2. 重新创建任务
+    /// 2. 重新创建任务
     createTasks();
 
-    // 3. 如果之前启用了录制，重新创建录制任务
+    /// 3. 重新设置窗口句柄（关键！）
+    if (saved_win && display_task_)
+    {
+        display_task_->setWindow(saved_win);
+        LOGI("重连后重新设置窗口: " << saved_win);
+    }
+
+    /// 4. 如果之前启用了录制，重新创建录制任务
     if (record_enabled_)
     {
         record_task_ = XRecordTask::create();
         demux_task_->addObserver(record_task_);
     }
 
-    // 4. 重试打开 URL（最多5次）
+    /// 5. 重新打开 URL（带重试）
     const int max_retries = 5;
     bool      opened      = false;
 
@@ -169,7 +179,7 @@ void RtspClient::reconnectImpl()
 
     demux_task_->setRtspOptions(true, 5000);
 
-    // 5. 重新获取视频流
+    // 6. 重新获取视频流
     video_stream_ = demux_task_->getVideoStream();
     if (!video_stream_)
     {
@@ -178,7 +188,7 @@ void RtspClient::reconnectImpl()
         return;
     }
 
-    // 6. 重新初始化解码器
+    /// 7. 重新初始化解码器
     if (!initDecoder())
     {
         LOGE("重连初始化解码器失败");
@@ -186,7 +196,7 @@ void RtspClient::reconnectImpl()
         return;
     }
 
-    // 7. 重新启动任务
+    /// 8. 重新启动任务
     startTasks();
 
     setState(MediaClientState::CONNECTED);
@@ -198,7 +208,7 @@ bool RtspClient::start()
     LOGI("RTSP客户端启动..." << (use_hardware_ ? "(硬件解码)" : "(软件解码)"));
     setState(MediaClientState::CONNECTING);
 
-    // 打开解封装
+    /// 打开解封装
     if (!demux_task_->open(url_))
     {
         LOGE("打开RTSP失败: " << url_);

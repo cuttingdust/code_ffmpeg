@@ -5,6 +5,7 @@
 #include "XCameraConfig.h"
 
 #include <QtWidgets/QListWidget>
+#include <QtWidgets/QMessageBox>
 #include <QtGui/QtEvents>
 #include <QtGui/QPainter>
 #include <QtCore/QTimer>
@@ -19,7 +20,8 @@ public:
     XCameraWidget              *owenr_ = nullptr;
     std::shared_ptr<RtspClient> rtsp_client_;
     QString                     current_url_;
-    bool                        is_loading_ = false;
+    bool                        is_loading_    = false;
+    QTimer                     *loading_timer_ = nullptr;
 };
 
 XCameraWidget::PImpl::PImpl(XCameraWidget *owenr) : owenr_(owenr)
@@ -50,28 +52,55 @@ bool XCameraWidget::open(const QString &url)
     impl_->rtsp_client_ = std::make_shared<RtspClient>();
     impl_->rtsp_client_->setUrl(url.toStdString());
     impl_->rtsp_client_->setReconnectInterval(5);
-    impl_->rtsp_client_->set_max_reconnects(3);
+    impl_->rtsp_client_->setMaxReconnects(3);
+    impl_->rtsp_client_->setRenderWindow(reinterpret_cast<void *>(winId()));
 
+    /// 显示加载提示
+    impl_->is_loading_ = true;
+    update();
+
+    /// 启动超时定时器（8秒）
+    if (!impl_->loading_timer_)
+    {
+        impl_->loading_timer_ = new QTimer(this);
+        impl_->loading_timer_->setSingleShot(true);
+        connect(impl_->loading_timer_, &QTimer::timeout, this,
+                [this]()
+                {
+                    if (impl_->is_loading_)
+                    {
+                        impl_->is_loading_ = false;
+                        QMessageBox::warning(this, "连接超时",
+                                             "无法连接到:\n" + impl_->current_url_ + "\n\n请检查网络和摄像头配置");
+                        update();
+                    }
+                });
+    }
+    impl_->loading_timer_->start(10000);
 
     /// 设置首帧回调，加载完成后关闭 loading 提示
     impl_->rtsp_client_->setFirstFrameCallback(
             [this]()
             {
+                if (impl_->loading_timer_)
+                    impl_->loading_timer_->stop();
                 impl_->is_loading_ = false;
                 /// 需要在主线程更新 UI
                 QMetaObject::invokeMethod(this, [this]() { update(); });
             });
 
-    /// 设置渲染窗口
-    if (auto display_task = impl_->rtsp_client_->getDisplayTask())
-    {
-        display_task->setWindow(reinterpret_cast<void *>(winId()));
-    }
-
     /// 启动播放
     if (!impl_->rtsp_client_->start())
     {
+        if (impl_->loading_timer_)
+        {
+            impl_->loading_timer_->stop();
+        }
+
         impl_->rtsp_client_.reset();
+        impl_->is_loading_ = false;
+        QMessageBox::warning(this, "启动失败", "无法启动播放器:\n" + url);
+        update();
         return false;
     }
 
@@ -105,7 +134,8 @@ void XCameraWidget::dropEvent(QDropEvent *event)
             impl_->is_loading_ = true;
             update();
 
-            std::thread([this, cam]() { open(cam->sub_url); }).detach();
+            /// 使用 QTimer 延迟执行，不阻塞 UI
+            QTimer::singleShot(0, this, [this, url = QString::fromStdString(cam->sub_url)]() { open(url); });
         }
     }
 }

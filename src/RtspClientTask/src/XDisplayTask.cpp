@@ -17,17 +17,28 @@ XDisplayTask::~XDisplayTask()
     LOGD("显示任务销毁");
 }
 
-auto XDisplayTask::setRenderCallback(RenderCallback cb) -> void
+void XDisplayTask::setRenderCallback(RenderCallback cb)
 {
     render_cb_ = std::move(cb);
 }
 
-auto XDisplayTask::getFPS() const -> int
+void XDisplayTask::setFirstFrameCallback(FirstFrameCallback cb)
+{
+    first_frame_cb_ = std::move(cb);
+}
+
+int XDisplayTask::getFPS() const
 {
     return fps_;
 }
 
-auto XDisplayTask::reset() -> void
+void XDisplayTask::setWindow(void* win)
+{
+    external_win_ = win;
+    LOGI("设置外部窗口句柄: " << win);
+}
+
+void XDisplayTask::reset()
 {
     XTask::reset();
 
@@ -39,12 +50,13 @@ auto XDisplayTask::reset() -> void
     }
 
     /// 重置状态，但保留窗口
-    is_init_         = false;
-    fps_             = 0;
-    frame_count_     = 0;
-    last_stats_      = std::chrono::steady_clock::now();
-    last_frame_time_ = std::chrono::steady_clock::now();
-    reconnecting_    = true; /// 标记正在重连
+    is_init_              = false;
+    fps_                  = 0;
+    frame_count_          = 0;
+    last_stats_           = std::chrono::steady_clock::now();
+    last_frame_time_      = std::chrono::steady_clock::now();
+    reconnecting_         = true;
+    first_frame_received_ = false;
 }
 
 void XDisplayTask::updateFPS()
@@ -90,6 +102,13 @@ void XDisplayTask::defaultRender(FrameWrapper& frame)
             return;
         }
         LOGD("渲染器创建成功");
+
+        /// 关键：创建后立即设置外部窗口
+        if (external_win_)
+        {
+            view_->setWindow(external_win_);
+            LOGI("设置外部窗口: " << external_win_);
+        }
     }
 
     /// 如果窗口还没创建，直接在子线程初始化
@@ -129,6 +148,16 @@ void XDisplayTask::defaultRender(FrameWrapper& frame)
 
     if (is_init_ && view_)
     {
+        /// 首帧回调
+        if (!first_frame_received_)
+        {
+            first_frame_received_ = true;
+            if (first_frame_cb_)
+            {
+                first_frame_cb_();
+            }
+        }
+
         bool draw_result = view_->drawFrame(frame);
         if (!draw_result)
         {
@@ -156,7 +185,7 @@ void XDisplayTask::process()
 
     // 增加初始等待：给解码任务一些时间准备第一帧
     int           initial_wait     = 0;
-    constexpr int max_initial_wait = 100; // 最多等待5秒 (100 * 50ms)
+    constexpr int max_initial_wait = 100;
 
     while (!shouldStop())
     {
