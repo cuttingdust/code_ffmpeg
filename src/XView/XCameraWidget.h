@@ -18,6 +18,10 @@ public:
     /// 关闭播放
     auto close() const -> void;
 
+    auto setCameraId(int id) -> void;
+
+    auto getCameraId() const -> int;
+
 protected:
     void dragEnterEvent(QDragEnterEvent *event) override;
     void dropEvent(QDropEvent *event) override;

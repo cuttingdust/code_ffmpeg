@@ -42,21 +42,41 @@ int main()
         LOGI("分辨率: " << config.width << "x" << config.height);
         LOGI("码率: " << config.bitrate / 1000 << "kbps");
 
-        /// 开始录制（录制30秒）
-        if (!recorder->startRecording("output.mp4", 10))
+        // /// 开始录制（录制30秒）
+        // if (!recorder->startRecording("output.mp4", 10))
+        // {
+        //     LOGE("启动录制失败");
+        //     return -1;
+        // }
+
+        // /// 单段录制10秒
+        // if (!recorder->startRecording("test.mp4", 3))
+        // {
+        //     LOGE("启动录制失败");
+        //     return -1;
+        // }
+        //
+        // while (recorder->isRecording())
+        // {
+        //     std::this_thread::sleep_for(std::chrono::seconds(1));
+        // }
+
+        if (!recorder->startSegmentRecording("cam1_", 10, 0))
         {
             LOGE("启动录制失败");
             return -1;
         }
+        LOGI("录制中，将运行60秒...");
 
-        /// 等待录制完成
-        LOGI("录制中...");
-        while (recorder->isRecording())
+        /// 等待60秒
+        for (int i = 0; i < 60; i++)
         {
             std::this_thread::sleep_for(std::chrono::seconds(1));
             LOGI("已写入包数: " << recorder->getPacketCount());
         }
 
+        /// 停止录制
+        recorder->stopRecording();
         LOGI("录制完成! 共写入 " << recorder->getPacketCount() << " 个包");
     }
     catch (const std::exception& e)

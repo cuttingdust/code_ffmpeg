@@ -62,9 +62,28 @@ void XEncodeTask::reset()
     close();
 }
 
+void XEncodeTask::flush()
+{
+    if (encoder_)
+    {
+        auto packets = encoder_->flush();
+        for (auto* pkt : packets)
+        {
+            if (next_)
+            {
+                auto wrapper = std::make_unique<PacketWrapper>();
+                av_packet_ref(wrapper->get(), pkt);
+                next_->pushPacket(std::move(wrapper));
+            }
+            av_packet_free(&pkt);
+        }
+    }
+}
+
 void XEncodeTask::process()
 {
     LOGI("编码任务开始运行");
+    int64_t frame_index = 0; // 添加帧索引
 
     while (!shouldStop())
     {
@@ -130,6 +149,10 @@ void XEncodeTask::process()
         FrameWrapper frame(raw_frame);
         AVFrame*     encode_frame = frame;
 
+        /// 关键：重新设置 PTS，确保单调递增
+        encode_frame->pts = frame_index;
+        frame_index++;
+
         // 编码帧
         std::vector<AVPacket*> packets;
         try
@@ -154,8 +177,9 @@ void XEncodeTask::process()
     }
 
 
-    // 刷新编码器
-    if (encoder_)
+    /// 注意：flush 已经在 stop() 中通过外部调用，这里不需要重复
+    /// 但如果正常结束（非 stop），需要 flush
+    if (encoder_ && !shouldStop())
     {
         LOGI("刷新编码器...");
         auto packets = encoder_->flush();

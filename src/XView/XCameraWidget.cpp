@@ -23,6 +23,7 @@ public:
     QString                     current_url_;
     bool                        is_loading_    = false;
     QTimer                     *loading_timer_ = nullptr;
+    int                         camera_id_     = -1;
 };
 
 XCameraWidget::PImpl::PImpl(XCameraWidget *owenr) : owenr_(owenr)
@@ -126,6 +127,16 @@ void XCameraWidget::close() const
     }
 }
 
+auto XCameraWidget::setCameraId(int id) -> void
+{
+    impl_->camera_id_ = id;
+}
+
+auto XCameraWidget::getCameraId() const -> int
+{
+    return impl_->camera_id_;
+}
+
 void XCameraWidget::dragEnterEvent(QDragEnterEvent *event)
 {
     event->acceptProposedAction();
@@ -135,7 +146,10 @@ void XCameraWidget::dropEvent(QDropEvent *event)
 {
     if (auto wid = dynamic_cast<QListWidget *>(event->source()))
     {
-        int  row    = wid->currentRow();
+        int row           = wid->currentRow();
+        impl_->camera_id_ = row;
+
+
         auto config = XCameraConfig::instance();
         if (const auto cam = config->getCamera(row))
         {
@@ -143,7 +157,7 @@ void XCameraWidget::dropEvent(QDropEvent *event)
             impl_->is_loading_ = true;
             update();
 
-            // 强制立即处理重绘事件，确保"加载中..."立即显示
+            /// 强制立即处理重绘事件，确保"加载中..."立即显示
             QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
 
             /// 使用 QTimer 延迟执行，不阻塞 UI

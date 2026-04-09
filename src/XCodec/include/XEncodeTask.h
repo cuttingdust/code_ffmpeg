@@ -42,6 +42,8 @@ public:
 
     void reset() override;
 
+    void flush();
+
 protected:
     void process() override;
 

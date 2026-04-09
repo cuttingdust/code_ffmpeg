@@ -37,6 +37,11 @@ public:
         return packet_count_;
     }
 
+    bool hasKeyFrameWritten() const
+    {
+        return start_pts_ != AV_NOPTS_VALUE;
+    }
+
     // ==================== 任务重置 ====================
 
     void reset() override;
