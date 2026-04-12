@@ -1,8 +1,10 @@
 ﻿#include "XViewer.h"
-
 #include "ui_xviewer.h"
 #include "XCameraConfig.h"
 #include "XCameraWidget.h"
+#include "XRecorderManager.h"
+
+#include <qdir.h>
 
 #include <QtGui/QMouseEvent>
 #include <QtWidgets/QVBoxLayout>
@@ -17,63 +19,49 @@
 
 static XCameraWidget *cam_wids[16] = { 0 };
 
-XViewer::XViewer(QWidget *parent) : QWidget(parent)
+XViewer::XViewer(QWidget *parent) : QWidget(parent), ui(new Ui::XViewerClass)
 {
-    ui_ = new Ui::XViewerClass;
-    ui_->setupUi(this);
-    ui_->head->installEventFilter(this);
+    ui->setupUi(this);
+    ui->head->installEventFilter(this);
     setWindowFlags(windowFlags() | Qt::FramelessWindowHint);
-    // setAttribute(Qt::WA_TranslucentBackground, true);
 
     /// 布局head和body 垂直布局器
     auto vlay = new QVBoxLayout();
-    /// 边框间距
     vlay->setContentsMargins(0, 0, 0, 0);
-    /// 元素间距
     vlay->setSpacing(0);
-    vlay->addWidget(ui_->head);
-    vlay->addWidget(ui_->body);
+    vlay->addWidget(ui->head);
+    vlay->addWidget(ui->body);
     this->setLayout(vlay);
 
-    ///相机列表 和相机预览
-    ///水平布局器
+    /// 相机列表和相机预览 水平布局器
     auto hlay = new QHBoxLayout;
-    ui_->body->setLayout(hlay);
-    /// 边框间距
+    ui->body->setLayout(hlay);
     hlay->setContentsMargins(0, 0, 0, 0);
-    hlay->addWidget(ui_->left);
-    hlay->addWidget(ui_->cams);
+    hlay->addWidget(ui->left);
+    hlay->addWidget(ui->cams);
 
-    //////////////////////////////////////
-    /// 初始化右键菜单
-    /// 视图=》  1 窗口
-    ///          4 窗口
+    /// 初始化右键菜单 - 视图
     auto m = left_menu_.addMenu("视图");
     auto a = m->addAction("1窗口");
-    connect(a, SIGNAL(triggered()), this, SLOT(View1()));
+    connect(a, &QAction::triggered, this, &XViewer::View1);
     a = m->addAction("4窗口");
-    connect(a, SIGNAL(triggered()), this, SLOT(View4()));
+    connect(a, &QAction::triggered, this, &XViewer::View4);
     a = m->addAction("9窗口");
-    connect(a, SIGNAL(triggered()), this, SLOT(View9()));
+    connect(a, &QAction::triggered, this, &XViewer::View9);
     a = m->addAction("16窗口");
-    connect(a, SIGNAL(triggered()), this, SLOT(View16()));
+    connect(a, &QAction::triggered, this, &XViewer::View16);
 
     /// 默认九窗口
     View9();
 
-
     /// 刷新左侧摄像机列表
     XCameraConfig::instance()->load(CAM_CONF_PATH);
-    // {
-    //     XCameraData cd;
-    //     strcpy(cd.name, "camera1");
-    //     strcpy(cd.save_path, ".\\camera1\\");
-    //     strcpy(cd.url, "rtsp://test:x12345678@192.168.2.64/h264/ch1/main/av_stream");
-    //     strcpy(cd.sub_url, "rtsp://test:x12345678@192.168.2.64/h264/ch1/sub/av_stream");
-    //     XCameraConfig::instance()->addCamera(cd);
-    // }
-
     refreshCameras();
+}
+
+XViewer::~XViewer()
+{
+    delete ui;
 }
 
 bool XViewer::eventFilter(QObject *pObj, QEvent *pEvent)
@@ -110,14 +98,13 @@ bool XViewer::eventFilter(QObject *pObj, QEvent *pEvent)
 
 void XViewer::resizeEvent(QResizeEvent *event)
 {
-    int x = width() - ui_->head_button->width();
-    int y = ui_->head_button->y();
-    ui_->head_button->move(x, y);
+    int x = width() - ui->head_button->width();
+    int y = ui->head_button->y();
+    ui->head_button->move(x, y);
 }
 
 void XViewer::contextMenuEvent(QContextMenuEvent *event)
 {
-    /// 鼠标位置显示右键菜单
     left_menu_.exec(QCursor::pos());
     event->accept();
 }
@@ -125,33 +112,53 @@ void XViewer::contextMenuEvent(QContextMenuEvent *event)
 void XViewer::view(int count)
 {
     qDebug() << "view" << count;
-    /// 2X2 3X3 4X4
-    /// 确定列数 根号
-    int cols = sqrt(count);
-    /// 总窗口数量
+    int cols     = sqrt(count);
     int wid_size = sizeof(cam_wids) / sizeof(QWidget *);
 
-    /// 初始化布局器
-    auto lay = (QGridLayout *)ui_->cams->layout();
+    auto lay = (QGridLayout *)ui->cams->layout();
     if (!lay)
     {
         lay = new QGridLayout;
         lay->setContentsMargins(0, 0, 0, 0);
-        lay->setSpacing(2); /// 元素间距
-        ui_->cams->setLayout(lay);
+        lay->setSpacing(2);
+        ui->cams->setLayout(lay);
     }
-    /// 初始化窗口
+
     for (int i = 0; i < count; i++)
     {
         if (!cam_wids[i])
         {
             cam_wids[i] = new XCameraWidget;
             cam_wids[i]->setStyleSheet("background-color:rgb(51,51,51);");
+
+            // 连接切换视图信号
+            connect(cam_wids[i], &XCameraWidget::changeViewMode, this,
+                    [this](int mode)
+                    {
+                        switch (mode)
+                        {
+                            case 1:
+                                View1();
+                                break;
+                            case 4:
+                                View4();
+                                break;
+                            case 9:
+                                View9();
+                                break;
+                            case 16:
+                                View16();
+                                break;
+                        }
+                    });
+
+            // 连接录制状态变化信号，刷新左侧列表
+            connect(cam_wids[i], &XCameraWidget::recordingStateChanged, this,
+                    [this](int /*cameraId*/, bool /*isRecording*/) { refreshCameras(); });
         }
         lay->addWidget(cam_wids[i], i / cols, i % cols);
     }
 
-    /// 清理多余的窗体
     for (int i = count; i < wid_size; i++)
     {
         if (cam_wids[i])
@@ -165,27 +172,42 @@ void XViewer::view(int count)
 void XViewer::refreshCameras()
 {
     auto c = XCameraConfig::instance();
-    ui_->cam_list->clear();
+    ui->cam_list->clear();
     int count = c->getCameraCount();
     for (int i = 0; i < count; i++)
     {
-        auto cam  = c->getCamera(i);
-        auto item = new QListWidgetItem(QIcon(":/XViewer/img/cam.png"), cam->name);
-        ui_->cam_list->addItem(item);
+        auto    cam  = c->getCamera(i);
+        QString text = QString::fromStdString(cam->name);
+
+        // 检查是否有录制
+        bool isRecording = XRecorderManager::instance().isRecording(i);
+        if (isRecording)
+        {
+            text += " [录制中]";
+        }
+
+        auto item = new QListWidgetItem(QIcon(":/XViewer/img/cam.png"), text);
+
+        if (isRecording)
+        {
+            item->setForeground(Qt::red);
+        }
+
+        ui->cam_list->addItem(item);
     }
 }
 
 void XViewer::MaxWindow()
 {
-    ui_->max->setVisible(false);
-    ui_->normal->setVisible(true);
+    ui->max->setVisible(false);
+    ui->normal->setVisible(true);
     showMaximized();
 }
 
 void XViewer::NormalWindow()
 {
-    ui_->max->setVisible(true);
-    ui_->normal->setVisible(false);
+    ui->max->setVisible(true);
+    ui->normal->setVisible(false);
     showNormal();
 }
 
@@ -216,10 +238,10 @@ void XViewer::AddCam()
 
 void XViewer::SetCam()
 {
-    int row = ui_->cam_list->currentIndex().row();
+    int row = ui->cam_list->currentIndex().row();
     if (row < 0)
     {
-        QMessageBox::information(this, "error", "请选择摄像机");
+        QMessageBox::information(this, "错误", "请选择摄像机");
         return;
     }
     updateCam(row);
@@ -227,18 +249,17 @@ void XViewer::SetCam()
 
 void XViewer::DelCam()
 {
-    int row = ui_->cam_list->currentIndex().row();
+    int row = ui->cam_list->currentIndex().row();
     if (row < 0)
     {
-        QMessageBox::information(this, "error", "请选择摄像机");
+        QMessageBox::information(this, "错误", "请选择摄像机");
         return;
     }
     std::stringstream ss;
-    ss << "您确认需要删除摄像机" << ui_->cam_list->currentItem()->text().toLocal8Bit().constData();
+    ss << "您确认需要删除摄像机" << ui->cam_list->currentItem()->text().toLocal8Bit().constData();
     ss << "吗？";
 
-    if (QMessageBox::information(this, "confirm", ss.str().c_str(), QMessageBox::Yes, QMessageBox::No) !=
-        QMessageBox::Yes)
+    if (QMessageBox::information(this, "确认", ss.str().c_str(), QMessageBox::Yes, QMessageBox::No) != QMessageBox::Yes)
     {
         return;
     }
@@ -254,8 +275,7 @@ void XViewer::updateCam(int index)
     dlg.resize(800, 200);
     QFormLayout lay;
     dlg.setLayout(&lay);
-    ///  标题1 输入框1
-    ///  标题2 输入框2
+
     QLineEdit name_edit;
     lay.addRow("名称", &name_edit);
 
@@ -270,12 +290,10 @@ void XViewer::updateCam(int index)
 
     QPushButton save;
     save.setText("保存");
-
-    connect(&save, SIGNAL(clicked()), &dlg, SLOT(accept()));
-
+    connect(&save, &QPushButton::clicked, &dlg, &QDialog::accept);
     lay.addRow("", &save);
 
-    /// 编辑 读入原数据显示
+    /// 编辑时读入原数据显示
     if (index >= 0)
     {
         auto cam = c->getCamera(index);
@@ -285,29 +303,28 @@ void XViewer::updateCam(int index)
         save_path_edit.setText(cam->save_path);
     }
 
-
     for (;;)
     {
-        if (dlg.exec() == QDialog::Accepted) /// 点击了保存
+        if (dlg.exec() == QDialog::Accepted)
         {
             if (name_edit.text().isEmpty())
             {
-                QMessageBox::information(0, "error", "请输入名称");
+                QMessageBox::information(nullptr, "错误", "请输入名称");
                 continue;
             }
             if (url_edit.text().isEmpty())
             {
-                QMessageBox::information(0, "error", "请输入主码流");
+                QMessageBox::information(nullptr, "错误", "请输入主码流");
                 continue;
             }
             if (sub_url_edit.text().isEmpty())
             {
-                QMessageBox::information(0, "error", "请输入辅码流");
+                QMessageBox::information(nullptr, "错误", "请输入辅码流");
                 continue;
             }
             if (save_path_edit.text().isEmpty())
             {
-                QMessageBox::information(0, "error", "请输入保存目录");
+                QMessageBox::information(nullptr, "错误", "请输入保存目录");
                 continue;
             }
             break;
@@ -316,18 +333,19 @@ void XViewer::updateCam(int index)
     }
 
     XCameraData data;
-    strcpy(data.name, name_edit.text().toStdString().data());
-    strcpy(data.url, url_edit.text().toStdString().data());
-    strcpy(data.sub_url, sub_url_edit.text().toStdString().data());
-    strcpy(data.save_path, save_path_edit.text().toStdString().data());
-    if (index >= 0) /// 修改
+    strcpy(data.name, name_edit.text().toStdString().c_str());
+    strcpy(data.url, url_edit.text().toStdString().c_str());
+    strcpy(data.sub_url, sub_url_edit.text().toStdString().c_str());
+    strcpy(data.save_path, save_path_edit.text().toStdString().c_str());
+
+    if (index >= 0)
     {
         c->updateCamera(index, data);
     }
-    else /// 新增
+    else
     {
-        c->addCamera(data); /// 插入数据
+        c->addCamera(data);
     }
-    c->save(CAM_CONF_PATH); /// 保存到文件
-    refreshCameras();       /// 刷新显示
+    c->save(CAM_CONF_PATH);
+    refreshCameras();
 }

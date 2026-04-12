@@ -1,50 +1,43 @@
 ﻿#pragma once
 
 #include <QtWidgets/QWidget>
-#include <QtWidgets/QMenu>
-
+#include <QMenu>
 
 namespace Ui
 {
     class XViewerClass;
 }
 
-
 class XViewer : public QWidget
 {
     Q_OBJECT
 
 public:
-    XViewer(QWidget *parent = Q_NULLPTR);
+    explicit XViewer(QWidget *parent = nullptr);
+    ~XViewer();
 
 protected:
     bool eventFilter(QObject *pObj, QEvent *pEvent) override;
-
-protected:
     void resizeEvent(QResizeEvent *event) override;
-
     void contextMenuEvent(QContextMenuEvent *event) override;
 
-    /// \brief 预览视频窗口
-    /// \param count
-    void view(int count);
-
-    void refreshCameras();
-
-    void updateCam(int index);
-
-protected slots:
-    void MaxWindow();
-    void NormalWindow();
+private slots:
     void View1();
     void View4();
     void View9();
     void View16();
-    void AddCam(); /// 新增摄像机配置
-    void SetCam(); /// 修改摄像机配置
-    void DelCam(); /// 删除摄像机配置
+    void MaxWindow();
+    void NormalWindow();
+    void AddCam();
+    void SetCam();
+    void DelCam();
 
 private:
-    Ui::XViewerClass *ui_ = nullptr;
+    void view(int count);
+    void refreshCameras();
+    void updateCam(int index);
+
+private:
+    Ui::XViewerClass *ui;
     QMenu             left_menu_;
 };

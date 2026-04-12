@@ -83,6 +83,11 @@ background-color: #1e1e1e;
 }
 
 
+#status
+{
+	color: rgb(255, 255, 255);
+	font: 75 9pt &quot;Adobe Arabic&quot;;
+}
 
 </string>
   </property>
@@ -203,6 +208,19 @@ background-color: #1e1e1e;
     <zorder>close</zorder>
     <zorder>min</zorder>
     <zorder>max</zorder>
+   </widget>
+   <widget class="QLabel" name="status">
+    <property name="geometry">
+     <rect>
+      <x>260</x>
+      <y>10</y>
+      <width>381</width>
+      <height>41</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>监控中。。。</string>
+    </property>
    </widget>
   </widget>
   <widget class="QWidget" name="body" native="true">

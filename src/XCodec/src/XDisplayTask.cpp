@@ -178,11 +178,11 @@ void XDisplayTask::process()
     LOGI("显示任务开始运行");
 
     int           consecutive_timeouts     = 0;
-    constexpr int max_consecutive_timeouts = 30;
+    constexpr int max_consecutive_timeouts = 300;
 
-    // 增加初始等待：给解码任务一些时间准备第一帧
+    /// 增加初始等待：给解码任务一些时间准备第一帧
     int           initial_wait     = 0;
-    constexpr int max_initial_wait = 100; // 最多等待5秒 (100 * 50ms)
+    constexpr int max_initial_wait = 200; // 最多等待10秒 (200 * 50ms)
 
     while (!shouldStop())
     {
