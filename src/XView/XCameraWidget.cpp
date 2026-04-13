@@ -45,11 +45,12 @@ XCameraWidget::XCameraWidget(QWidget *p) : QWidget(p), impl_(std::make_unique<XC
 
 XCameraWidget::~XCameraWidget()
 {
-    if (impl_->camera_id_ >= 0 && isRecording())
+    // 释放摄像头
+    if (impl_->camera_id_ >= 0)
     {
-        XRecorderManager::instance().stopRecording(impl_->camera_id_);
+        emit cameraReleased(impl_->camera_id_);
     }
-    stop(); /// 停止播放
+    stop();
 }
 
 bool XCameraWidget::isPlaying() const
@@ -175,7 +176,18 @@ void XCameraWidget::stop()
 
 void XCameraWidget::setCameraId(int id)
 {
+    int old_id = impl_->camera_id_;
+    if (old_id >= 0)
+    {
+        emit cameraReleased(old_id);
+    }
+
     impl_->camera_id_ = id;
+
+    if (id >= 0)
+    {
+        emit cameraAssigned(id);
+    }
 }
 
 int XCameraWidget::getCameraId() const
@@ -226,11 +238,8 @@ void XCameraWidget::startRecording()
 
     QMessageBox::information(this, "提示", "开始录制");
 
-    // 设置录制指示器（在视频画面上显示 REC）
-    if (impl_->rtsp_client_)
-    {
-        impl_->rtsp_client_->setRecordingIndicator(true);
-    }
+    // 设置录制指示器
+    setRecordingIndicatorFromManager(true);
 
     emit recordingStateChanged(impl_->camera_id_, true);
     updateMenuState();
@@ -245,13 +254,11 @@ void XCameraWidget::stopRecording()
     if (!isRecording())
         return;
 
-    // 清除录制指示器
-    if (impl_->rtsp_client_)
-    {
-        impl_->rtsp_client_->setRecordingIndicator(false);
-    }
-
     XRecorderManager::instance().stopRecording(impl_->camera_id_);
+
+    // 清除录制指示器
+    setRecordingIndicatorFromManager(false);
+
     QMessageBox::information(this, "提示", "停止录制");
     emit recordingStateChanged(impl_->camera_id_, false);
     updateMenuState();
@@ -263,6 +270,23 @@ bool XCameraWidget::isRecording() const
     if (impl_->camera_id_ < 0)
         return false;
     return XRecorderManager::instance().isRecording(impl_->camera_id_);
+}
+
+void XCameraWidget::setRecordingIndicatorFromManager(bool recording)
+{
+    is_recording_flag_ = recording;
+
+    if (impl_->rtsp_client_)
+    {
+        impl_->rtsp_client_->setRecordingIndicator(recording);
+    }
+
+    update(); // 刷新 Qt 绘制（作为备用）
+}
+
+auto XCameraWidget::getRtspClient() const -> std::shared_ptr<RtspClient>
+{
+    return impl_->rtsp_client_;
 }
 
 void XCameraWidget::contextMenuEvent(QContextMenuEvent *event)
@@ -299,8 +323,18 @@ void XCameraWidget::dropEvent(QDropEvent *event)
 {
     if (auto wid = dynamic_cast<QListWidget *>(event->source()))
     {
-        int row           = wid->currentRow();
+        int row = wid->currentRow();
+
+        // 先释放旧的摄像头
+        if (impl_->camera_id_ >= 0)
+        {
+            emit cameraReleased(impl_->camera_id_);
+        }
+
         impl_->camera_id_ = row;
+
+        // 通知新摄像头被分配
+        emit cameraAssigned(row);
 
         auto config = XCameraConfig::instance();
         if (const auto cam = config->getCamera(row))
@@ -310,7 +344,17 @@ void XCameraWidget::dropEvent(QDropEvent *event)
 
             QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
 
-            QTimer::singleShot(0, this, [this, url = QString::fromStdString(cam->sub_url)]() { open(url); });
+            QTimer::singleShot(0, this,
+                               [this, url = QString::fromStdString(cam->sub_url)]()
+                               {
+                                   open(url);
+
+                                   // 打开后检查录制状态，如果正在录制则显示 REC
+                                   if (XRecorderManager::instance().isRecording(impl_->camera_id_))
+                                   {
+                                       setRecordingIndicatorFromManager(true);
+                                   }
+                               });
         }
     }
 }
@@ -328,8 +372,22 @@ void XCameraWidget::paintEvent(QPaintEvent *event)
         painter.drawText(rect(), Qt::AlignCenter, "加载中...");
     }
 
-    // 注意：REC 显示现在由 XDisplayTask 在视频画面上绘制
-    // 这里不再绘制 REC，避免重叠
+    // Qt 层面备用 REC 绘制（当 SDL 不可用时）
+    if (is_recording_flag_)
+    {
+        painter.save();
+        painter.setBrush(QColor(255, 0, 0, 180));
+        painter.setPen(Qt::NoPen);
+        QRect recRect(8, 8, 55, 24);
+        painter.drawRoundedRect(recRect, 4, 4);
+        painter.setPen(Qt::white);
+        QFont font = painter.font();
+        font.setPointSize(10);
+        font.setBold(true);
+        painter.setFont(font);
+        painter.drawText(recRect, Qt::AlignCenter, "REC");
+        painter.restore();
+    }
 }
 
 void XCameraWidget::resizeEvent(QResizeEvent *event)

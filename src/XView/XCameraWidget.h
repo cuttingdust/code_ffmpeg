@@ -40,12 +40,24 @@ public:
     /// 获取摄像机名称
     auto getCameraName() const -> QString;
 
+    /// 由管理器调用的设置录制指示器
+    void setRecordingIndicatorFromManager(bool recording);
+
+    /// 获取 RtspClient（用于外部控制）
+    auto getRtspClient() const -> std::shared_ptr<RtspClient>;
+
 signals:
     /// 切换视图信号
     void changeViewMode(int count);
 
     /// 录制状态变化信号
     void recordingStateChanged(int cameraId, bool isRecording);
+
+    /// 当摄像头被分配到窗口时发出
+    void cameraAssigned(int camera_id);
+
+    /// 当窗口释放摄像头时发出
+    void cameraReleased(int camera_id);
 
 protected:
     void dragEnterEvent(QDragEnterEvent *event) override;

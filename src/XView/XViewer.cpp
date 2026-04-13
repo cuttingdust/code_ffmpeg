@@ -57,6 +57,15 @@ XViewer::XViewer(QWidget *parent) : QWidget(parent), ui(new Ui::XViewerClass)
     /// 刷新左侧摄像机列表
     XCameraConfig::instance()->load(CAM_CONF_PATH);
     refreshCameras();
+
+    // 注册录制状态回调
+    XRecorderManager::instance().registerCallback(
+            [this](int camera_id, bool is_recording)
+            {
+                // 在主线程中更新 UI
+                QMetaObject::invokeMethod(this, [this, camera_id, is_recording]()
+                                          { onRecordingStatusChanged(camera_id, is_recording); });
+            });
 }
 
 XViewer::~XViewer()
@@ -109,6 +118,30 @@ void XViewer::contextMenuEvent(QContextMenuEvent *event)
     event->accept();
 }
 
+void XViewer::onRecordingStatusChanged(int camera_id, bool is_recording)
+{
+    // 更新左侧列表的显示
+    refreshCameras();
+
+    // 更新所有播放这个摄像头的窗口的 REC 显示
+    updateCameraRecIndicator(camera_id, is_recording);
+}
+
+void XViewer::updateCameraRecIndicator(int camera_id, bool is_recording)
+{
+    auto it = camera_to_widgets_.find(camera_id);
+    if (it != camera_to_widgets_.end())
+    {
+        for (auto *widget : it->second)
+        {
+            if (widget && widget->isPlaying())
+            {
+                widget->setRecordingIndicatorFromManager(is_recording);
+            }
+        }
+    }
+}
+
 void XViewer::view(int count)
 {
     qDebug() << "view" << count;
@@ -155,6 +188,41 @@ void XViewer::view(int count)
             // 连接录制状态变化信号，刷新左侧列表
             connect(cam_wids[i], &XCameraWidget::recordingStateChanged, this,
                     [this](int /*cameraId*/, bool /*isRecording*/) { refreshCameras(); });
+
+            // 当摄像头被分配到窗口时，记录映射
+            connect(cam_wids[i], &XCameraWidget::cameraAssigned, this,
+                    [this, i](int camera_id)
+                    {
+                        if (camera_id >= 0)
+                        {
+                            camera_to_widgets_[camera_id].push_back(cam_wids[i]);
+
+                            // 如果这个摄像头正在录制，立即显示 REC
+                            if (XRecorderManager::instance().isRecording(camera_id))
+                            {
+                                cam_wids[i]->setRecordingIndicatorFromManager(true);
+                            }
+                        }
+                    });
+
+            // 当窗口释放摄像头时，清除映射
+            connect(cam_wids[i], &XCameraWidget::cameraReleased, this,
+                    [this, i](int camera_id)
+                    {
+                        if (camera_id >= 0)
+                        {
+                            auto it = camera_to_widgets_.find(camera_id);
+                            if (it != camera_to_widgets_.end())
+                            {
+                                auto &vec = it->second;
+                                vec.erase(std::remove(vec.begin(), vec.end(), cam_wids[i]), vec.end());
+                                if (vec.empty())
+                                {
+                                    camera_to_widgets_.erase(it);
+                                }
+                            }
+                        }
+                    });
         }
         lay->addWidget(cam_wids[i], i / cols, i % cols);
     }

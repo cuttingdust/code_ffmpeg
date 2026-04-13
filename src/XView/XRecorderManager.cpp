@@ -10,13 +10,45 @@ XRecorderManager& XRecorderManager::instance()
     return manager;
 }
 
+void XRecorderManager::registerCallback(StatusCallback callback)
+{
+    std::lock_guard<std::mutex> lock(callback_mtx_);
+    callbacks_.push_back(std::move(callback));
+}
+
+void XRecorderManager::notifyStatusChanged(int camera_id, bool is_recording)
+{
+    // 复制回调列表，避免在调用时被修改
+    std::vector<StatusCallback> callbacks_copy;
+    {
+        std::lock_guard<std::mutex> lock(callback_mtx_);
+        callbacks_copy = callbacks_;
+    }
+
+    for (const auto& cb : callbacks_copy)
+    {
+        if (cb)
+        {
+            cb(camera_id, is_recording);
+        }
+    }
+}
+
 bool XRecorderManager::startRecording(int camera_id, const EncoderConfig& config)
 {
-    std::scoped_lock lock(mtx_);
-
-    if (recorders_.contains(camera_id))
+    // 先检查是否已在录制（需要锁）
+    bool already_recording = false;
     {
-        LOGI("摄像机 " << camera_id << " 已在录制中");
+        std::scoped_lock lock(mtx_);
+        if (recorders_.contains(camera_id))
+        {
+            LOGI("摄像机 " << camera_id << " 已在录制中");
+            already_recording = true;
+        }
+    }
+
+    if (already_recording)
+    {
         return true;
     }
 
@@ -46,39 +78,71 @@ bool XRecorderManager::startRecording(int camera_id, const EncoderConfig& config
     recorder->setReconnectInterval(5);
     recorder->setMaxReconnects(3);
 
-    if (!recorder->startSegmentRecording(prefix, 60, 0))
+    if (!recorder->startSegmentRecording(prefix, 10, 0))
     {
         LOGE("启动录制失败: " << cam->name);
         return false;
     }
 
-    recorders_[camera_id] = recorder;
+    // 添加到记录器（需要锁）
+    {
+        std::scoped_lock lock(mtx_);
+        recorders_[camera_id] = recorder;
+    }
+
     LOGI("开始录制摄像机 " << camera_id << ": " << cam->name);
+
+    // ✅ 在锁外通知状态变化
+    notifyStatusChanged(camera_id, true);
+
     return true;
 }
 
 void XRecorderManager::stopRecording(int camera_id)
 {
-    std::scoped_lock lock(mtx_);
-
-    auto it = recorders_.find(camera_id);
-    if (it != recorders_.end())
+    // 先取出 recorder 并移除（需要锁）
+    std::shared_ptr<RecordClient> recorder;
     {
-        it->second->stopRecording();
-        recorders_.erase(it);
+        std::scoped_lock lock(mtx_);
+        auto             it = recorders_.find(camera_id);
+        if (it != recorders_.end())
+        {
+            recorder = it->second;
+            recorders_.erase(it);
+        }
+    }
+
+    if (recorder)
+    {
+        recorder->stopRecording();
         LOGI("停止录制摄像机 " << camera_id);
+
+        // ✅ 在锁外通知状态变化
+        notifyStatusChanged(camera_id, false);
     }
 }
 
 void XRecorderManager::stopAll()
 {
-    std::scoped_lock lock(mtx_);
-
-    for (auto& pair : recorders_)
+    // 复制所有 recorder
+    std::vector<std::shared_ptr<RecordClient>> all_recorders;
     {
-        pair.second->stopRecording();
+        std::scoped_lock lock(mtx_);
+        for (auto& pair : recorders_)
+        {
+            all_recorders.push_back(pair.second);
+        }
+        recorders_.clear();
     }
-    recorders_.clear();
+
+    for (auto& recorder : all_recorders)
+    {
+        if (recorder)
+        {
+            recorder->stopRecording();
+        }
+    }
+
     LOGI("停止所有录制");
 }
 

@@ -11,8 +11,13 @@ RecordClient::RecordClient()
 RecordClient::~RecordClient()
 {
     LOGI("录制客户端销毁");
+
+    // 先停止所有线程标志
     duration_monitor_running_ = false;
+    segment_monitor_running_  = false;
     is_recording_             = false;
+
+    // 等待线程结束
     if (duration_thread_.joinable())
     {
         duration_thread_.join();
@@ -21,6 +26,7 @@ RecordClient::~RecordClient()
     {
         segment_thread_.join();
     }
+
     stop();
     wait();
 }
@@ -338,7 +344,11 @@ bool RecordClient::startRecording(const std::string& output_file, int duration_s
         {
             LOGI("关键帧已写入，开始计时 " << duration_sec_ << " 秒");
             duration_monitor_running_ = true;
-            duration_thread_          = std::thread(&RecordClient::durationMonitorThread, this);
+            if (duration_thread_.joinable())
+            {
+                duration_thread_.join();
+            }
+            duration_thread_ = std::thread(&RecordClient::durationMonitorThread, this);
             duration_thread_.detach();
         }
         else
@@ -383,8 +393,11 @@ bool RecordClient::startSegmentRecording(const std::string& prefix, int segment_
     }
 
     segment_monitor_running_ = true;
-    segment_thread_          = std::thread(&RecordClient::segmentMonitorThread, this);
-    segment_thread_.detach();
+    if (segment_thread_.joinable())
+    {
+        segment_thread_.join();
+    }
+    segment_thread_ = std::thread(&RecordClient::segmentMonitorThread, this);
 
     LOGI("开始分段录制: 前缀=" << prefix << ", 每段=" << segment_sec << "秒");
     return true;
@@ -397,6 +410,14 @@ void RecordClient::stopRecording()
         return;
     }
 
+    LOGI("停止录制...");
+
+    // 先停止监控线程标志
+    segment_monitor_running_  = false;
+    duration_monitor_running_ = false;
+    is_recording_             = false;
+
+    // 等待关键帧
     int wait_count = 0;
     while (muxer_task_ && !muxer_task_->hasKeyFrameWritten() && wait_count < 30)
     {
@@ -404,15 +425,16 @@ void RecordClient::stopRecording()
         wait_count++;
     }
 
-    is_recording_             = false;
-    duration_monitor_running_ = false;
-    segment_monitor_running_  = false;
     stop();
 }
 
 int RecordClient::getPacketCount() const
 {
-    return muxer_task_ ? muxer_task_->getPacketCount() : 0;
+    if (!muxer_task_)
+    {
+        return 0;
+    }
+    return muxer_task_->getPacketCount();
 }
 
 void RecordClient::setEncodeConfig(const EncoderConfig& config)
@@ -428,7 +450,12 @@ bool RecordClient::isRecording() const
 void RecordClient::durationMonitorThread()
 {
     LOGI("时长监控线程启动，将在 " << duration_sec_ << " 秒后停止录制");
-    std::this_thread::sleep_for(std::chrono::seconds(duration_sec_));
+
+    // 分段睡眠，每秒检查一次状态
+    for (int i = 0; i < duration_sec_ && duration_monitor_running_ && is_recording_; i++)
+    {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
 
     if (duration_monitor_running_ && is_recording_)
     {
@@ -445,10 +472,15 @@ void RecordClient::segmentMonitorThread()
 
     while (segment_monitor_running_ && is_recording_)
     {
-        std::this_thread::sleep_for(std::chrono::seconds(segment_duration_));
+        // 分段睡眠，每秒检查一次状态
+        for (int i = 0; i < segment_duration_ && segment_monitor_running_ && is_recording_; i++)
+        {
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
 
         if (!segment_monitor_running_ || !is_recording_)
         {
+            LOGI("分段监控线程: 录制已停止，退出");
             break;
         }
 
@@ -461,30 +493,48 @@ void RecordClient::segmentMonitorThread()
 
 void RecordClient::switchSegment()
 {
+    // 多重检查
     if (!is_recording_)
     {
+        LOGI("switchSegment: 录制已停止");
+        return;
+    }
+
+    if (!muxer_task_)
+    {
+        LOGW("switchSegment: muxer_task_ 为空");
         return;
     }
 
     int current_packets = getPacketCount();
     LOGI("当前段写入包数: " << current_packets);
 
+    // 关闭当前封装器
     if (muxer_task_)
     {
         muxer_task_->close();
         muxer_task_.reset();
     }
+
     if (encode_task_)
     {
         encode_task_->close();
         encode_task_.reset();
     }
 
+    // 检查是否达到总录制时长
     if (total_segment_sec_ > 0 && segment_index_ * segment_duration_ >= total_segment_sec_)
     {
         LOGI("达到总录制时长，停止分段录制");
         segment_monitor_running_ = false;
         is_recording_            = false;
+        return;
+    }
+
+    // 再次检查录制状态（可能在等待期间被停止）
+    if (!is_recording_)
+    {
+        LOGI("switchSegment: 录制已停止，不再继续下一段");
         return;
     }
 
@@ -495,7 +545,10 @@ void RecordClient::switchSegment()
     encode_task_ = XEncodeTask::create();
     muxer_task_  = XMuxerTask::create();
 
-    decode_task_->setNext(encode_task_);
+    if (decode_task_)
+    {
+        decode_task_->setNext(encode_task_);
+    }
     encode_task_->setNext(muxer_task_);
 
     auto error_cb = [this](const std::string& msg) { handleError(msg); };
@@ -508,8 +561,10 @@ void RecordClient::switchSegment()
         segment_monitor_running_ = false;
         is_recording_            = false;
     }
-
-    LOGI("下一段录制已启动");
+    else
+    {
+        LOGI("下一段录制已启动");
+    }
 }
 
 auto RecordClient::generateSegmentFilename() -> std::string

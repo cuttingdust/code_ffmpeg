@@ -2,11 +2,15 @@
 
 #include <QtWidgets/QWidget>
 #include <QMenu>
+#include <memory>
+#include <unordered_map>
 
 namespace Ui
 {
     class XViewerClass;
 }
+
+class XCameraWidget;
 
 class XViewer : public QWidget
 {
@@ -37,7 +41,16 @@ private:
     void refreshCameras();
     void updateCam(int index);
 
+    // 处理录制状态变化
+    void onRecordingStatusChanged(int camera_id, bool is_recording);
+
+    // 更新指定摄像头的所有窗口的 REC 显示
+    void updateCameraRecIndicator(int camera_id, bool is_recording);
+
 private:
     Ui::XViewerClass *ui;
     QMenu             left_menu_;
+
+    // 记录每个 camera_id 对应的播放窗口（一个摄像头可能被多个窗口播放）
+    std::unordered_map<int, std::vector<XCameraWidget *>> camera_to_widgets_;
 };
