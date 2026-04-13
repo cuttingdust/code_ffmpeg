@@ -23,34 +23,28 @@ auto RtspClient::create() -> std::shared_ptr<RtspClient>
 
 void RtspClient::initTasks()
 {
-    // 基类纯虚函数实现，直接调用 createTasks
     createTasks();
 }
 
 void RtspClient::createTasks()
 {
-    // 创建基础任务
     demux_task_   = XDemuxTask::create();
     decode_task_  = XDecodeTask::create();
     display_task_ = XDisplayTask::create();
 
-    /// 设置超时
     demux_task_->setIdleTimeoutMs(5000);
     decode_task_->setIdleTimeoutMs(3000);
     display_task_->setIdleTimeoutMs(10000);
 
-    /// 设置任务链
     demux_task_->setNext(decode_task_);
     decode_task_->setNext(display_task_);
 
-    /// 设置错误回调
     auto error_cb = [this](const std::string& msg) { handleError(msg); };
 
     demux_task_->setErrorCallback(error_cb);
     decode_task_->setErrorCallback(error_cb);
     display_task_->setErrorCallback(error_cb);
 
-    /// 设置窗口
     if (external_win_)
     {
         display_task_->setWindow(external_win_);
@@ -128,30 +122,23 @@ void RtspClient::reconnectImpl()
 {
     LOGI("RtspClient 重连实现 - 重新创建任务");
 
-    /// 保存当前窗口句柄（因为 destroyTasks 后会被清空）
     void* saved_win = external_win_;
 
-    /// 1. 彻底释放旧任务
     destroyTasks();
-
-    /// 2. 重新创建任务
     createTasks();
 
-    /// 3. 重新设置窗口句柄（关键！）
     if (saved_win && display_task_)
     {
         display_task_->setWindow(saved_win);
         LOGI("重连后重新设置窗口: " << saved_win);
     }
 
-    /// 4. 如果之前启用了录制，重新创建录制任务
     if (record_enabled_)
     {
         record_task_ = XRecordTask::create();
         demux_task_->addObserver(record_task_);
     }
 
-    /// 5. 重新打开 URL（带重试）
     const int max_retries = 5;
     bool      opened      = false;
 
@@ -180,7 +167,6 @@ void RtspClient::reconnectImpl()
 
     demux_task_->setRtspOptions(true, 5000);
 
-    // 6. 重新获取视频流
     video_stream_ = demux_task_->getVideoStream();
     if (!video_stream_)
     {
@@ -189,7 +175,6 @@ void RtspClient::reconnectImpl()
         return;
     }
 
-    /// 7. 重新初始化解码器
     if (!initDecoder())
     {
         LOGE("重连初始化解码器失败");
@@ -197,7 +182,6 @@ void RtspClient::reconnectImpl()
         return;
     }
 
-    /// 8. 重新启动任务
     startTasks();
 
     setState(MediaClientState::CONNECTED);
@@ -209,7 +193,6 @@ bool RtspClient::start()
     LOGI("RTSP客户端启动..." << (use_hardware_ ? "(硬件解码)" : "(软件解码)"));
     setState(MediaClientState::CONNECTING);
 
-    /// 打开解封装
     if (!demux_task_->open(url_))
     {
         LOGE("打开RTSP失败: " << url_);
@@ -219,7 +202,6 @@ bool RtspClient::start()
 
     demux_task_->setRtspOptions(true, 5000);
 
-    // 获取视频流
     video_stream_ = demux_task_->getVideoStream();
     if (!video_stream_)
     {
@@ -228,12 +210,10 @@ bool RtspClient::start()
         return false;
     }
 
-    // 初始化解码器
     if (!initDecoder())
     {
         LOGE("初始化解码器失败");
 
-        // 如果硬件解码失败，尝试软件解码
         if (use_hardware_)
         {
             LOGE("硬件解码失败，尝试软件解码");
@@ -253,7 +233,6 @@ bool RtspClient::start()
         }
     }
 
-    // 启动所有任务
     startTasks();
 
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -314,6 +293,14 @@ void RtspClient::setFirstFrameCallback(XDisplayTask::FirstFrameCallback cb)
     if (display_task_)
     {
         display_task_->setFirstFrameCallback(std::move(cb));
+    }
+}
+
+void RtspClient::setRecordingIndicator(bool show)
+{
+    if (display_task_)
+    {
+        display_task_->setRecordingIndicator(show);
     }
 }
 

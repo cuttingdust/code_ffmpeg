@@ -45,7 +45,11 @@ XCameraWidget::XCameraWidget(QWidget *p) : QWidget(p), impl_(std::make_unique<XC
 
 XCameraWidget::~XCameraWidget()
 {
-    stop();
+    if (impl_->camera_id_ >= 0 && isRecording())
+    {
+        XRecorderManager::instance().stopRecording(impl_->camera_id_);
+    }
+    stop(); /// 停止播放
 }
 
 bool XCameraWidget::isPlaying() const
@@ -166,6 +170,7 @@ void XCameraWidget::stop()
     }
 
     updateMenuState();
+    update();
 }
 
 void XCameraWidget::setCameraId(int id)
@@ -192,7 +197,6 @@ void XCameraWidget::startRecording()
         return;
     }
 
-    // 检查是否已经在录制
     if (isRecording())
     {
         QMessageBox::information(this, "提示", "已在录制中");
@@ -217,14 +221,20 @@ void XCameraWidget::startRecording()
     if (!XRecorderManager::instance().startRecording(impl_->camera_id_, config))
     {
         QMessageBox::warning(this, "错误", "启动录制失败");
+        return;
     }
-    else
+
+    QMessageBox::information(this, "提示", "开始录制");
+
+    // 设置录制指示器（在视频画面上显示 REC）
+    if (impl_->rtsp_client_)
     {
-        QMessageBox::information(this, "提示", "开始录制");
-        emit recordingStateChanged(impl_->camera_id_, true);
-        updateMenuState();
-        update();
+        impl_->rtsp_client_->setRecordingIndicator(true);
     }
+
+    emit recordingStateChanged(impl_->camera_id_, true);
+    updateMenuState();
+    update();
 }
 
 void XCameraWidget::stopRecording()
@@ -235,10 +245,15 @@ void XCameraWidget::stopRecording()
     if (!isRecording())
         return;
 
-    int camera_id = impl_->camera_id_;
-    XRecorderManager::instance().stopRecording(camera_id);
+    // 清除录制指示器
+    if (impl_->rtsp_client_)
+    {
+        impl_->rtsp_client_->setRecordingIndicator(false);
+    }
+
+    XRecorderManager::instance().stopRecording(impl_->camera_id_);
     QMessageBox::information(this, "提示", "停止录制");
-    emit recordingStateChanged(camera_id, false);
+    emit recordingStateChanged(impl_->camera_id_, false);
     updateMenuState();
     update();
 }
@@ -256,7 +271,6 @@ void XCameraWidget::contextMenuEvent(QContextMenuEvent *event)
     {
         context_menu_ = new QMenu(this);
 
-        // 视图子菜单
         auto viewMenu = context_menu_->addMenu("视图");
         viewMenu->addAction("1窗口", this, [this]() { emit changeViewMode(1); });
         viewMenu->addAction("4窗口", this, [this]() { emit changeViewMode(4); });
@@ -265,7 +279,6 @@ void XCameraWidget::contextMenuEvent(QContextMenuEvent *event)
 
         context_menu_->addSeparator();
 
-        // 录制子菜单
         auto recordMenu      = context_menu_->addMenu("录制");
         start_record_action_ = recordMenu->addAction("开始录制", this, &XCameraWidget::startRecording);
         stop_record_action_  = recordMenu->addAction("停止录制", this, &XCameraWidget::stopRecording);
@@ -273,9 +286,7 @@ void XCameraWidget::contextMenuEvent(QContextMenuEvent *event)
         updateMenuState();
     }
 
-    // 更新菜单状态
     updateMenuState();
-
     context_menu_->exec(event->globalPos());
 }
 
@@ -317,23 +328,8 @@ void XCameraWidget::paintEvent(QPaintEvent *event)
         painter.drawText(rect(), Qt::AlignCenter, "加载中...");
     }
 
-    if (isRecording())
-    {
-        painter.save();
-
-        painter.setBrush(QColor(0, 0, 0, 180));
-        painter.setPen(Qt::NoPen);
-        painter.drawRoundedRect(5, 5, 65, 28, 6, 6);
-
-        painter.setBrush(Qt::red);
-        painter.drawEllipse(15, 11, 10, 10);
-
-        painter.setPen(Qt::white);
-        painter.setFont(QFont("Arial", 10, QFont::Bold));
-        painter.drawText(32, 18, "REC");
-
-        painter.restore();
-    }
+    // 注意：REC 显示现在由 XDisplayTask 在视频画面上绘制
+    // 这里不再绘制 REC，避免重叠
 }
 
 void XCameraWidget::resizeEvent(QResizeEvent *event)

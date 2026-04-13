@@ -1,62 +1,85 @@
 ﻿#pragma once
 
-#include "XCodec_Global.h"
 #include "XTask.h"
 #include "XVideoView.h"
 #include "FrameWrapper.h"
+#include <chrono>
+#include <functional>
+#include <SDL_pixels.h>
 
-class XCODEC_EXPORT XDisplayTask : public XTask
+struct SDL_Texture;
+struct TTF_Font;
+
+/// REC 样式配置
+struct RecStyle
+{
+    int       dot_radius     = 6;                      ///< 圆点半径
+    SDL_Color dot_color      = { 255, 50, 50, 255 };   ///< 鲜红色圆点
+    SDL_Color text_color     = { 255, 255, 255, 255 }; ///< 白色文字
+    int       font_size      = 12;                     ///< 字体大小
+    int       spacing        = 4;                      ///< 圆点和文字间距
+    int       padding_top    = 2;                      ///< 上边距
+    int       padding_bottom = 2;                      ///< 下边距
+    int       padding_left   = 8;                      ///< 左边距
+    int       padding_right  = 8;                      ///< 右边距
+    bool      show_border    = true;                   ///< 是否显示边框
+    SDL_Color border_color   = { 255, 255, 255, 200 }; ///< 边框颜色（半透明白）
+};
+
+class XDisplayTask : public XTask
 {
     DECLARE_CREATE(XDisplayTask)
 public:
     XDisplayTask();
     ~XDisplayTask() override;
 
-public:
-    /// 自定义渲染回调
     using RenderCallback = std::function<void(FrameWrapper&)>;
-
-    auto setRenderCallback(RenderCallback cb) -> void;
+    void setRenderCallback(RenderCallback cb);
 
     using FirstFrameCallback = std::function<void()>;
-    void setFirstFrameCallback(FirstFrameCallback cb)
+    void setFirstFrameCallback(FirstFrameCallback cb);
+
+    int         getFPS() const;
+    void        reset() override;
+    XVideoView* getVideoView()
     {
-        first_frame_cb_ = std::move(cb);
+        return view_.get();
     }
+    void setWindow(void* win);
 
-    /// 获取FPS统计
-    auto getFPS() const -> int;
-
-    /// 重置任务
-    auto reset() -> void override;
-
-    auto getVideoView() -> XVideoView*;
-
-    auto setWindow(void* win) -> void;
+    void setRecordingIndicator(bool show);
 
 protected:
-    auto process() -> void override;
+    void process() override;
 
 private:
     void defaultRender(FrameWrapper& frame);
     void updateFPS();
     void drawReconnectingMessage();
+    void initRecTexture();
+    void drawRecOverlay(void* renderer_ptr);
+    void destroyRecTexture();
 
 private:
-    std::unique_ptr<XVideoView>           view_;
-    RenderCallback                        render_cb_;
-    bool                                  is_init_        = false;
-    bool                                  window_created_ = false;
-    bool                                  reconnecting_   = false;
-    std::chrono::steady_clock::time_point last_frame_time_;
+    std::unique_ptr<XVideoView> view_;
+    RecStyle                    rec_style_;
+    RenderCallback              render_cb_;
+    FirstFrameCallback          first_frame_cb_;
+    bool                        is_init_              = false;
+    bool                        window_created_       = false;
+    bool                        reconnecting_         = false;
+    bool                        first_frame_received_ = false;
+    void*                       external_win_         = nullptr;
+    std::atomic<bool>           show_rec_indicator_{ false };
 
-    /// FPS统计
+    // REC 纹理相关
+    void* rec_texture_        = nullptr; // SDL_Texture*
+    int   rec_texture_width_  = 0;
+    int   rec_texture_height_ = 0;
+    void* rec_font_           = nullptr; // TTF_Font*
+
+    std::chrono::steady_clock::time_point last_frame_time_;
     int                                   fps_         = 0;
     int                                   frame_count_ = 0;
     std::chrono::steady_clock::time_point last_stats_;
-
-    void* external_win_ = nullptr; ///< 外部窗口句柄
-
-    FirstFrameCallback first_frame_cb_;
-    bool               first_frame_received_ = false;
 };

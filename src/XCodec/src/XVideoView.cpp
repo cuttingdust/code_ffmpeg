@@ -76,6 +76,10 @@ auto XVideoView::create(RenderType type) -> XVideoView *
     return nullptr;
 }
 
+void XVideoView::setOverlayCallback(OverlayCallback cb)
+{
+}
+
 /**
  * @brief 渲染AVFrame格式的帧
  * @param frame FFmpeg AVFrame指针

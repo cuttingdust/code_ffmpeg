@@ -26,9 +26,7 @@ public:
 
     // ==================== 录制控制（按需启用）====================
 
-    /// 启用录制功能（会创建录制任务，消耗资源）
     void enableRecord();
-
     bool startRecording(const std::string& filename, int duration_sec = 0);
     void stopRecording();
     bool isRecording() const;
@@ -40,6 +38,9 @@ public:
     auto getDemuxTask() -> XDemuxTask::Ptr;
     auto getDecodeTask() -> XDecodeTask::Ptr;
     auto getDisplayTask() -> XDisplayTask::Ptr;
+
+    /// 设置录制指示器显示状态
+    void setRecordingIndicator(bool show);
 
 protected:
     void initTasks() override;

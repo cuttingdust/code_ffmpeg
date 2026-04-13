@@ -46,7 +46,7 @@ bool XRecorderManager::startRecording(int camera_id, const EncoderConfig& config
     recorder->setReconnectInterval(5);
     recorder->setMaxReconnects(3);
 
-    if (!recorder->startSegmentRecording(prefix, 10, 0))
+    if (!recorder->startSegmentRecording(prefix, 60, 0))
     {
         LOGE("启动录制失败: " << cam->name);
         return false;

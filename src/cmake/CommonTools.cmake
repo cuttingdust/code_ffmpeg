@@ -122,6 +122,7 @@ set(FMT_MOUDLES
 set(SDL2_MOUDLES
 	 $<TARGET_NAME_IF_EXISTS:SDL2::SDL2main>
      $<IF:$<TARGET_EXISTS:SDL2::SDL2>,SDL2::SDL2,SDL2::SDL2-static>
+	 $<IF:$<TARGET_EXISTS:SDL2_ttf::SDL2_ttf>,SDL2_ttf::SDL2_ttf,SDL2_ttf::SDL2_ttf-static>
 )
 
 # 获取当前目录下源码和头文件

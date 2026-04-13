@@ -2,6 +2,7 @@
 
 #include <QtWidgets/QWidget>
 #include <memory>
+#include <atomic>
 
 class RtspClient;
 
@@ -63,4 +64,7 @@ private:
     QMenu   *context_menu_        = nullptr;
     QAction *start_record_action_ = nullptr;
     QAction *stop_record_action_  = nullptr;
+
+    QTimer           *rec_timer_ = nullptr;        ///< 录制标识刷新定时器
+    std::atomic<bool> is_recording_flag_{ false }; ///< 录制状态标志（用于UI显示）
 };

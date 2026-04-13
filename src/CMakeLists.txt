@@ -69,6 +69,12 @@ message("FFMPEG_VERSION = ${FFMPEG_VERSION}")
 message("FFMPEG_LIBS = ${FFMPEG_LIBS}")
 
 # SDL2
+find_package(SDL2_ttf REQUIRED)
+message("SDL2_ttf_FOUND = ${SDL2_ttf_FOUND}")
+message("SDL2_ttf_VERSION = ${SDL2_ttf_VERSION}")
+message("SDL2_ttf_LIBS = ${SDL2_ttf_LIBS}")
+
+# SDL2
 find_package(SDL2 REQUIRED)
 message("SDL2_FOUND = ${SDL2_FOUND}")
 message("SDL2_VERSION = ${SDL2_VERSION}")

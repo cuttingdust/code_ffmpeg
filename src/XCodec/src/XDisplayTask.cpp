@@ -3,6 +3,8 @@
 #include "FrameWrapper.h"
 #include <sstream>
 #include <utility>
+#include <SDL.h>
+#include <SDL_ttf.h>
 
 XDisplayTask::XDisplayTask()
 {
@@ -10,24 +12,57 @@ XDisplayTask::XDisplayTask()
     LOGD("显示任务创建");
     last_stats_      = std::chrono::steady_clock::now();
     last_frame_time_ = std::chrono::steady_clock::now();
+    rec_font_        = nullptr;
+    rec_texture_     = nullptr;
 }
 
 XDisplayTask::~XDisplayTask()
 {
     LOGD("显示任务销毁");
+    destroyRecTexture();
 }
 
-auto XDisplayTask::setRenderCallback(RenderCallback cb) -> void
+void XDisplayTask::destroyRecTexture()
+{
+    if (rec_texture_)
+    {
+        SDL_DestroyTexture((SDL_Texture*)rec_texture_);
+        rec_texture_ = nullptr;
+    }
+    if (rec_font_)
+    {
+        TTF_CloseFont((TTF_Font*)rec_font_);
+        rec_font_ = nullptr;
+    }
+}
+
+void XDisplayTask::setRenderCallback(RenderCallback cb)
 {
     render_cb_ = std::move(cb);
 }
 
-auto XDisplayTask::getFPS() const -> int
+void XDisplayTask::setFirstFrameCallback(FirstFrameCallback cb)
+{
+    first_frame_cb_ = std::move(cb);
+}
+
+void XDisplayTask::setRecordingIndicator(bool show)
+{
+    show_rec_indicator_ = show;
+}
+
+int XDisplayTask::getFPS() const
 {
     return fps_;
 }
 
-auto XDisplayTask::reset() -> void
+void XDisplayTask::setWindow(void* win)
+{
+    external_win_ = win;
+    LOGI("设置外部窗口句柄: " << win);
+}
+
+void XDisplayTask::reset()
 {
     XTask::reset();
 
@@ -38,25 +73,175 @@ auto XDisplayTask::reset() -> void
         view_->resetRenderer();
     }
 
-    /// 重置状态，但保留窗口
-    is_init_         = false;
-    fps_             = 0;
-    frame_count_     = 0;
-    last_stats_      = std::chrono::steady_clock::now();
-    last_frame_time_ = std::chrono::steady_clock::now();
-    reconnecting_    = true; /// 标记正在重连
+    is_init_              = false;
+    fps_                  = 0;
+    frame_count_          = 0;
+    last_stats_           = std::chrono::steady_clock::now();
+    last_frame_time_      = std::chrono::steady_clock::now();
+    reconnecting_         = true;
+    first_frame_received_ = false;
+    show_rec_indicator_   = false;
+
+    destroyRecTexture();
 }
 
-auto XDisplayTask::getVideoView() -> XVideoView*
+void XDisplayTask::initRecTexture()
 {
-    return view_.get();
+    if (!view_)
+    {
+        LOGE("initRecTexture: view_ 为空");
+        return;
+    }
+
+    SDL_Renderer* renderer = (SDL_Renderer*)view_->getSDLRenderer();
+    if (!renderer)
+    {
+        LOGE("initRecTexture: 获取渲染器失败");
+        return;
+    }
+
+    // 初始化 TTF
+    if (TTF_Init() == -1)
+    {
+        LOGE("TTF_Init 失败: " << TTF_GetError());
+        return;
+    }
+
+    // 加载字体
+    rec_font_ = TTF_OpenFont("C:/Windows/Fonts/arial.ttf", rec_style_.font_size);
+    if (!rec_font_)
+    {
+        rec_font_ = TTF_OpenFont("C:/Windows/Fonts/msyh.ttc", rec_style_.font_size);
+    }
+    if (!rec_font_)
+    {
+        LOGE("打开字体失败: " << TTF_GetError());
+        return;
+    }
+
+    /// 创建文字表面
+    SDL_Surface* text_surface = TTF_RenderUTF8_Blended((TTF_Font*)rec_font_, "REC", rec_style_.text_color);
+    if (!text_surface)
+    {
+        LOGE("创建文字表面失败: " << TTF_GetError());
+        return;
+    }
+
+    /// 计算组合纹理尺寸
+    int dot_size = rec_style_.dot_radius * 2;
+    int total_width =
+            rec_style_.padding_left + dot_size + rec_style_.spacing + text_surface->w + rec_style_.padding_right;
+    int total_height = std::max(dot_size, text_surface->h) + rec_style_.padding_top + rec_style_.padding_bottom;
+
+    /// 创建组合表面（带透明通道）
+    SDL_Surface* combined = SDL_CreateRGBSurfaceWithFormat(0, total_width, total_height, 32, SDL_PIXELFORMAT_RGBA32);
+    if (!combined)
+    {
+        LOGE("创建组合表面失败");
+        SDL_FreeSurface(text_surface);
+        return;
+    }
+
+    /// 填充透明背景
+    SDL_FillRect(combined, NULL, SDL_MapRGBA(combined->format, 0, 0, 0, 0));
+
+    // ========== 绘制圆点 ==========
+    SDL_LockSurface(combined);
+    Uint32 dot_color = SDL_MapRGBA(combined->format, rec_style_.dot_color.r, rec_style_.dot_color.g,
+                                   rec_style_.dot_color.b, rec_style_.dot_color.a);
+
+    int dot_center_x = rec_style_.padding_left + rec_style_.dot_radius;
+    int dot_center_y = rec_style_.padding_top + dot_size / 2;
+
+    /// 绘制实心圆（使用 Bresenham 算法）
+    for (int y = -rec_style_.dot_radius; y <= rec_style_.dot_radius; y++)
+    {
+        for (int x = -rec_style_.dot_radius; x <= rec_style_.dot_radius; x++)
+        {
+            if (x * x + y * y <= rec_style_.dot_radius * rec_style_.dot_radius)
+            {
+                int px = dot_center_x + x;
+                int py = dot_center_y + y;
+                if (px >= 0 && px < combined->w && py >= 0 && py < combined->h)
+                {
+                    ((Uint32*)combined->pixels)[py * combined->w + px] = dot_color;
+                }
+            }
+        }
+    }
+    SDL_UnlockSurface(combined);
+
+    // ========== 绘制文字 ==========
+    SDL_Rect text_rect = {
+        rec_style_.padding_left + dot_size + rec_style_.spacing,
+        rec_style_.padding_top +
+                (total_height - rec_style_.padding_top - rec_style_.padding_bottom - text_surface->h) / 2,
+        text_surface->w, text_surface->h
+    };
+    SDL_BlitSurface(text_surface, NULL, combined, &text_rect);
+
+    // ========== 绘制边框（可选）==========
+    if (rec_style_.show_border)
+    {
+        SDL_LockSurface(combined);
+        Uint32 border_color = SDL_MapRGBA(combined->format, rec_style_.border_color.r, rec_style_.border_color.g,
+                                          rec_style_.border_color.b, rec_style_.border_color.a);
+
+        // 绘制矩形边框
+        for (int x = 0; x < combined->w; x++)
+        {
+            // 上边
+            ((Uint32*)combined->pixels)[0 * combined->w + x] = border_color;
+            // 下边
+            ((Uint32*)combined->pixels)[(combined->h - 1) * combined->w + x] = border_color;
+        }
+        for (int y = 0; y < combined->h; y++)
+        {
+            // 左边
+            ((Uint32*)combined->pixels)[y * combined->w + 0] = border_color;
+            // 右边
+            ((Uint32*)combined->pixels)[y * combined->w + (combined->w - 1)] = border_color;
+        }
+        SDL_UnlockSurface(combined);
+    }
+
+    // 创建纹理
+    rec_texture_ = SDL_CreateTextureFromSurface(renderer, combined);
+    if (rec_texture_)
+    {
+        rec_texture_width_  = combined->w;
+        rec_texture_height_ = combined->h;
+        LOGI("REC 组合纹理创建成功: " << rec_texture_width_ << "x" << rec_texture_height_);
+    }
+    else
+    {
+        LOGE("创建纹理失败: " << SDL_GetError());
+    }
+
+    SDL_FreeSurface(text_surface);
+    SDL_FreeSurface(combined);
 }
 
-auto XDisplayTask::setWindow(void* win) -> void
+void XDisplayTask::drawRecOverlay(void* renderer_ptr)
 {
-    external_win_ = win;
-}
+    SDL_Renderer* renderer = (SDL_Renderer*)renderer_ptr;
+    if (!renderer || !show_rec_indicator_)
+    {
+        return;
+    }
 
+    if (!rec_texture_)
+    {
+        initRecTexture();
+    }
+
+    if (rec_texture_)
+    {
+        // 绘制组合好的纹理（左上角位置）
+        SDL_Rect dst_rect = { 8, 8, rec_texture_width_, rec_texture_height_ };
+        SDL_RenderCopy(renderer, (SDL_Texture*)rec_texture_, nullptr, &dst_rect);
+    }
+}
 
 void XDisplayTask::updateFPS()
 {
@@ -91,7 +276,6 @@ void XDisplayTask::drawReconnectingMessage()
 
 void XDisplayTask::defaultRender(FrameWrapper& frame)
 {
-    /// 如果还没创建渲染器，先创建
     if (!view_)
     {
         view_.reset(XVideoView::create());
@@ -101,13 +285,24 @@ void XDisplayTask::defaultRender(FrameWrapper& frame)
             return;
         }
         LOGD("渲染器创建成功");
+
         if (external_win_)
         {
             view_->setWindow(external_win_);
+            LOGI("设置外部窗口: " << external_win_);
         }
+
+        // 设置叠加层回调
+        view_->setOverlayCallback(
+                [this](void* renderer)
+                {
+                    if (show_rec_indicator_)
+                    {
+                        drawRecOverlay(renderer);
+                    }
+                });
     }
 
-    /// 如果窗口还没创建，直接在子线程初始化
     if (!window_created_ && frame->width > 0 && frame->height > 0)
     {
         LOGI("尝试在子线程初始化窗口: " << frame->width << "x" << frame->height);
@@ -125,7 +320,6 @@ void XDisplayTask::defaultRender(FrameWrapper& frame)
         }
     }
 
-    /// 如果窗口已创建但需要重新初始化渲染器
     if (window_created_ && !is_init_)
     {
         LOGI("重新初始化渲染器");
@@ -144,14 +338,12 @@ void XDisplayTask::defaultRender(FrameWrapper& frame)
 
     if (is_init_ && view_)
     {
-        /// 首帧回调
-        if (!first_frame_received_ && frame->width > 0)
+        if (!first_frame_received_)
         {
             first_frame_received_ = true;
             if (first_frame_cb_)
             {
                 first_frame_cb_();
-                LOGI("首帧回调触发");
             }
         }
 
@@ -161,7 +353,11 @@ void XDisplayTask::defaultRender(FrameWrapper& frame)
             LOGE("drawFrame 失败");
         }
 
-        /// 收到帧时清除重连状态
+        if (reconnecting_)
+        {
+            drawReconnectingMessage();
+        }
+
         if (reconnecting_)
         {
             LOGI("网络已恢复，继续播放");
@@ -180,9 +376,8 @@ void XDisplayTask::process()
     int           consecutive_timeouts     = 0;
     constexpr int max_consecutive_timeouts = 300;
 
-    /// 增加初始等待：给解码任务一些时间准备第一帧
     int           initial_wait     = 0;
-    constexpr int max_initial_wait = 200; // 最多等待10秒 (200 * 50ms)
+    constexpr int max_initial_wait = 200;
 
     while (!shouldStop())
     {
@@ -191,7 +386,6 @@ void XDisplayTask::process()
         auto now       = std::chrono::steady_clock::now();
         auto idle_time = std::chrono::duration_cast<std::chrono::seconds>(now - last_frame_time_).count();
 
-        /// 只有在收到过帧且没有帧时才进入重连状态
         if (idle_time > 3 && window_created_ && !reconnecting_ &&
             last_frame_time_ != std::chrono::steady_clock::time_point{})
         {
@@ -201,7 +395,6 @@ void XDisplayTask::process()
 
         if (!raw_frame)
         {
-            // 如果是刚开始，等待一段时间，不计数超时
             if (initial_wait < max_initial_wait && last_frame_time_ == std::chrono::steady_clock::time_point{})
             {
                 initial_wait++;
@@ -232,7 +425,6 @@ void XDisplayTask::process()
             continue;
         }
 
-        // 收到帧后重置初始等待计数
         initial_wait         = 0;
         consecutive_timeouts = 0;
 
