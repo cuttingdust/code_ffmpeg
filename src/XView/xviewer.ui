@@ -400,13 +400,13 @@ background-color: rgb(0, 102, 184);
       <height>391</height>
      </rect>
     </property>
-    <widget class="QCalendarWidget" name="cal">
+    <widget class="XCalendar" name="cal">
      <property name="geometry">
       <rect>
        <x>160</x>
        <y>0</y>
-       <width>600</width>
-       <height>500</height>
+       <width>431</width>
+       <height>361</height>
       </rect>
      </property>
     </widget>
@@ -429,6 +429,13 @@ background-color: rgb(0, 102, 184);
   </widget>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
+ <customwidgets>
+  <customwidget>
+   <class>XCalendar</class>
+   <extends>QCalendarWidget</extends>
+   <header>xcalendar.h</header>
+  </customwidget>
+ </customwidgets>
  <resources>
   <include location="xviewer.qrc"/>
  </resources>
