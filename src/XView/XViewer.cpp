@@ -37,8 +37,9 @@ XViewer::XViewer(QWidget *parent) : QWidget(parent), ui(new Ui::XViewerClass)
     auto hlay = new QHBoxLayout;
     ui->body->setLayout(hlay);
     hlay->setContentsMargins(0, 0, 0, 0);
-    hlay->addWidget(ui->left);
-    hlay->addWidget(ui->cams);
+    hlay->addWidget(ui->left);         /// 左侧相机列表
+    hlay->addWidget(ui->cams);         /// 右侧预览窗口
+    hlay->addWidget(ui->playback_wid); /// 回放窗口
 
     /// 初始化右键菜单 - 视图
     auto m = left_menu_.addMenu("视图");
@@ -57,6 +58,7 @@ XViewer::XViewer(QWidget *parent) : QWidget(parent), ui(new Ui::XViewerClass)
     /// 刷新左侧摄像机列表
     XCameraConfig::instance()->load(CAM_CONF_PATH);
     refreshCameras();
+    Playback();
 
     // 注册录制状态回调
     XRecorderManager::instance().registerCallback(
@@ -334,6 +336,20 @@ void XViewer::DelCam()
     XCameraConfig::instance()->deleteCamera(row);
     XCameraConfig::instance()->save(CAM_CONF_PATH);
     refreshCameras();
+}
+
+void XViewer::Preview()
+{
+    ui->cams->show();
+    ui->playback_wid->hide();
+    ui->preview->setChecked(true);
+}
+
+void XViewer::Playback()
+{
+    ui->cams->hide();
+    ui->playback_wid->show();
+    ui->playback->setChecked(true);
 }
 
 void XViewer::updateCam(int index)

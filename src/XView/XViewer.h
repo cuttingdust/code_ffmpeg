@@ -36,6 +36,9 @@ private slots:
     void SetCam();
     void DelCam();
 
+    void Preview();  /// 预览界面
+    void Playback(); /// 回放界面
+
 private:
     void view(int count);
     void refreshCameras();
