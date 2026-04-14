@@ -584,6 +584,54 @@ background-color: rgb(0, 102, 184);
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>cam_list</sender>
+   <signal>clicked(QModelIndex)</signal>
+   <receiver>XViewerClass</receiver>
+   <slot>SelectCamera(QModelIndex)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>118</x>
+     <y>248</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>150</x>
+     <y>-57</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>cal</sender>
+   <signal>clicked(QDate)</signal>
+   <receiver>XViewerClass</receiver>
+   <slot>SelectDate(QDate)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>542</x>
+     <y>267</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>539</x>
+     <y>-94</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>time_list</sender>
+   <signal>activated(QModelIndex)</signal>
+   <receiver>XViewerClass</receiver>
+   <slot>PlayVideo(QModelIndex)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>301</x>
+     <y>190</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>402</x>
+     <y>-39</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>MaxWindow()</slot>
@@ -593,5 +641,8 @@ background-color: rgb(0, 102, 184);
   <slot>DelCam()</slot>
   <slot>Preview()</slot>
   <slot>Playback()</slot>
+  <slot>SelectCamera(QModelIndex)</slot>
+  <slot>SelectDate(QDate)</slot>
+  <slot>PlayVideo(QModelIndex)</slot>
  </slots>
 </ui>

@@ -7,18 +7,17 @@ XCalendar::XCalendar(QWidget* p) : QCalendarWidget(p)
 void XCalendar::paintCell(QPainter* painter, const QRect& rec, QDate date) const
 {
     /// 有视频的日期特殊显示
-    /// 测试日期 4号
-    if (date.day() != 4)
+    if (!mdate_.contains(date)) //没有视频
     {
         QCalendarWidget::paintCell(painter, rec, date);
         return;
     }
-    
-    
+
+
     auto font = painter->font();
     /// 设置字体
     font.setPixelSize(40);
-    
+
     /// 选中状态刷背景色
     if (date == selectedDate())
     {

@@ -352,6 +352,41 @@ void XViewer::Playback()
     ui->playback->setChecked(true);
 }
 
+void XViewer::SelectCamera(QModelIndex index)
+{
+    int camera_id = index.row();
+    qDebug() << "SelectCamera" << camera_id;
+
+    /// 保存当前选中的摄像机ID
+    current_selected_camera_ = camera_id;
+
+    /// 获取该摄像机的录像日期列表
+    auto dates = XRecorderManager::instance().getRecordDates(camera_id);
+
+    /// 清空并重新设置日历的日期标记
+    ui->cal->ClearDate();
+    for (const auto &date : dates)
+    {
+        ui->cal->AddDate(date);
+    }
+
+    /// 刷新日历显示（触发重绘，让有录像的日期显示为红色）
+    ui->cal->update();
+
+    /// 清空时间列表
+    ui->time_list->clear();
+}
+
+void XViewer::SelectDate(QDate date)
+{
+    qDebug() << "SelectDate" << date.toString();
+}
+
+void XViewer::PlayVideo(QModelIndex index)
+{
+    qDebug() << "PlayVideo" << index.row();
+}
+
 void XViewer::updateCam(int index)
 {
     auto    c = XCameraConfig::instance();

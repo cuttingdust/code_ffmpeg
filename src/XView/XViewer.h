@@ -1,7 +1,9 @@
 ﻿#pragma once
 
 #include <QtWidgets/QWidget>
-#include <QMenu>
+#include <QtWidgets/QMenu>
+#include <QtCore/QModelIndex>
+#include <QtCore/QDate>
 #include <memory>
 #include <unordered_map>
 
@@ -39,15 +41,19 @@ private slots:
     void Preview();  /// 预览界面
     void Playback(); /// 回放界面
 
+    void SelectCamera(QModelIndex index); /// 选择摄像机
+    void SelectDate(QDate date);          /// 选择日期
+    void PlayVideo(QModelIndex index);    /// 选择时间播放视频
+
 private:
     void view(int count);
     void refreshCameras();
     void updateCam(int index);
 
-    // 处理录制状态变化
+    /// 处理录制状态变化
     void onRecordingStatusChanged(int camera_id, bool is_recording);
 
-    // 更新指定摄像头的所有窗口的 REC 显示
+    /// 更新指定摄像头的所有窗口的 REC 显示
     void updateCameraRecIndicator(int camera_id, bool is_recording);
 
 private:
@@ -56,4 +62,5 @@ private:
 
     // 记录每个 camera_id 对应的播放窗口（一个摄像头可能被多个窗口播放）
     std::unordered_map<int, std::vector<XCameraWidget *>> camera_to_widgets_;
+    int                                                   current_selected_camera_ = -1; // 当前选中的摄像机ID
 };
