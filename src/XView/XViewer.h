@@ -20,7 +20,7 @@ class XViewer : public QWidget
 
 public:
     explicit XViewer(QWidget *parent = nullptr);
-    ~XViewer();
+    ~XViewer() override;
 
 protected:
     bool eventFilter(QObject *pObj, QEvent *pEvent) override;

@@ -60,11 +60,11 @@ XViewer::XViewer(QWidget *parent) : QWidget(parent), ui(new Ui::XViewerClass)
     refreshCameras();
     Playback();
 
-    // 注册录制状态回调
+    /// 注册录制状态回调
     XRecorderManager::instance().registerCallback(
             [this](int camera_id, bool is_recording)
             {
-                // 在主线程中更新 UI
+                /// 在主线程中更新 UI
                 QMetaObject::invokeMethod(this, [this, camera_id, is_recording]()
                                           { onRecordingStatusChanged(camera_id, is_recording); });
             });
@@ -122,13 +122,13 @@ void XViewer::contextMenuEvent(QContextMenuEvent *event)
 
 void XViewer::onRecordingStatusChanged(int camera_id, bool is_recording)
 {
-    // 更新左侧列表的显示
+    /// 更新左侧列表的显示
     refreshCameras();
 
-    // 更新所有播放这个摄像头的窗口的 REC 显示
+    /// 更新所有播放这个摄像头的窗口的 REC 显示
     updateCameraRecIndicator(camera_id, is_recording);
 
-    // 如果当前在回放页面且是当前选中的摄像机，刷新日历
+    /// 如果当前在回放页面且是当前选中的摄像机，刷新日历
     if (ui->playback->isChecked() && playback_selected_camera_ == camera_id)
     {
         refreshPlaybackDates();
@@ -156,7 +156,7 @@ void XViewer::view(int count)
     int cols     = sqrt(count);
     int wid_size = sizeof(cam_wids) / sizeof(QWidget *);
 
-    auto lay = (QGridLayout *)ui->cams->layout();
+    auto lay = static_cast<QGridLayout *>(ui->cams->layout());
     if (!lay)
     {
         lay = new QGridLayout;
@@ -193,20 +193,20 @@ void XViewer::view(int count)
                         }
                     });
 
-            // 连接录制状态变化信号，刷新左侧列表
+            /// 连接录制状态变化信号，刷新左侧列表
             connect(cam_wids[i], &XCameraWidget::recordingStateChanged, this,
                     [this](int /*cameraId*/, bool /*isRecording*/) { refreshCameras(); });
 
-            // 当摄像头被分配到窗口时，记录映射
+            /// 当摄像头被分配到窗口时，记录映射
             connect(cam_wids[i], &XCameraWidget::cameraAssigned, this,
-                    [this, i](int camera_id)
+                    [this, i](int camera_id) -> void
                     {
                         if (camera_id >= 0)
                         {
                             preview_playing_camera_ = camera_id;
                             camera_to_widgets_[camera_id].push_back(cam_wids[i]);
 
-                            // 如果这个摄像头正在录制，立即显示 REC
+                            /// 如果这个摄像头正在录制，立即显示 REC
                             if (XRecorderManager::instance().isRecording(camera_id))
                             {
                                 cam_wids[i]->setRecordingIndicatorFromManager(true);
@@ -214,7 +214,7 @@ void XViewer::view(int count)
                         }
                     });
 
-            // 当窗口释放摄像头时，清除映射
+            /// 当窗口释放摄像头时，清除映射
             connect(cam_wids[i], &XCameraWidget::cameraReleased, this,
                     [this, i](int camera_id)
                     {
@@ -260,7 +260,7 @@ void XViewer::refreshCameras()
         auto    cam  = c->getCamera(i);
         QString text = QString::fromStdString(cam->name);
 
-        // 检查是否有录制
+        /// 检查是否有录制
         bool isRecording = XRecorderManager::instance().isRecording(i);
         if (isRecording)
         {
@@ -397,23 +397,23 @@ void XViewer::SelectCamera(QModelIndex index)
     int camera_id = index.row();
     qDebug() << "SelectCamera" << camera_id;
 
-    // 保存回放界面选中的摄像机ID
+    /// 保存回放界面选中的摄像机ID
     playback_selected_camera_ = camera_id;
 
-    // 获取该摄像机的录像日期列表
+    /// 获取该摄像机的录像日期列表
     auto dates = XRecorderManager::instance().getRecordDates(camera_id);
 
-    // 清空并重新设置日历的日期标记
+    /// 清空并重新设置日历的日期标记
     ui->cal->ClearDate();
     for (const auto &date : dates)
     {
         ui->cal->AddDate(date);
     }
 
-    // 刷新日历显示
+    /// 刷新日历显示
     ui->cal->update();
 
-    // 清空时间列表
+    /// 3. 清空时间列表（等待用户选择）
     ui->time_list->clear();
 }
 
@@ -428,10 +428,10 @@ void XViewer::SelectDate(QDate date)
 
     qDebug() << "SelectDate" << date << "camera:" << playback_selected_camera_;
 
-    // 获取选中日期的录像文件列表
+    /// 获取选中日期的录像文件列表
     auto files = XRecorderManager::instance().getRecordFilesByDate(playback_selected_camera_, date);
 
-    // 更新时间列表
+    /// 更新时间列表
     ui->time_list->clear();
     for (const auto &file : files)
     {
@@ -440,14 +440,14 @@ void XViewer::SelectDate(QDate date)
             QString          time_str = file.datetime.toString("hh:mm:ss");
             QListWidgetItem *item     = new QListWidgetItem(time_str);
 
-            // 存储完整文件名作为用户数据
+            /// 存储完整文件名作为用户数据
             item->setData(Qt::UserRole, QString::fromStdString(file.filename));
 
             ui->time_list->addItem(item);
         }
     }
 
-    // 如果没有录像文件，显示提示
+    /// 如果没有录像文件，显示提示
     if (files.empty())
     {
         QListWidgetItem *item = new QListWidgetItem("无录像文件");
