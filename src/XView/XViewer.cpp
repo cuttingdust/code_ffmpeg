@@ -127,6 +127,12 @@ void XViewer::onRecordingStatusChanged(int camera_id, bool is_recording)
 
     // 更新所有播放这个摄像头的窗口的 REC 显示
     updateCameraRecIndicator(camera_id, is_recording);
+
+    // 如果当前在回放页面且是当前选中的摄像机，刷新日历
+    if (ui->playback->isChecked() && playback_selected_camera_ == camera_id)
+    {
+        refreshPlaybackDates();
+    }
 }
 
 void XViewer::updateCameraRecIndicator(int camera_id, bool is_recording)
@@ -166,7 +172,7 @@ void XViewer::view(int count)
             cam_wids[i] = new XCameraWidget;
             cam_wids[i]->setStyleSheet("background-color:rgb(51,51,51);");
 
-            // 连接切换视图信号
+            /// 连接切换视图信号
             connect(cam_wids[i], &XCameraWidget::changeViewMode, this,
                     [this](int mode)
                     {
@@ -197,6 +203,7 @@ void XViewer::view(int count)
                     {
                         if (camera_id >= 0)
                         {
+                            preview_playing_camera_ = camera_id;
                             camera_to_widgets_[camera_id].push_back(cam_wids[i]);
 
                             // 如果这个摄像头正在录制，立即显示 REC
@@ -217,10 +224,14 @@ void XViewer::view(int count)
                             if (it != camera_to_widgets_.end())
                             {
                                 auto &vec = it->second;
-                                vec.erase(std::remove(vec.begin(), vec.end(), cam_wids[i]), vec.end());
+                                std::erase(vec, cam_wids[i]);
                                 if (vec.empty())
                                 {
                                     camera_to_widgets_.erase(it);
+                                    if (preview_playing_camera_ == camera_id)
+                                    {
+                                        preview_playing_camera_ = -1;
+                                    }
                                 }
                             }
                         }
@@ -265,6 +276,25 @@ void XViewer::refreshCameras()
 
         ui->cam_list->addItem(item);
     }
+}
+
+void XViewer::refreshPlaybackDates()
+{
+    if (playback_selected_camera_ < 0)
+    {
+        return;
+    }
+
+    auto dates = XRecorderManager::instance().getRecordDates(playback_selected_camera_);
+
+    ui->cal->ClearDate();
+    for (const auto &date : dates)
+    {
+        ui->cal->AddDate(date);
+    }
+
+    ui->cal->update();
+    ui->time_list->clear();
 }
 
 void XViewer::MaxWindow()
@@ -350,6 +380,16 @@ void XViewer::Playback()
     ui->cams->hide();
     ui->playback_wid->show();
     ui->playback->setChecked(true);
+    /// 1. 清除左侧列表的选中状态（让用户重新选择要回放的摄像机）
+    ui->cam_list->clearSelection();
+
+    /// 2. 不清除 playback_selected_camera_，但也不自动选中
+    ///    让用户主动点击选择
+
+    /// 3. 清空日历和时间列表（等待用户选择）
+    ui->cal->ClearDate();
+    ui->cal->update();
+    ui->time_list->clear();
 }
 
 void XViewer::SelectCamera(QModelIndex index)
@@ -357,34 +397,90 @@ void XViewer::SelectCamera(QModelIndex index)
     int camera_id = index.row();
     qDebug() << "SelectCamera" << camera_id;
 
-    /// 保存当前选中的摄像机ID
-    current_selected_camera_ = camera_id;
+    // 保存回放界面选中的摄像机ID
+    playback_selected_camera_ = camera_id;
 
-    /// 获取该摄像机的录像日期列表
+    // 获取该摄像机的录像日期列表
     auto dates = XRecorderManager::instance().getRecordDates(camera_id);
 
-    /// 清空并重新设置日历的日期标记
+    // 清空并重新设置日历的日期标记
     ui->cal->ClearDate();
     for (const auto &date : dates)
     {
         ui->cal->AddDate(date);
     }
 
-    /// 刷新日历显示（触发重绘，让有录像的日期显示为红色）
+    // 刷新日历显示
     ui->cal->update();
 
-    /// 清空时间列表
+    // 清空时间列表
     ui->time_list->clear();
 }
 
 void XViewer::SelectDate(QDate date)
 {
-    qDebug() << "SelectDate" << date.toString();
+    if (playback_selected_camera_ < 0)
+    {
+        qDebug() << "请先选择摄像机";
+        QMessageBox::information(this, "提示", "请先在左侧选择要回放的摄像机");
+        return;
+    }
+
+    qDebug() << "SelectDate" << date << "camera:" << playback_selected_camera_;
+
+    // 获取选中日期的录像文件列表
+    auto files = XRecorderManager::instance().getRecordFilesByDate(playback_selected_camera_, date);
+
+    // 更新时间列表
+    ui->time_list->clear();
+    for (const auto &file : files)
+    {
+        if (file.datetime.isValid())
+        {
+            QString          time_str = file.datetime.toString("hh:mm:ss");
+            QListWidgetItem *item     = new QListWidgetItem(time_str);
+
+            // 存储完整文件名作为用户数据
+            item->setData(Qt::UserRole, QString::fromStdString(file.filename));
+
+            ui->time_list->addItem(item);
+        }
+    }
+
+    // 如果没有录像文件，显示提示
+    if (files.empty())
+    {
+        QListWidgetItem *item = new QListWidgetItem("无录像文件");
+        item->setFlags(Qt::NoItemFlags);
+        ui->time_list->addItem(item);
+    }
 }
 
 void XViewer::PlayVideo(QModelIndex index)
 {
-    qDebug() << "PlayVideo" << index.row();
+    if (playback_selected_camera_ < 0)
+    {
+        QMessageBox::information(this, "提示", "请先在左侧选择要回放的摄像机");
+        return;
+    }
+
+    QListWidgetItem *item = ui->time_list->item(index.row());
+    if (!item || !(item->flags() & Qt::ItemIsSelectable))
+    {
+        return;
+    }
+
+    QString filename = item->data(Qt::UserRole).toString();
+    if (filename.isEmpty())
+    {
+        return;
+    }
+
+    qDebug() << "PlayVideo" << playback_selected_camera_ << filename;
+
+    // TODO: 播放录像
+    QMessageBox::information(this, "回放",
+                             QString("播放录像:\n摄像机ID: %1\n文件: %2").arg(playback_selected_camera_).arg(filename));
 }
 
 void XViewer::updateCam(int index)

@@ -9,14 +9,14 @@
 #include <string>
 #include <QDateTime>
 
-// 录像文件信息
+/// 录像文件信息
 struct RecordFileInfo
 {
-    std::string filename; // 完整文件名
-    std::string path;     // 完整路径
-    QDateTime   datetime; // 录像时间（从文件名解析）
-    int64_t     size;     // 文件大小（字节）
-    int         duration; // 录像时长（秒）
+    std::string filename; ///< 完整文件名
+    std::string path;     ///< 完整路径
+    QDateTime   datetime; ///< 录像时间（从文件名解析）
+    int64_t     size;     ///< 文件大小（字节）
+    int         duration; ///< 录像时长（秒）
 };
 
 class XRecorderManager

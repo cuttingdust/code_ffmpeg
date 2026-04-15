@@ -41,7 +41,7 @@ private slots:
     void Preview();  /// 预览界面
     void Playback(); /// 回放界面
 
-    void SelectCamera(QModelIndex index); /// 选择摄像机
+    void SelectCamera(QModelIndex index); /// 选择摄像机（回放界面用）
     void SelectDate(QDate date);          /// 选择日期
     void PlayVideo(QModelIndex index);    /// 选择时间播放视频
 
@@ -49,6 +49,7 @@ private:
     void view(int count);
     void refreshCameras();
     void updateCam(int index);
+    void refreshPlaybackDates(); /// 刷新回放界面的日期显示
 
     /// 处理录制状态变化
     void onRecordingStatusChanged(int camera_id, bool is_recording);
@@ -60,7 +61,12 @@ private:
     Ui::XViewerClass *ui;
     QMenu             left_menu_;
 
-    // 记录每个 camera_id 对应的播放窗口（一个摄像头可能被多个窗口播放）
+    /// 记录每个 camera_id 对应的播放窗口（预览界面）
     std::unordered_map<int, std::vector<XCameraWidget *>> camera_to_widgets_;
-    int                                                   current_selected_camera_ = -1; // 当前选中的摄像机ID
+
+    /// 预览界面：当前正在播放的摄像机（拖拽到窗口的）
+    int preview_playing_camera_ = -1;
+
+    /// 回放界面：当前选中的摄像机（点击左侧列表选中的）
+    int playback_selected_camera_ = -1;
 };

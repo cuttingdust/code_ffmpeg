@@ -5,6 +5,8 @@
 #include <QDateTime>
 #include <regex>
 
+#include <ppl.h>
+
 namespace fs = std::filesystem;
 
 XRecorderManager& XRecorderManager::instance()
@@ -39,7 +41,7 @@ void XRecorderManager::notifyStatusChanged(int camera_id, bool is_recording)
 
 bool XRecorderManager::startRecording(int camera_id, const EncoderConfig& config)
 {
-    // 先检查是否已在录制（需要锁）
+  
     bool already_recording = false;
     {
         std::scoped_lock lock(mtx_);
@@ -87,7 +89,7 @@ bool XRecorderManager::startRecording(int camera_id, const EncoderConfig& config
         return false;
     }
 
-    // 添加到记录器（需要锁）
+    /// 添加到记录器（需要锁）
     {
         std::scoped_lock lock(mtx_);
         recorders_[camera_id] = recorder;
@@ -95,7 +97,6 @@ bool XRecorderManager::startRecording(int camera_id, const EncoderConfig& config
 
     LOGI("开始录制摄像机 " << camera_id << ": " << cam->name);
 
-    // 在锁外通知状态变化
     notifyStatusChanged(camera_id, true);
 
     return true;
@@ -103,7 +104,6 @@ bool XRecorderManager::startRecording(int camera_id, const EncoderConfig& config
 
 void XRecorderManager::stopRecording(int camera_id)
 {
-    // 先取出 recorder 并移除（需要锁）
     std::shared_ptr<RecordClient> recorder;
     {
         std::scoped_lock lock(mtx_);
@@ -280,9 +280,11 @@ std::vector<RecordFileInfo> XRecorderManager::getRecordFilesByDate(int camera_id
         }
     }
 
-    // 按时间排序（最新的在前）
-    std::sort(result.begin(), result.end(),
-              [](const RecordFileInfo& a, const RecordFileInfo& b) { return a.datetime > b.datetime; });
+    /// 按时间排序（最新的在前）
+    // std::ranges::sort(result, [](const RecordFileInfo& a, const RecordFileInfo& b) { return a.datetime > b.datetime; });
+
+    concurrency::parallel_sort(result.begin(), result.end(), [](const RecordFileInfo& a, const RecordFileInfo& b)
+                               { return a.datetime > b.datetime; });
 
     return result;
 }
