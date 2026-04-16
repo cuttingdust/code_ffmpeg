@@ -143,21 +143,22 @@ auto XDemuxTask::process() -> void
     const int max_fails    = 5;
     int       packet_count = 0;
 
+    /// 帧率控制
+    auto next_frame_time = std::chrono::steady_clock::now();
+
+    /// 倍速控制（可以通过外部方法修改）
+    double speed = 1.0; // 1.0 = 正常, 1.5 = 1.5倍速, 0.5 = 0.5倍速
+
     while (!shouldStop())
     {
-        // LOGI("循环开始, 下游队列大小: " << (next_ ? next_->getQueueSize() : 0));
-
         if (next_ && next_->getQueueSize() > max_queue_size_)
         {
-            LOGI("下游队列满，等待...");
             sleep(10);
             continue;
         }
 
         PacketWrapper pkt;
-        // LOGI("准备调用 readPacket...");
-        int ret = demuxer_->readPacket(pkt);
-        // LOGI("readPacket 返回: " << ret << ", 已读包数: " << packet_count);
+        int           ret = demuxer_->readPacket(pkt);
 
         if (ret == AVERROR_EOF)
         {
@@ -165,7 +166,7 @@ auto XDemuxTask::process() -> void
             notifyEof();
             break;
         }
-        else if (ret == -2) /// 需要重建
+        else if (ret == -2)
         {
             LOGE("解封装器需要重建");
             if (demuxer_->rebuild())
@@ -184,7 +185,6 @@ auto XDemuxTask::process() -> void
         {
             fail_count++;
             LOGE("读取错误: " << ret << " (连续失败: " << fail_count << ")");
-
             if (fail_count >= max_fails)
             {
                 handleError("读取连续失败");
@@ -203,8 +203,27 @@ auto XDemuxTask::process() -> void
             if (stream->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
             {
                 ++video_packets_;
-                // LOGI("视频包 " << video_packets_.load() << ": stream=" << pkt->stream_index << ", pts=" << pkt->pts
-                //                << ", size=" << pkt->size);
+
+                /// 计算这一帧应该等待的时间（毫秒）
+                int64_t wait_ms = 40; // 默认 40ms
+
+                if (pkt->duration > 0)
+                {
+                    AVRational time_base = stream->time_base;
+                    wait_ms              = av_rescale_q(pkt->duration, time_base, { 1, 1000 });
+                }
+
+                /// ✅ 倍速：除以 speed（快进时等待时间变短，慢放时等待时间变长）
+                wait_ms = (int64_t)(wait_ms / speed);
+
+                if (wait_ms > 0 && wait_ms < 500)
+                {
+                    next_frame_time += std::chrono::milliseconds(wait_ms);
+                }
+                else
+                {
+                    next_frame_time += std::chrono::milliseconds(40);
+                }
 
                 auto pkt_clone = pkt.clone();
                 notifyObservers(std::move(pkt_clone));
@@ -213,10 +232,10 @@ auto XDemuxTask::process() -> void
                 {
                     next_->pushPacket(std::make_unique<PacketWrapper>(std::move(pkt)));
                 }
+
+                std::this_thread::sleep_until(next_frame_time);
             }
         }
-
-        std::this_thread::sleep_for(std::chrono::microseconds(50));
     }
 
     LOGI("解封装线程结束");

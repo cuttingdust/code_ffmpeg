@@ -30,12 +30,12 @@ bool LocalPlayer::open(const std::string& filepath, void* winId)
         demux_task_->setNext(decode_task_);
         decode_task_->setNext(display_task_);
 
-        // 设置队列大小
+        /// 设置队列大小
         demux_task_->setMaxQueueSize(500);
         decode_task_->setMaxQueueSize(500);
         display_task_->setMaxQueueSize(1000);
 
-        // 设置空闲超时（本地文件不需要超时检测）
+        /// 设置空闲超时（本地文件不需要超时检测）
         demux_task_->setIdleTimeoutMs(0);
         decode_task_->setIdleTimeoutMs(0);
         display_task_->setIdleTimeoutMs(0);
@@ -227,7 +227,7 @@ void LocalPlayer::controlLoop()
             LOGI("文件读取完成，等待队列清空...");
 
             // 等待下游队列清空
-            for (int i = 0; i < 100; i++)
+            for (int i = 0; i < 10; i++)
             {
                 if ((!decode_task_ || decode_task_->getQueueSize() == 0) &&
                     (!display_task_ || display_task_->getQueueSize() == 0))

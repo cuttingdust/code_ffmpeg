@@ -372,9 +372,9 @@ void XDisplayTask::process()
     int           initial_wait     = 0;
     constexpr int max_initial_wait = 200;
 
-    // ✅ 帧率控制变量（使用 sleep_until 精确控制）
-    auto      next_frame_time   = std::chrono::steady_clock::now();
-    const int frame_interval_ms = 40; // 25fps = 40ms
+    // // ✅ 帧率控制变量（使用 sleep_until 精确控制）
+    // auto      next_frame_time   = std::chrono::steady_clock::now();
+    // const int frame_interval_ms = 40; // 25fps = 40ms
 
     while (!shouldStop())
     {
@@ -425,9 +425,9 @@ void XDisplayTask::process()
         initial_wait         = 0;
         consecutive_timeouts = 0;
 
-        // ✅ 使用 sleep_until 精确控制帧间隔
-        next_frame_time += std::chrono::milliseconds(frame_interval_ms);
-        std::this_thread::sleep_until(next_frame_time);
+        // // ✅ 使用 sleep_until 精确控制帧间隔
+        // next_frame_time += std::chrono::milliseconds(frame_interval_ms);
+        // std::this_thread::sleep_until(next_frame_time);
 
         FrameWrapper frame(raw_frame);
 
