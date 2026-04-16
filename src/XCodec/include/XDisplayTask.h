@@ -49,8 +49,11 @@ public:
 
     void setRecordingIndicator(bool show);
 
+    void setPaused(bool paused) override;
+
 protected:
     void process() override;
+
 
 private:
     void defaultRender(FrameWrapper& frame);

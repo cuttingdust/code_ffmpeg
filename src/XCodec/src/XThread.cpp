@@ -137,6 +137,16 @@ auto XThread::shouldStop() const -> bool
     return !is_running_;
 }
 
+auto XThread::shouldPause() const -> bool
+{
+    if (is_paused_.load())
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        return true;
+    }
+    return false;
+}
+
 auto XThread::sleep(int ms) -> void
 {
     std::this_thread::sleep_for(std::chrono::milliseconds(ms));

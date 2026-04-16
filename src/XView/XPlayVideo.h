@@ -4,6 +4,7 @@
 #include <QtCore/QTimer>
 #include <memory>
 #include <string>
+#include <map>
 
 class LocalPlayer;
 
@@ -40,6 +41,7 @@ private slots:
 
 private:
     void adjustWindowSize();
+    void updateSpeedButton(int index); // ✅ 更新速度按钮状态
 
 private:
     Ui::XPlayVideo *ui;
@@ -53,4 +55,7 @@ private:
 
     QTimer *progress_timer_ = nullptr;
     bool    is_seeking_     = false;
+
+    // ✅ 速度映射表
+    std::map<int, double> speed_map_;
 };

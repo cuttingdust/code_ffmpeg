@@ -14,6 +14,20 @@ XPlayVideo::XPlayVideo(QWidget* parent) : QWidget(parent), ui(new Ui::XPlayVideo
 
     progress_timer_ = new QTimer(this);
     connect(progress_timer_, &QTimer::timeout, this, &XPlayVideo::updateProgress);
+
+    // ✅ 初始化速度映射
+    speed_map_ = { { 0, 0.5 }, { 1, 1.0 }, { 2, 1.5 }, { 3, 2.0 }, { 4, 3.0 }, { 5, 4.0 }, { 6, 5.0 } };
+
+    // ✅ 设置速度下拉框
+    ui->speed_combo->clear();
+    ui->speed_combo->addItem("0.5x", 0.5);
+    ui->speed_combo->addItem("1.0x", 1.0);
+    ui->speed_combo->addItem("1.5x", 1.5);
+    ui->speed_combo->addItem("2.0x", 2.0);
+    ui->speed_combo->addItem("3.0x", 3.0);
+    ui->speed_combo->addItem("4.0x", 4.0);
+    ui->speed_combo->addItem("5.0x", 5.0);
+    ui->speed_combo->setCurrentIndex(1); // 默认 1.0x
 }
 
 XPlayVideo::~XPlayVideo()
@@ -182,8 +196,12 @@ void XPlayVideo::onSpeedChanged(int index)
 {
     if (!player_)
         return;
+
+    // ✅ 获取速度值并设置
     double speed = ui->speed_combo->itemData(index).toDouble();
     player_->setSpeed(speed);
+
+    LOGI("播放速度切换到: " << speed << "x");
 }
 
 void XPlayVideo::updateProgress()

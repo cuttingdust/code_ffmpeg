@@ -102,6 +102,20 @@ auto XDemuxTask::getStreams() const -> const std::vector<AVStream*>&
     return streams_;
 }
 
+auto XDemuxTask::getDuration() const -> double
+{
+    if (!demuxer_)
+    {
+        return 0.0;
+    }
+    return demuxer_->getDuration();
+}
+
+auto XDemuxTask::getFilename() const -> std::string
+{
+    return url_;
+}
+
 auto XDemuxTask::getCodecParameters(int stream_index) const -> std::shared_ptr<CodecParametersWrapper>
 {
     return demuxer_ ? demuxer_->getCodecParameters(stream_index) : nullptr;
@@ -134,6 +148,20 @@ auto XDemuxTask::getStats() const -> XDemuxTask::Stats
     return stats;
 }
 
+void XDemuxTask::setPaused(bool paused)
+{
+    XTask::setPaused(paused);
+    if (!paused)
+    {
+        resetFrameTime();
+    }
+}
+
+void XDemuxTask::resetFrameTime()
+{
+    next_frame_time_ = std::chrono::steady_clock::now();
+}
+
 auto XDemuxTask::process() -> void
 {
     LOGI("解封装线程开始运行");
@@ -144,10 +172,16 @@ auto XDemuxTask::process() -> void
     int       packet_count = 0;
 
     /// 帧率控制
-    auto next_frame_time = std::chrono::steady_clock::now();
+    next_frame_time_ = std::chrono::steady_clock::now();
 
     while (!shouldStop())
     {
+        /// 检查暂停
+        if (shouldPause())
+        {
+            continue;
+        }
+
         if (next_ && next_->getQueueSize() > max_queue_size_)
         {
             sleep(10);
@@ -202,7 +236,7 @@ auto XDemuxTask::process() -> void
                 ++video_packets_;
 
                 /// 计算这一帧应该等待的时间（毫秒）
-                int64_t wait_ms = 40; // 默认 40ms
+                int64_t wait_ms = 40;
 
                 if (pkt->duration > 0)
                 {
@@ -210,7 +244,7 @@ auto XDemuxTask::process() -> void
                     wait_ms              = av_rescale_q(pkt->duration, time_base, { 1, 1000 });
                 }
 
-                /// ✅ 倍速：除以 speed（快进时等待时间变短）
+                /// 倍速控制
                 double speed = speed_.load();
                 if (speed > 0)
                 {
@@ -219,11 +253,11 @@ auto XDemuxTask::process() -> void
 
                 if (wait_ms > 0 && wait_ms < 500)
                 {
-                    next_frame_time += std::chrono::milliseconds(wait_ms);
+                    next_frame_time_ += std::chrono::milliseconds(wait_ms);
                 }
                 else
                 {
-                    next_frame_time += std::chrono::milliseconds(40);
+                    next_frame_time_ += std::chrono::milliseconds(40);
                 }
 
                 auto pkt_clone = pkt.clone();
@@ -234,13 +268,12 @@ auto XDemuxTask::process() -> void
                     next_->pushPacket(std::make_unique<PacketWrapper>(std::move(pkt)));
                 }
 
-                std::this_thread::sleep_until(next_frame_time);
+                std::this_thread::sleep_until(next_frame_time_);
             }
         }
     }
 
     LOGI("解封装线程结束");
 }
-
 
 IMPLEMENT_CREATE(XDemuxTask)

@@ -46,8 +46,18 @@ public:
         return thread_name_;
     }
 
-    /// 重置线程状态（允许重新启动）
-    void resetThread();
+    /// 设置暂停状态
+    virtual void setPaused(bool paused)
+    {
+        is_paused_ = paused;
+    }
+
+    /// 检查是否暂停
+    virtual bool isPaused() const
+    {
+        return is_paused_.load();
+    }
+
 
 protected:
     /// 线程主函数，由子类实现
@@ -55,6 +65,8 @@ protected:
 
     /// 检查是否需要停止
     auto shouldStop() const -> bool;
+
+    auto shouldPause() const -> bool;
 
     /// 睡眠指定毫秒
     auto sleep(int ms) -> void;
@@ -65,4 +77,6 @@ private:
     std::string            thread_name_;
     std::atomic<bool>      is_running_{ false };
     std::atomic<bool>      thread_started_{ false };
+
+    std::atomic<bool> is_paused_{ false };
 };

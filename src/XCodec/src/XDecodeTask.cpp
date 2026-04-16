@@ -120,6 +120,11 @@ void XDecodeTask::process()
 
     while (!shouldStop() && !decoder_corrupted)
     {
+        if (shouldPause())
+        {
+            continue;
+        }
+
         auto pkt = popPacket();
         if (!pkt)
         {

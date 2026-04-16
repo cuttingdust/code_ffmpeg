@@ -21,19 +21,30 @@ int main()
         double duration = player.getDuration();
         printf("视频时长: %.2f 秒\n", duration);
 
-        // ✅ 从 play() 开始计时
-        auto start_time = std::chrono::steady_clock::now();
-        player.setSpeed(PlaybackSpeed::SPEED_2_0X);
+        player.setSpeed(PlaybackSpeed::SPEED_1_0X);
         player.play();
         printf("开始播放...\n");
 
-        // ✅ 等待播放结束（不包含 stop）
+        auto start_time = std::chrono::steady_clock::now();
+
+        // 播放 20 秒后暂停
+        std::this_thread::sleep_for(std::chrono::seconds(20));
+
+        printf("暂停播放...\n");
+        player.pause();
+
+        // 暂停 5 秒
+        std::this_thread::sleep_for(std::chrono::seconds(5));
+
+        printf("恢复播放...\n");
+        player.resume();
+
+        // 等待播放结束
         while (player.isPlaying() && !player.isFinished())
         {
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
 
-        // ✅ 播放结束立即停止计时
         auto end_time = std::chrono::steady_clock::now();
         auto actual_duration =
                 std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count() / 1000.0;
@@ -42,16 +53,6 @@ int main()
         printf("视频实际时长: %.2f 秒\n", duration);
         printf("播放实际耗时: %.2f 秒\n", actual_duration);
 
-        if (actual_duration > duration - 0.5 && actual_duration < duration + 0.5)
-        {
-            printf("✅ 播放速度正常！\n");
-        }
-        else
-        {
-            printf("❌ 播放速度异常！倍率: %.2fx\n", actual_duration / duration);
-        }
-
-        // 播放结束后再停止（不计入计时）
         player.stop();
     }
     catch (const std::exception& e)

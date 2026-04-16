@@ -125,6 +125,23 @@ void LocalPlayer::pause()
         return;
     }
     is_paused_ = true;
+
+    // ✅ 通知解封装任务暂停
+    if (demux_task_)
+    {
+        demux_task_->setPaused(true);
+    }
+
+    if (decode_task_)
+    {
+        decode_task_->setPaused(true);
+    }
+
+    if (display_task_)
+    {
+        display_task_->setPaused(true);
+    }
+
     LOGI("暂停播放");
 }
 
@@ -134,6 +151,23 @@ void LocalPlayer::resume()
     {
         return;
     }
+
+    // ✅ 通知解封装任务恢复
+    if (demux_task_)
+    {
+        demux_task_->setPaused(false);
+    }
+
+    if (decode_task_)
+    {
+        decode_task_->setPaused(false);
+    }
+
+    if (display_task_)
+    {
+        display_task_->setPaused(false);
+    }
+
     is_paused_ = false;
     LOGI("恢复播放");
 }

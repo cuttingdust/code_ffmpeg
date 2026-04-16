@@ -51,6 +51,17 @@ void XDisplayTask::setRecordingIndicator(bool show)
     show_rec_indicator_ = show;
 }
 
+void XDisplayTask::setPaused(bool paused)
+{
+    XTask::setPaused(paused);
+    if (!paused)
+    {
+        last_frame_time_ = std::chrono::steady_clock::now();
+        last_stats_      = std::chrono::steady_clock::now();
+        frame_count_     = 0;
+    }
+}
+
 int XDisplayTask::getFPS() const
 {
     return fps_;
@@ -378,6 +389,12 @@ void XDisplayTask::process()
 
     while (!shouldStop())
     {
+        /// 检查暂停
+        if (shouldPause())
+        {
+            continue;
+        }
+
         AVFrame* raw_frame = popFrame();
 
         auto now       = std::chrono::steady_clock::now();
@@ -389,6 +406,7 @@ void XDisplayTask::process()
             reconnecting_ = true;
             LOGI("检测到网络断开，进入重连状态");
         }
+
 
         if (!raw_frame)
         {
