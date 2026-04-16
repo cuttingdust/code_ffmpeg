@@ -8,6 +8,19 @@
 #include <memory>
 #include <atomic>
 #include <thread>
+#include <map>
+
+/// 播放速度枚举
+enum class PlaybackSpeed : int
+{
+    SPEED_0_5X = 0, ///< 0.5倍速
+    SPEED_1_0X = 1, ///< 1.0倍速（正常）
+    SPEED_1_5X = 2, ///< 1.5倍速
+    SPEED_2_0X = 3, ///< 2.0倍速
+    SPEED_3_0X = 4, ///< 3.0倍速
+    SPEED_4_0X = 5, ///< 4.0倍速
+    SPEED_5_0X = 6  ///< 5.0倍速
+};
 
 class XCODEC_EXPORT LocalPlayer
 {
@@ -59,8 +72,20 @@ public:
     /// 跳转到指定位置（秒）
     void seek(double seconds);
 
-    /// 设置播放速度（1.0 = 正常速度）
+    /// 设置播放速度（使用枚举）
+    void setSpeed(PlaybackSpeed speed);
+
+    /// 设置播放速度（直接传倍数）
     void setSpeed(double speed);
+
+    /// 获取当前播放速度（倍数）
+    double getSpeed() const
+    {
+        return speed_.load();
+    }
+
+    /// 获取支持的速度列表
+    static std::map<PlaybackSpeed, double> getSupportedSpeeds();
 
     // ========== 信息获取 ==========
 

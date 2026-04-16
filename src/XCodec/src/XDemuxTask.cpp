@@ -146,9 +146,6 @@ auto XDemuxTask::process() -> void
     /// 帧率控制
     auto next_frame_time = std::chrono::steady_clock::now();
 
-    /// 倍速控制（可以通过外部方法修改）
-    double speed = 1.0; // 1.0 = 正常, 1.5 = 1.5倍速, 0.5 = 0.5倍速
-
     while (!shouldStop())
     {
         if (next_ && next_->getQueueSize() > max_queue_size_)
@@ -213,8 +210,12 @@ auto XDemuxTask::process() -> void
                     wait_ms              = av_rescale_q(pkt->duration, time_base, { 1, 1000 });
                 }
 
-                /// ✅ 倍速：除以 speed（快进时等待时间变短，慢放时等待时间变长）
-                wait_ms = (int64_t)(wait_ms / speed);
+                /// ✅ 倍速：除以 speed（快进时等待时间变短）
+                double speed = speed_.load();
+                if (speed > 0)
+                {
+                    wait_ms = (int64_t)(wait_ms / speed);
+                }
 
                 if (wait_ms > 0 && wait_ms < 500)
                 {

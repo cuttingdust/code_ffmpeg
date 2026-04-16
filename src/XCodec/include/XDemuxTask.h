@@ -41,6 +41,18 @@ public:
         return url_;
     }
 
+    /// 设置播放速度
+    void setSpeed(double speed)
+    {
+        speed_ = speed;
+    }
+
+    /// 获取当前播放速度
+    double getSpeed() const
+    {
+        return speed_.load();
+    }
+
     /// 定位到指定时间（秒）
     auto seek(double timestamp, int stream_index = -1) -> bool;
 
@@ -75,4 +87,5 @@ private:
     std::atomic<int64_t> total_packets_{ 0 };
     std::atomic<int64_t> video_packets_{ 0 };
     std::atomic<int64_t> audio_packets_{ 0 };
+    std::atomic<double>  speed_{ 1.0 }; ///<  播放速度
 };

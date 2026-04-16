@@ -191,10 +191,46 @@ void LocalPlayer::seek(double seconds)
     LOGI("请求跳转到: " << seconds << "秒");
 }
 
+std::map<PlaybackSpeed, double> LocalPlayer::getSupportedSpeeds()
+{
+    static const std::map<PlaybackSpeed, double> speeds = {
+        { PlaybackSpeed::SPEED_0_5X, 0.5 }, { PlaybackSpeed::SPEED_1_0X, 1.0 }, { PlaybackSpeed::SPEED_1_5X, 1.5 },
+        { PlaybackSpeed::SPEED_2_0X, 2.0 }, { PlaybackSpeed::SPEED_3_0X, 3.0 }, { PlaybackSpeed::SPEED_4_0X, 4.0 },
+        { PlaybackSpeed::SPEED_5_0X, 5.0 }
+    };
+    return speeds;
+}
+
+void LocalPlayer::setSpeed(PlaybackSpeed speed)
+{
+    auto speeds = getSupportedSpeeds();
+    auto it     = speeds.find(speed);
+    if (it != speeds.end())
+    {
+        setSpeed(it->second);
+    }
+    else
+    {
+        LOGW("无效的播放速度枚举");
+    }
+}
+
 void LocalPlayer::setSpeed(double speed)
 {
+    if (speed <= 0 || speed > 10.0)
+    {
+        LOGW("无效的播放速度: " << speed);
+        return;
+    }
+
     speed_ = speed;
-    LOGI("设置播放速度: " << speed);
+
+    if (demux_task_)
+    {
+        demux_task_->setSpeed(speed);
+    }
+
+    LOGI("设置播放速度: " << speed << "x");
 }
 
 double LocalPlayer::getDuration() const

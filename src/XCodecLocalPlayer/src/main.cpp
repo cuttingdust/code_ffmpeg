@@ -23,7 +23,7 @@ int main()
 
         // ✅ 从 play() 开始计时
         auto start_time = std::chrono::steady_clock::now();
-
+        player.setSpeed(PlaybackSpeed::SPEED_2_0X);
         player.play();
         printf("开始播放...\n");
 
