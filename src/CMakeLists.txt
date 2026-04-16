@@ -150,6 +150,7 @@ add_subdirectory(XCodec)
 add_subdirectory(XCodecRtsp)
 add_subdirectory(XView)
 add_subdirectory(XCodecRecord)
+add_subdirectory(XCodecLocalPlayer)
 
 
 # 拷贝assert目录到输出目录

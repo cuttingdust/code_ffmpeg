@@ -1,0 +1,303 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>XPlayVideo</class>
+ <widget class="QWidget" name="XPlayVideo">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>800</width>
+    <height>600</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>视频回放</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">
+    QPushButton {
+        background-color: #3c3c3c;
+        border: none;
+        border-radius: 5px;
+        color: white;
+        font: bold 12px;
+    }
+    QPushButton:hover {
+        background-color: #5c5c5c;
+    }
+    QSlider::groove:horizontal {
+        height: 6px;
+        background: #3c3c3c;
+        border-radius: 3px;
+    }
+    QSlider::handle:horizontal {
+        background: #0078d7;
+        width: 12px;
+        margin: -3px 0;
+        border-radius: 6px;
+    }
+    QSlider::sub-page:horizontal {
+        background: #0078d7;
+        border-radius: 3px;
+    }
+    QLabel {
+        color: white;
+        font: 12px;
+    }
+    QComboBox {
+        background-color: #3c3c3c;
+        border: none;
+        border-radius: 3px;
+        padding: 3px;
+        color: white;
+    }
+   </string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <property name="spacing">
+    <number>0</number>
+   </property>
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
+    <number>0</number>
+   </property>
+   <item>
+    <widget class="QWidget" name="video_widget" native="true">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">background-color: black;</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="controlLayout">
+     <property name="leftMargin">
+      <number>10</number>
+     </property>
+     <property name="topMargin">
+      <number>5</number>
+     </property>
+     <property name="rightMargin">
+      <number>10</number>
+     </property>
+     <property name="bottomMargin">
+      <number>5</number>
+     </property>
+     <item>
+      <widget class="QPushButton" name="play_pause_btn">
+       <property name="fixedSize">
+        <size>
+         <width>30</width>
+         <height>30</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>⏸</string>
+       </property>
+       <property name="toolTip">
+        <string>播放/暂停</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="stop_btn">
+       <property name="fixedSize">
+        <size>
+         <width>30</width>
+         <height>30</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>⏹</string>
+       </property>
+       <property name="toolTip">
+        <string>停止</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="current_time_label">
+       <property name="fixedWidth">
+        <number>70</number>
+       </property>
+       <property name="text">
+        <string>00:00:00</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QSlider" name="seek_slider">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="toolTip">
+        <string>进度</string>
+       </property>
+       <property name="maximum">
+        <number>1000</number>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="total_time_label">
+       <property name="fixedWidth">
+        <number>70</number>
+       </property>
+       <property name="text">
+        <string>00:00:00</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QComboBox" name="speed_combo">
+       <property name="toolTip">
+        <string>播放速度</string>
+       </property>
+       <item>
+        <property name="text">
+         <string>1.0x</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>1.5x</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>2.0x</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>0.5x</string>
+        </property>
+       </item>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <layoutdefault spacing="6" margin="11"/>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>play_pause_btn</sender>
+   <signal>clicked()</signal>
+   <receiver>XPlayVideo</receiver>
+   <slot>onPlayPauseClicked()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>25</x>
+     <y>570</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>399</x>
+     <y>299</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>stop_btn</sender>
+   <signal>clicked()</signal>
+   <receiver>XPlayVideo</receiver>
+   <slot>onStopClicked()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>60</x>
+     <y>570</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>399</x>
+     <y>299</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>seek_slider</sender>
+   <signal>sliderPressed()</signal>
+   <receiver>XPlayVideo</receiver>
+   <slot>onSeekSliderPressed()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>400</x>
+     <y>570</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>399</x>
+     <y>299</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>seek_slider</sender>
+   <signal>sliderReleased()</signal>
+   <receiver>XPlayVideo</receiver>
+   <slot>onSeekSliderReleased()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>400</x>
+     <y>570</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>399</x>
+     <y>299</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>seek_slider</sender>
+   <signal>valueChanged(int)</signal>
+   <receiver>XPlayVideo</receiver>
+   <slot>onSeekSliderMoved(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>400</x>
+     <y>570</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>399</x>
+     <y>299</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>speed_combo</sender>
+   <signal>currentIndexChanged(int)</signal>
+   <receiver>XPlayVideo</receiver>
+   <slot>onSpeedChanged(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>750</x>
+     <y>570</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>399</x>
+     <y>299</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+ <slots>
+  <slot>onPlayPauseClicked()</slot>
+  <slot>onStopClicked()</slot>
+  <slot>onSeekSliderPressed()</slot>
+  <slot>onSeekSliderReleased()</slot>
+  <slot>onSeekSliderMoved(int)</slot>
+  <slot>onSpeedChanged(int)</slot>
+ </slots>
+</ui>

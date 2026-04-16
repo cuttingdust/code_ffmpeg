@@ -41,7 +41,6 @@ void XRecorderManager::notifyStatusChanged(int camera_id, bool is_recording)
 
 bool XRecorderManager::startRecording(int camera_id, const EncoderConfig& config)
 {
-  
     bool already_recording = false;
     {
         std::scoped_lock lock(mtx_);
@@ -83,7 +82,7 @@ bool XRecorderManager::startRecording(int camera_id, const EncoderConfig& config
     recorder->setReconnectInterval(5);
     recorder->setMaxReconnects(3);
 
-    if (!recorder->startSegmentRecording(prefix, 10, 0))
+    if (!recorder->startSegmentRecording(prefix, 300, 0))
     {
         LOGE("启动录制失败: " << cam->name);
         return false;

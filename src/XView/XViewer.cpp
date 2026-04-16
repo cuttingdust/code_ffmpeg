@@ -1,7 +1,10 @@
 ﻿#include "XViewer.h"
+
+#include "LocalPlayer.h"
 #include "ui_xviewer.h"
 #include "XCameraConfig.h"
 #include "XCameraWidget.h"
+#include "XPlayVideo.h"
 #include "XRecorderManager.h"
 
 #include <qdir.h>
@@ -476,11 +479,25 @@ void XViewer::PlayVideo(QModelIndex index)
         return;
     }
 
-    qDebug() << "PlayVideo" << playback_selected_camera_ << filename;
+    // 获取录像文件完整路径
+    std::string filepath =
+            XRecorderManager::instance().getRecordFilePath(playback_selected_camera_, filename.toStdString());
 
-    // TODO: 播放录像
-    QMessageBox::information(this, "回放",
-                             QString("播放录像:\n摄像机ID: %1\n文件: %2").arg(playback_selected_camera_).arg(filename));
+    if (filepath.empty())
+    {
+        QMessageBox::warning(this, "错误", "录像文件不存在");
+        return;
+    }
+
+    // 获取摄像机名称
+    auto    cam         = XCameraConfig::instance()->getCamera(playback_selected_camera_);
+    QString camera_name = cam ? QString::fromStdString(cam->name) : QString("摄像机%1").arg(playback_selected_camera_);
+
+    // 创建播放窗口
+    XPlayVideo *playWidget = new XPlayVideo();
+    playWidget->setFile(filepath, playback_selected_camera_, camera_name);
+    playWidget->play();
+    playWidget->show();
 }
 
 void XViewer::updateCam(int index)

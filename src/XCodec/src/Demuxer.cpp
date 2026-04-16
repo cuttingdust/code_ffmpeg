@@ -59,18 +59,34 @@ auto Demuxer::readPacket(AVPacket* pkt) -> int
 
     resetTimer();
 
-    /// 使用安全函数
     int ret = safe_av_read_frame(fmt_ctx_->get(), pkt);
+
+    // ✅ 添加日志
+    // LOGI("av_read_frame 返回: " << ret);
+
     if (ret >= 0)
     {
         resetTimer();
     }
 
-    /// 如果是致命错误，标记需要重建
-    if (ret == AVERROR(EINVAL) || ret == AVERROR(ENOSYS) || ret < -1000)
+    // 只有明确的致命错误才返回 -2
+    if (ret == AVERROR(EINVAL) || ret == AVERROR(ENOSYS))
     {
         LOGE("致命错误 " << ret << "，需要重建解封装器");
-        return -2; /// 特殊错误码，表示需要重建
+        return -2;
+    }
+
+    // EOF 直接返回
+    if (ret == AVERROR_EOF)
+    {
+        return ret;
+    }
+
+    // 其他负数错误（如 -11 EAGAIN）也直接返回
+    if (ret < 0)
+    {
+        LOGW("读取错误: " << ret << "，继续重试");
+        return ret;
     }
 
     return ret;

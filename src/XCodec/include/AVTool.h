@@ -14,6 +14,7 @@ extern "C" {
 #include <libavcodec/packet.h>
 #include <libavutil/dict.h>
 #include <libavutil/frame.h>
+#include <libavutil/rational.h>
 }
 
 /// ==================== 时间工具 ====================

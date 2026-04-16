@@ -138,23 +138,30 @@ auto XDemuxTask::process() -> void
 {
     LOGI("解封装线程开始运行");
 
-    eof_reached_         = false;
-    int       fail_count = 0;
-    const int max_fails  = 5;
+    eof_reached_           = false;
+    int       fail_count   = 0;
+    const int max_fails    = 5;
+    int       packet_count = 0;
 
     while (!shouldStop())
     {
+        // LOGI("循环开始, 下游队列大小: " << (next_ ? next_->getQueueSize() : 0));
+
         if (next_ && next_->getQueueSize() > max_queue_size_)
         {
+            LOGI("下游队列满，等待...");
             sleep(10);
             continue;
         }
 
         PacketWrapper pkt;
-        int           ret = demuxer_->readPacket(pkt);
+        // LOGI("准备调用 readPacket...");
+        int ret = demuxer_->readPacket(pkt);
+        // LOGI("readPacket 返回: " << ret << ", 已读包数: " << packet_count);
+
         if (ret == AVERROR_EOF)
         {
-            LOGI("文件读取完成");
+            LOGI("文件读取完成，共读取 " << packet_count << " 个包");
             notifyEof();
             break;
         }
@@ -188,6 +195,7 @@ auto XDemuxTask::process() -> void
         }
 
         fail_count = 0;
+        packet_count++;
         ++total_packets_;
 
         if (const AVStream* stream = demuxer_->getStream(pkt->stream_index))
@@ -195,6 +203,8 @@ auto XDemuxTask::process() -> void
             if (stream->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
             {
                 ++video_packets_;
+                // LOGI("视频包 " << video_packets_.load() << ": stream=" << pkt->stream_index << ", pts=" << pkt->pts
+                //                << ", size=" << pkt->size);
 
                 auto pkt_clone = pkt.clone();
                 notifyObservers(std::move(pkt_clone));
@@ -205,7 +215,11 @@ auto XDemuxTask::process() -> void
                 }
             }
         }
+
+        std::this_thread::sleep_for(std::chrono::microseconds(50));
     }
+
+    LOGI("解封装线程结束");
 }
 
 

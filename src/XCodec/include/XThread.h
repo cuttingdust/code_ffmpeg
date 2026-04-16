@@ -46,6 +46,9 @@ public:
         return thread_name_;
     }
 
+    /// 重置线程状态（允许重新启动）
+    void resetThread();
+
 protected:
     /// 线程主函数，由子类实现
     virtual auto run() -> void = 0;
