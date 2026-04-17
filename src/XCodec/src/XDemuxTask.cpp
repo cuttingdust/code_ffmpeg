@@ -34,6 +34,15 @@ void XDemuxTask::reset()
     audio_packets_ = 0;
 }
 
+void XDemuxTask::clearQueues()
+{
+    // 清空下游队列
+    if (next_)
+    {
+        next_->reset();
+    }
+}
+
 auto XDemuxTask::open(const std::string& url) -> bool
 {
     url_ = url;
@@ -128,7 +137,73 @@ auto XDemuxTask::seek(double timestamp, int stream_index) -> bool
         return false;
     }
 
-    return demuxer_->seek(timestamp, stream_index);
+    LOGI("开始同步 Seek 到: " << timestamp << "秒");
+
+    // 1. 记录当前暂停状态
+    bool was_paused = isPaused();
+
+    // 2. 如果没有暂停，先暂停
+    if (!was_paused)
+    {
+        setPaused(true);
+        LOGI("Seek: 暂停解封装器");
+    }
+
+    // 3. 等待下游队列清空
+    int wait_count = 0;
+    while (wait_count < 30)
+    {
+        size_t decode_queue = (next_ && next_->getQueueSize()) ? next_->getQueueSize() : 0;
+        if (decode_queue == 0)
+        {
+            break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        wait_count++;
+    }
+    LOGI("Seek: 下游队列已清空");
+
+    // ✅ 4. 清空自己的队列
+    clear();
+
+    // 5. 清空下游队列
+    if (next_)
+    {
+        next_->clear(); // 清空解码队列
+
+        // 继续向下游清空
+        auto current = next_;
+        while (current && current->getNext())
+        {
+            current->getNext()->clear();
+            current = current->getNext();
+        }
+    }
+
+    // 6. 执行 seek
+    bool ret = demuxer_->seek(timestamp, stream_index);
+    if (ret)
+    {
+        current_time_ = timestamp;
+        LOGI("Seek: 定位成功");
+    }
+    else
+    {
+        LOGE("Seek: 定位失败");
+    }
+
+    // 7. 重置帧率时间基准
+    resetFrameTime();
+
+    // 8. 恢复之前的暂停状态
+    if (!was_paused)
+    {
+        setPaused(false);
+        LOGI("Seek: 恢复解封装器");
+    }
+
+    LOGI("同步 Seek 完成");
+    return ret;
 }
 
 auto XDemuxTask::setRtspOptions(bool use_tcp, int timeout_ms) -> void
@@ -234,6 +309,14 @@ auto XDemuxTask::process() -> void
             if (stream->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
             {
                 ++video_packets_;
+
+                /// 更新当前播放时间
+                if (pkt->pts != AV_NOPTS_VALUE)
+                {
+                    AVRational time_base = stream->time_base;
+                    double     time_sec  = pkt->pts * av_q2d(time_base);
+                    current_time_        = time_sec;
+                }
 
                 /// 计算这一帧应该等待的时间（毫秒）
                 int64_t wait_ms = 40;

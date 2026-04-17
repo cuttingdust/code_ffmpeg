@@ -15,10 +15,7 @@ XPlayVideo::XPlayVideo(QWidget* parent) : QWidget(parent), ui(new Ui::XPlayVideo
     progress_timer_ = new QTimer(this);
     connect(progress_timer_, &QTimer::timeout, this, &XPlayVideo::updateProgress);
 
-    // ✅ 初始化速度映射
-    speed_map_ = { { 0, 0.5 }, { 1, 1.0 }, { 2, 1.5 }, { 3, 2.0 }, { 4, 3.0 }, { 5, 4.0 }, { 6, 5.0 } };
-
-    // ✅ 设置速度下拉框
+    // 初始化速度下拉框
     ui->speed_combo->clear();
     ui->speed_combo->addItem("0.5x", 0.5);
     ui->speed_combo->addItem("1.0x", 1.0);
@@ -171,17 +168,13 @@ void XPlayVideo::onStopClicked()
     close();
 }
 
+// ✅ 修改：按下时只标记，不暂停
 void XPlayVideo::onSeekSliderPressed()
 {
     is_seeking_ = true;
 }
 
-void XPlayVideo::onSeekSliderReleased()
-{
-    is_seeking_ = false;
-    onSeekSliderMoved(ui->seek_slider->value());
-}
-
+// ✅ 修改：拖动时实时 Seek
 void XPlayVideo::onSeekSliderMoved(int value)
 {
     if (!player_ || !is_seeking_)
@@ -189,7 +182,24 @@ void XPlayVideo::onSeekSliderMoved(int value)
 
     double duration  = player_->getDuration();
     double seek_time = duration * value / 1000.0;
+
+    // 实时 Seek
     player_->seek(seek_time);
+
+    // 更新时间标签
+    int hours   = int(seek_time) / 3600;
+    int minutes = (int(seek_time) % 3600) / 60;
+    int seconds = int(seek_time) % 60;
+    ui->current_time_label->setText(QString("%1:%2:%3")
+                                            .arg(hours, 2, 10, QChar('0'))
+                                            .arg(minutes, 2, 10, QChar('0'))
+                                            .arg(seconds, 2, 10, QChar('0')));
+}
+
+// ✅ 修改：松开时只清除标记
+void XPlayVideo::onSeekSliderReleased()
+{
+    is_seeking_ = false;
 }
 
 void XPlayVideo::onSpeedChanged(int index)
@@ -197,7 +207,6 @@ void XPlayVideo::onSpeedChanged(int index)
     if (!player_)
         return;
 
-    // ✅ 获取速度值并设置
     double speed = ui->speed_combo->itemData(index).toDouble();
     player_->setSpeed(speed);
 

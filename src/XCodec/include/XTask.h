@@ -76,8 +76,11 @@ public:
     /// 通知结束（由上游调用）
     void notifyEof();
 
-    /// 重置任务（用于重连）
+    /// 重置任务（清空队列 + 重置状态）
     virtual void reset();
+
+    /// 只清空队列，不重置状态
+    virtual void clear();
 
     /// 重写stop方法，唤醒等待
     void stop() override;
@@ -124,7 +127,6 @@ protected:
 
     // 错误回调
     std::function<void(const std::string&)> error_cb_;
-
 
     /// ==================== 观察者相关成员 ====================
     std::vector<std::shared_ptr<XTask>> observers_;

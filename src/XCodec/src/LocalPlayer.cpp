@@ -126,17 +126,10 @@ void LocalPlayer::pause()
     }
     is_paused_ = true;
 
-    // ✅ 通知解封装任务暂停
     if (demux_task_)
     {
         demux_task_->setPaused(true);
     }
-
-    if (decode_task_)
-    {
-        decode_task_->setPaused(true);
-    }
-
     if (display_task_)
     {
         display_task_->setPaused(true);
@@ -152,15 +145,9 @@ void LocalPlayer::resume()
         return;
     }
 
-    // ✅ 通知解封装任务恢复
     if (demux_task_)
     {
         demux_task_->setPaused(false);
-    }
-
-    if (decode_task_)
-    {
-        decode_task_->setPaused(false);
     }
 
     if (display_task_)
@@ -220,9 +207,9 @@ void LocalPlayer::seek(double seconds)
         return;
     }
 
-    seek_target_  = seconds;
-    seek_request_ = true;
-    LOGI("请求跳转到: " << seconds << "秒");
+    // 直接调用同步 seek，会等待完成
+    demux_task_->seek(seconds);
+    LOGI("Seek 到: " << seconds << "秒");
 }
 
 std::map<PlaybackSpeed, double> LocalPlayer::getSupportedSpeeds()
@@ -274,7 +261,10 @@ double LocalPlayer::getDuration() const
 
 double LocalPlayer::getCurrentTime() const
 {
-    // TODO: 从 demux_task 获取当前 PTS
+    if (demux_task_)
+    {
+        return demux_task_->getCurrentTime();
+    }
     return 0.0;
 }
 
@@ -314,44 +304,6 @@ void LocalPlayer::controlLoop()
             is_playing_  = false;
             is_finished_ = true;
             return;
-        }
-
-        // 处理跳转请求
-        if (seek_request_)
-        {
-            double target = seek_target_;
-            seek_request_ = false;
-
-            LOGI("执行跳转到: " << target << "秒");
-
-            bool was_paused = is_paused_;
-            if (!was_paused)
-            {
-                demux_task_->stop();
-                decode_task_->stop();
-                display_task_->stop();
-
-                demux_task_->wait();
-                decode_task_->wait();
-                display_task_->wait();
-            }
-
-            if (demux_task_->seek(target))
-            {
-                decode_task_->reset();
-                LOGI("跳转成功");
-            }
-            else
-            {
-                LOGE("跳转失败");
-            }
-
-            if (!was_paused && !should_stop_)
-            {
-                display_task_->start();
-                decode_task_->start();
-                demux_task_->start();
-            }
         }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(100));

@@ -27,6 +27,9 @@ void XDecodeTask::reset()
 
     LOGD("重置解码任务");
 
+    stop();
+    wait();
+
     if (decoder_)
     {
         decoder_->close();
@@ -88,6 +91,20 @@ bool XDecodeTask::initDecoder(AVCodecID codec_id, AVStream* stream)
         {
             LOGE("软件解码也失败: " << sw_e.what());
             return false;
+        }
+    }
+}
+
+void XDecodeTask::resetDecoder()
+{
+    if (decoder_)
+    {
+        /// 刷新解码器，清空内部缓存
+        std::vector<AVFrame*> frames;
+        decoder_->flush(frames);
+        for (auto* frame : frames)
+        {
+            av_frame_free(&frame);
         }
     }
 }

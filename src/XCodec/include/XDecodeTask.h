@@ -16,6 +16,9 @@ public:
     /// 初始化解码器
     auto initDecoder(AVCodecID codec_id, AVStream *stream) -> bool;
 
+    /// 重置解码器（不清空队列）
+    void resetDecoder(); 
+
     /// 获取解码器
     auto getDecoder() const -> VideoDecoder *;
 
