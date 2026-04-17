@@ -95,20 +95,6 @@ bool XDecodeTask::initDecoder(AVCodecID codec_id, AVStream* stream)
     }
 }
 
-void XDecodeTask::resetDecoder()
-{
-    if (decoder_)
-    {
-        /// 刷新解码器，清空内部缓存
-        std::vector<AVFrame*> frames;
-        decoder_->flush(frames);
-        for (auto* frame : frames)
-        {
-            av_frame_free(&frame);
-        }
-    }
-}
-
 auto XDecodeTask::getDecoder() const -> VideoDecoder*
 {
     return decoder_.get();

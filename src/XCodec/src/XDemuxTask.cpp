@@ -34,15 +34,6 @@ void XDemuxTask::reset()
     audio_packets_ = 0;
 }
 
-void XDemuxTask::clearQueues()
-{
-    // 清空下游队列
-    if (next_)
-    {
-        next_->reset();
-    }
-}
-
 auto XDemuxTask::open(const std::string& url) -> bool
 {
     url_ = url;
@@ -163,24 +154,13 @@ auto XDemuxTask::seek(double timestamp, int stream_index) -> bool
     }
     LOGI("Seek: 下游队列已清空");
 
-    // ✅ 4. 清空自己的队列
-    clear();
-
-    // 5. 清空下游队列
+    // ✅ 4. 使用 clear() 只清空队列，不停止线程
     if (next_)
     {
-        next_->clear(); // 清空解码队列
-
-        // 继续向下游清空
-        auto current = next_;
-        while (current && current->getNext())
-        {
-            current->getNext()->clear();
-            current = current->getNext();
-        }
+        next_->clear();
     }
 
-    // 6. 执行 seek
+    // 5. 执行 seek
     bool ret = demuxer_->seek(timestamp, stream_index);
     if (ret)
     {
@@ -192,10 +172,10 @@ auto XDemuxTask::seek(double timestamp, int stream_index) -> bool
         LOGE("Seek: 定位失败");
     }
 
-    // 7. 重置帧率时间基准
+    // 6. 重置帧率时间基准
     resetFrameTime();
 
-    // 8. 恢复之前的暂停状态
+    // 7. 恢复之前的暂停状态
     if (!was_paused)
     {
         setPaused(false);
