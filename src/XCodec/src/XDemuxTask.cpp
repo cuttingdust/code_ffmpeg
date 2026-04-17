@@ -128,7 +128,7 @@ auto XDemuxTask::seek(double timestamp, int stream_index) -> bool
         return false;
     }
 
-    LOGI("开始同步 Seek 到: " << timestamp << "秒");
+    LOGI("Seek 到: " << timestamp << "秒");
 
     // 1. 记录当前暂停状态
     bool was_paused = isPaused();
@@ -140,28 +140,33 @@ auto XDemuxTask::seek(double timestamp, int stream_index) -> bool
         LOGI("Seek: 暂停解封装器");
     }
 
-    // 3. 等待下游队列清空
-    int wait_count = 0;
-    while (wait_count < 30)
-    {
-        size_t decode_queue = (next_ && next_->getQueueSize()) ? next_->getQueueSize() : 0;
-        if (decode_queue == 0)
-        {
-            break;
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
-        wait_count++;
-    }
-    LOGI("Seek: 下游队列已清空");
 
-    // ✅ 4. 使用 clear() 只清空队列，不停止线程
+    // 等待一小段时间，让当前正在处理的包完成
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+    // 清空自己的队列
+    clear();
+
+    // 清空下游队列
     if (next_)
     {
         next_->clear();
+
+        // 继续向下游清空
+        auto current = next_;
+        while (current && current->getNext())
+        {
+            current->getNext()->clear();
+            current = current->getNext();
+        }
+
+        // ✅ 通知下游刷新解码器状态
+        next_->flushDownstream();
     }
 
-    // 5. 执行 seek
-    bool ret = demuxer_->seek(timestamp, stream_index);
+    // 执行 seek（强制跳转到关键帧）
+    int  flags = AVSEEK_FLAG_BACKWARD | AVSEEK_FLAG_FRAME;
+    bool ret   = demuxer_->seek(timestamp, stream_index, flags);
     if (ret)
     {
         current_time_ = timestamp;
@@ -242,6 +247,7 @@ auto XDemuxTask::process() -> void
             sleep(10);
             continue;
         }
+
 
         PacketWrapper pkt;
         int           ret = demuxer_->readPacket(pkt);

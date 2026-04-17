@@ -16,11 +16,10 @@ public:
     /// 初始化解码器
     auto initDecoder(AVCodecID codec_id, AVStream *stream) -> bool;
 
-    /// 重置解码器（不清空队列）
-    void resetDecoder(); 
-
     /// 获取解码器
     auto getDecoder() const -> VideoDecoder *;
+
+    void flushDownstream() override;
 
     /// 设置帧回调（用于直接渲染，如果不用下游任务）
     auto setFrameCallback(DecoderConfig::FrameCallback cb) -> void;
@@ -38,4 +37,5 @@ private:
     VideoDecoder::Ptr            decoder_      = nullptr;
     DecoderConfig::FrameCallback frame_cb_     = nullptr;
     bool                         use_hardware_ = true;
+    std::atomic<bool>            need_flush_decoder_{ false };
 };

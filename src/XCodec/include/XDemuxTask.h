@@ -13,14 +13,23 @@ public:
     ~XDemuxTask() override;
 
     auto open(const std::string& url) -> bool;
+
     auto close() -> void;
+
     auto getVideoStream() const -> AVStream*;
+
     auto getAudioStream() const -> AVStream*;
+
     auto getStreams() const -> const std::vector<AVStream*>&;
+
     auto getCodecParameters(int stream_index) const -> std::shared_ptr<CodecParametersWrapper>;
+
     auto getDuration() const -> double;
+
     auto getFilename() const -> std::string;
+
     auto seek(double timestamp, int stream_index = -1) -> bool;
+
     auto setRtspOptions(bool use_tcp, int timeout_ms) -> void;
 
     struct Stats
@@ -29,21 +38,28 @@ public:
         int64_t video_packets = 0;
         int64_t audio_packets = 0;
     };
+
     auto getStats() const -> Stats;
+
     auto reset() -> void override;
+
     void setSpeed(double speed)
     {
         speed_ = speed;
     }
+
     double getSpeed() const
     {
         return speed_.load();
     }
-    void   setPaused(bool paused) override;
+
+    void setPaused(bool paused) override;
+
     double getCurrentTime() const
     {
         return current_time_.load();
     }
+
 
 protected:
     auto process() -> void override;

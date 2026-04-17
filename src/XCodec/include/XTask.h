@@ -85,6 +85,8 @@ public:
     /// 重写stop方法，唤醒等待
     void stop() override;
 
+    virtual void flushDownstream();
+
     // ==================== 观察者模式支持 ====================
 
     /// 添加观察者
@@ -108,6 +110,7 @@ protected:
 
     /// 纯虚函数：任务处理逻辑
     virtual auto process() -> void = 0;
+
 
     /// 线程主函数（final禁止子类重写）
     auto run() -> void final;

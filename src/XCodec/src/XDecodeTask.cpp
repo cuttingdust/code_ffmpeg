@@ -100,6 +100,11 @@ auto XDecodeTask::getDecoder() const -> VideoDecoder*
     return decoder_.get();
 }
 
+void XDecodeTask::flushDownstream()
+{
+    need_flush_decoder_ = true;
+}
+
 auto XDecodeTask::setFrameCallback(DecoderConfig::FrameCallback cb) -> void
 {
     frame_cb_ = std::move(cb);
@@ -126,6 +131,16 @@ void XDecodeTask::process()
         if (shouldPause())
         {
             continue;
+        }
+
+        if (need_flush_decoder_.load())
+        {
+            need_flush_decoder_ = false;
+            if (decoder_)
+            {
+                decoder_->flushBuffers();
+                LOGI("解码器缓存已刷新");
+            }
         }
 
         auto pkt = popPacket();

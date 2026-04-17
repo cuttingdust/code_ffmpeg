@@ -18,7 +18,7 @@ class XPlayVideo : public QWidget
 
 public:
     explicit XPlayVideo(QWidget *parent = nullptr);
-    ~XPlayVideo();
+    ~XPlayVideo() override;
 
     void setFile(const std::string &filepath, int camera_id, const QString &camera_name);
     void play();
@@ -53,4 +53,8 @@ private:
 
     QTimer *progress_timer_ = nullptr;
     bool    is_seeking_     = false;
+
+    // 防抖相关
+    QTimer *seek_timer_         = nullptr;
+    int     pending_seek_value_ = -1;
 };

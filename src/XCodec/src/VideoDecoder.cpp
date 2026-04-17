@@ -544,6 +544,14 @@ auto VideoDecoder::flush(std::vector<AVFrame*>& out_frames) -> int
     return frame_count;
 }
 
+void VideoDecoder::flushBuffers()
+{
+    if (impl_->ctx_)
+    {
+        avcodec_flush_buffers(impl_->ctx_->get());
+    }
+}
+
 void VideoDecoder::reset()
 {
     impl_->is_hw_decoding_ = false;

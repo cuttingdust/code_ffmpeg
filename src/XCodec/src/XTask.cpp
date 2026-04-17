@@ -219,6 +219,10 @@ auto XTask::handleError(const std::string& msg) -> void
     }
 }
 
+void XTask::flushDownstream()
+{
+}
+
 void XTask::run()
 {
     LOGI("任务线程启动: " << getName());

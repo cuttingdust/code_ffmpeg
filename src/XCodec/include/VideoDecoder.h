@@ -76,6 +76,8 @@ public:
     /// 刷新解码器（获取剩余帧）
     auto flush(std::vector<AVFrame*>& out_frames) -> int;
 
+    void flushBuffers();
+
     auto reset() -> void;
 
     /// 设置帧回调

@@ -25,6 +25,22 @@ XPlayVideo::XPlayVideo(QWidget* parent) : QWidget(parent), ui(new Ui::XPlayVideo
     ui->speed_combo->addItem("4.0x", 4.0);
     ui->speed_combo->addItem("5.0x", 5.0);
     ui->speed_combo->setCurrentIndex(1); // 默认 1.0x
+
+    // 防抖定时器
+    seek_timer_ = new QTimer(this);
+    seek_timer_->setSingleShot(true);
+    connect(seek_timer_, &QTimer::timeout, this,
+            [this]()
+            {
+                if (pending_seek_value_ >= 0 && player_)
+                {
+                    double duration  = player_->getDuration();
+                    double seek_time = duration * pending_seek_value_ / 1000.0;
+                    player_->seek(seek_time);
+                    LOGI("防抖 Seek 执行: " << seek_time << "秒");
+                    pending_seek_value_ = -1;
+                }
+            });
 }
 
 XPlayVideo::~XPlayVideo()
@@ -32,6 +48,10 @@ XPlayVideo::~XPlayVideo()
     if (progress_timer_)
     {
         progress_timer_->stop();
+    }
+    if (seek_timer_)
+    {
+        seek_timer_->stop();
     }
     if (player_)
     {
@@ -168,13 +188,11 @@ void XPlayVideo::onStopClicked()
     close();
 }
 
-// ✅ 修改：按下时只标记，不暂停
 void XPlayVideo::onSeekSliderPressed()
 {
     is_seeking_ = true;
 }
 
-// ✅ 修改：拖动时实时 Seek
 void XPlayVideo::onSeekSliderMoved(int value)
 {
     if (!player_ || !is_seeking_)
@@ -183,10 +201,7 @@ void XPlayVideo::onSeekSliderMoved(int value)
     double duration  = player_->getDuration();
     double seek_time = duration * value / 1000.0;
 
-    // 实时 Seek
-    player_->seek(seek_time);
-
-    // 更新时间标签
+    // 更新时间标签显示（实时）
     int hours   = int(seek_time) / 3600;
     int minutes = (int(seek_time) % 3600) / 60;
     int seconds = int(seek_time) % 60;
@@ -194,12 +209,26 @@ void XPlayVideo::onSeekSliderMoved(int value)
                                             .arg(hours, 2, 10, QChar('0'))
                                             .arg(minutes, 2, 10, QChar('0'))
                                             .arg(seconds, 2, 10, QChar('0')));
+
+    // 防抖：记录最终位置，延迟执行 Seek
+    pending_seek_value_ = value;
+    seek_timer_->start(150);
 }
 
-// ✅ 修改：松开时只清除标记
 void XPlayVideo::onSeekSliderReleased()
 {
     is_seeking_ = false;
+
+    // 确保最后一次 Seek 被执行
+    if (pending_seek_value_ >= 0 && player_)
+    {
+        seek_timer_->stop();
+        double duration  = player_->getDuration();
+        double seek_time = duration * pending_seek_value_ / 1000.0;
+        player_->seek(seek_time);
+        LOGI("Seek 完成，位置: " << seek_time << "秒");
+        pending_seek_value_ = -1;
+    }
 }
 
 void XPlayVideo::onSpeedChanged(int index)
