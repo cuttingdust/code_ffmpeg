@@ -100,15 +100,15 @@ auto Demuxer::seek(double timestamp, int stream_index, int flags) -> bool
     }
 
     AVFormatContext* ctx     = fmt_ctx_->get();
-    int64_t          seek_ts = timestamp * AV_TIME_BASE;
+    int64_t          seek_ts_us = (int64_t)(timestamp * AV_TIME_BASE);
 
     if (stream_index >= 0 && std::cmp_less(stream_index, ctx->nb_streams))
     {
         AVStream* stream = ctx->streams[stream_index];
-        seek_ts          = av_rescale_q(timestamp * AV_TIME_BASE, AV_TIME_BASE_Q, stream->time_base);
+        seek_ts_us       = av_rescale_q(seek_ts_us, AV_TIME_BASE_Q, stream->time_base);
     }
 
-    return av_seek_frame(ctx, stream_index, seek_ts, flags) >= 0;
+    return av_seek_frame(ctx, stream_index, seek_ts_us, flags) >= 0;
 }
 
 auto Demuxer::getDuration() const -> double

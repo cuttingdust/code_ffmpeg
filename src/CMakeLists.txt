@@ -117,6 +117,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(CommonTools)
 
 add_subdirectory(ffmepg_test)
+add_subdirectory(ffmepg_open)
 add_subdirectory(rgb_test)
 add_subdirectory(rgb_sdl2)
 add_subdirectory(rgb_test_qt)
