@@ -5,6 +5,7 @@ extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libswscale/swscale.h>
+#include <libswresample/swresample.h>
 }
 
 #define TEST_VIDEO R"(assert\output.mp4)"
@@ -160,6 +161,7 @@ int main(int argc, char *argv[])
         }
         std::cout << "audio avcodec_open2 success!" << std::endl;
 
+
         ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
         AVPacket *pkt   = av_packet_alloc();
@@ -169,6 +171,51 @@ int main(int argc, char *argv[])
         SwsContext    *vctx = NULL;
         unsigned char *rgb  = NULL;
 
+        /// 音频重采样 上下文初始化
+        SwrContext *actx = NULL;
+        /// 获取输入声道布局（使用流的实际布局）
+        AVChannelLayout in_ch_layout;
+        av_channel_layout_copy(&in_ch_layout, &ac->ch_layout);
+
+        /// 配置输出参数
+        AVChannelLayout     out_ch_layout   = AV_CHANNEL_LAYOUT_STEREO;
+        enum AVSampleFormat out_sample_fmt  = AV_SAMPLE_FMT_S16;
+        int                 out_sample_rate = ac->sample_rate; /// 保持原采样率
+
+        /// 创建重采样上下文
+        int ret = swr_alloc_set_opts2(
+                &actx, /// 指向 SwrContext 指针的指针。可以传入一个已存在的上下文指针的地址，或传 NULL 的地址让函数自动分配新上下文
+                &out_ch_layout,  /// 输出音频的声道布局。
+                out_sample_fmt,  /// 输出音频的样本格式。
+                out_sample_rate, /// 输出音频的采样率 (Hz)。
+                &in_ch_layout,   /// 输入音频的声道布局。
+                ac->sample_fmt,  /// 输入音频的样本格式。
+                ac->sample_rate, /// 输入音频的采样率 (Hz)。
+                0, NULL);
+
+        if (ret < 0 || !actx)
+        {
+            char buf[1024];
+            av_strerror(ret, buf, sizeof(buf));
+            std::cout << "swr_alloc_set_opts2 failed: " << buf << std::endl;
+            return -1;
+        }
+        ret = swr_init(actx);
+        if (ret != 0)
+        {
+            char buf[1024] = { 0 };
+            av_strerror(ret, buf, sizeof(buf) - 1);
+            std::cout << "swr_init  failed! :" << buf << std::endl;
+            getchar();
+            return -1;
+        }
+
+        std::cout << "Audio resampler initialized successfully" << std::endl;
+        /// 释放声道布局
+        av_channel_layout_uninit(&in_ch_layout);
+
+        unsigned char *pcm             = NULL;
+        int            pcm_buffer_size = 0;
         for (;;)
         {
             int re = av_read_frame(ic, pkt);
@@ -278,12 +325,114 @@ int main(int argc, char *argv[])
                         std::cout << "sws_scale = " << re << std::endl;
                     }
                 }
+                else /// 音频
+                {
+                    /// 计算需要的缓冲区大小
+                    /// 1. 获取每个样本的字节数
+                    ///    AV_SAMPLE_FMT_S16 表示：有符号 16 位整型，交错存储格式
+                    ///    每个样本占用 2 个字节（16 bit = 2 byte）
+                    int bytes_per_sample = av_get_bytes_per_sample(AV_SAMPLE_FMT_S16);
+
+                    /// 2. 定义声道数
+                    ///    此处硬编码为 2，表示输出立体声（左声道 + 右声道）
+                    ///    如果是交错格式，样本在缓冲区中的排列为：L, R, L, R, L, R, ...
+                    int channels = 2; /// 立体声
+
+                    /// 3. 计算输出缓冲区所需的大小（字节）
+                    ///    frame->nb_samples：每个声道的样本数（从解码器获取的原始音频帧）
+                    ///                       例如：音频帧包含 1024 个样本/声道
+                    ///    对于立体声，总样本数 = frame->nb_samples * 2（两个声道）
+                    ///    bytes_per_sample = 2 字节/样本
+                    ///    所以总字节数 = 每声道样本数 × 声道数 × 每样本字节数
+                    int required_size = frame->nb_samples * channels * bytes_per_sample;
+
+                    /// 4. 动态分配或扩展 PCM 输出缓冲区
+                    ///    pcm：指向音频数据的指针
+                    ///    pcm_buffer_size：当前已分配缓冲区的大小（字节）
+                    ///
+                    ///    条件检查：
+                    ///    - !pcm：第一次调用，还没有分配缓冲区
+                    ///    - pcm_buffer_size < required_size：现有缓冲区不够大
+                    if (!pcm || pcm_buffer_size < required_size)
+                    {
+                        delete[] pcm;                                   /// 释放旧的缓冲区（如果存在）
+                        pcm_buffer_size = required_size;                /// 更新缓冲区大小记录
+                        pcm             = new uint8_t[pcm_buffer_size]; /// 分配新的缓冲区
+                    }
+
+                    /// 5. 准备输出数据指针数组
+                    ///    对于交错格式（Packed/Interleaved）音频，所有声道的样本交错存储在一个平面中
+                    ///    data[0]：指向输出缓冲区的第一个（也是唯一一个）平面
+                    ///    data[1] 及以后：不需要，设为 NULL
+                    uint8_t *data[1] = { pcm }; /// 或者写作：uint8_t *data[] = { pcm, NULL };
+                    data[0]          = pcm;     /// 确保 data[0] 指向缓冲区（上面已经做了，这行可以省略）
+
+                    /// 6. 执行音频重采样/格式转换
+                    ///    函数签名：int swr_convert(
+                    ///                  struct SwrContext *s,    // 重采样上下文
+                    ///                  uint8_t *out[],          // 输出缓冲区数组
+                    ///                  int out_count,           // 输出缓冲区可容纳的最大样本数（每个声道）
+                    ///                  const uint8_t *in[],     // 输入缓冲区数组
+                    ///                  int in_count             // 输入可用的样本数（每个声道）
+                    ///              );
+                    ///
+                    ///    参数详解：
+                    ///    - actx：重采样上下文（已通过 swr_alloc_set_opts2 和 swr_init 配置）
+                    ///    - data：输出缓冲区数组，data[0] 指向 pcm 缓冲区
+                    ///    - frame->nb_samples：输出缓冲区每个声道最多可容纳的样本数
+                    ///                         注意：这是每个声道的样本数，不是总样本数
+                    ///    - (const uint8_t **)frame->data：输入缓冲区
+                    ///        frame->data[0]：指向第一个平面（对于平面格式）或交错数据（对于交错格式）
+                    ///        frame->data[1]：第二个平面（如 Planar 格式的右声道或 U 平面）
+                    ///    - frame->nb_samples：输入缓冲区中每个声道可用的样本数
+                    ///
+                    ///    返回值 out_samples：
+                    ///    - 成功时：实际输出的样本数（每个声道）
+                    ///    - 失败时：负数的错误码
+                    int out_samples = swr_convert(actx,                          /// 重采样上下文
+                                                  data,                          /// 输出缓冲区（指向 pcm）
+                                                  frame->nb_samples,             /// 输出容量（每个声道样本数）
+                                                  (const uint8_t **)frame->data, /// 输入缓冲区
+                                                  frame->nb_samples);            /// 输入样本数（每个声道）
+
+                    /// 7. 检查重采样结果
+                    if (out_samples < 0)
+                    {
+                        /// 出错：输出错误信息
+                        char buf[1024];
+                        av_strerror(out_samples, buf, sizeof(buf));
+                        std::cout << "swr_convert failed: " << buf << std::endl;
+                    }
+                    else
+                    {
+                        /// 成功：计算并输出统计信息
+
+                        /// 计算输出的总字节数
+                        /// out_samples：每个声道的输出样本数（如 1024）
+                        /// channels：声道数（这里是 2）
+                        /// bytes_per_sample：每样本字节数（这里是 2）
+                        /// 所以总字节数 = 1024 × 2 × 2 = 4096 字节
+                        int out_bytes = out_samples * channels * bytes_per_sample;
+
+                        std::cout << "swr_convert: " << out_samples << " samples, " << out_bytes << " bytes"
+                                  << std::endl;
+
+                        /// 此时 pcm 缓冲区包含转换后的音频数据
+                        /// 数据格式：交错（L,R,L,R,...），16位有符号整型
+                        /// 可以用于：
+                        ///   - 写入 WAV 文件
+                        ///   - 发送到音频播放设备（如 SDL、PortAudio、OpenAL 等）
+                        ///   - 进一步处理（如编码、过滤等）
+                    }
+                }
             }
         }
 
         av_frame_free(&frame);
         av_packet_free(&pkt);
-
+        ///  释放资源
+        delete[] pcm;
+        swr_free(&actx);
 
         if (ic)
         {
