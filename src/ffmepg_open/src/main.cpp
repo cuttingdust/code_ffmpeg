@@ -4,6 +4,7 @@
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
+#include <libswscale/swscale.h>
 }
 
 #define TEST_VIDEO R"(assert\output.mp4)"
@@ -99,20 +100,86 @@ int main(int argc, char *argv[])
             }
         }
 
-        /// 获取视频流
-        videoStream   = av_find_best_stream(ic, AVMEDIA_TYPE_VIDEO, -1, -1, NULL, 0);
-        AVPacket *pkt = av_packet_alloc();
+        /// 获取视频流 /// 比上面的for循环获取更简单，直接函数获取
+        videoStream = av_find_best_stream(ic, AVMEDIA_TYPE_VIDEO, -1, -1, NULL, 0);
+
+        const AVCodec *vcodec = avcodec_find_decoder(ic->streams[videoStream]->codecpar->codec_id);
+        if (!vcodec)
+        {
+            std::cout << "can't find the codec id " << ic->streams[videoStream]->codecpar->codec_id;
+            getchar();
+            return -1;
+        }
+        std::cout << "find the AVCodec " << ic->streams[videoStream]->codecpar->codec_id << std::endl;
+
+        /// 创建解码器上下文呢
+        AVCodecContext *vc = avcodec_alloc_context3(vcodec);
+        /// 配置解码器上下文参数
+        avcodec_parameters_to_context(vc, ic->streams[videoStream]->codecpar);
+        /// 八线程解码
+        vc->thread_count = 8;
+        ///打开解码器上下文
+        ret = avcodec_open2(vc, 0, 0);
+        if (ret != 0)
+        {
+            char buf[1024] = { 0 };
+            av_strerror(ret, buf, sizeof(buf) - 1);
+            std::cout << "avcodec_open2  failed! :" << buf << std::endl;
+            getchar();
+            return -1;
+        }
+        std::cout << "video avcodec_open2 success!" << std::endl;
+
+        //////////////////////////////////////////////////////////
+        ///音频解码器打开
+        const AVCodec *acodec = avcodec_find_decoder(ic->streams[audioStream]->codecpar->codec_id);
+        if (!acodec)
+        {
+            std::cout << "can't find the codec id " << ic->streams[audioStream]->codecpar->codec_id;
+            getchar();
+            return -1;
+        }
+        std::cout << "find the AVCodec " << ic->streams[audioStream]->codecpar->codec_id << std::endl;
+        /// 创建解码器上下文呢
+        AVCodecContext *ac = avcodec_alloc_context3(acodec);
+
+        /// 配置解码器上下文参数
+        avcodec_parameters_to_context(ac, ic->streams[audioStream]->codecpar);
+        /// 八线程解码
+        ac->thread_count = 8;
+
+        ///打开解码器上下文
+        ret = avcodec_open2(ac, 0, 0);
+        if (ret != 0)
+        {
+            char buf[1024] = { 0 };
+            av_strerror(ret, buf, sizeof(buf) - 1);
+            std::cout << "avcodec_open2  failed! :" << buf << std::endl;
+            getchar();
+            return -1;
+        }
+        std::cout << "audio avcodec_open2 success!" << std::endl;
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        AVPacket *pkt   = av_packet_alloc();
+        AVFrame  *frame = av_frame_alloc();
+
+        /// 像素格式和尺寸转换上下文
+        SwsContext    *vctx = NULL;
+        unsigned char *rgb  = NULL;
+
         for (;;)
         {
             int re = av_read_frame(ic, pkt);
             if (re != 0)
             {
-                //     /// 循环播放
-                //     std::cout << "==============================end==============================" << std::endl;
-                //     int       ms  = 3000; /// 三秒位置 根据时间基数（分数）转换
-                //     long long pos = (double)ms / (double)1000 * r2d(ic->streams[pkt->stream_index]->time_base);
-                //     av_seek_frame(ic, videoStream, pos, AVSEEK_FLAG_BACKWARD | AVSEEK_FLAG_FRAME);
-                //     continue;
+                /// 循环播放
+                // std::cout << "==============================end==============================" << std::endl;
+                // int       ms  = 3000; /// 三秒位置 根据时间基数（分数）转换
+                // long long pos = (double)ms / (double)1000 * r2d(ic->streams[pkt->stream_index]->time_base);
+                // av_seek_frame(ic, videoStream, pos, AVSEEK_FLAG_BACKWARD | AVSEEK_FLAG_FRAME);
+                // continue;
                 break;
             }
 
@@ -121,28 +188,110 @@ int main(int argc, char *argv[])
             /// 显示的时间
             std::cout << "pkt->pts = " << pkt->pts << std::endl;
 
+            /// 解码时间
+            std::cout << "pkt->dts = " << pkt->dts << std::endl;
+
             /// 转换为毫秒，方便做同步
-            std::cout << "pkt->pts ms = " << pkt->pts * (r2d(ic->streams[pkt->stream_index]->time_base) * 1000)
-                      << std::endl;
+            // std::cout << "pkt->pts ms = " << pkt->pts * (r2d(ic->streams[pkt->stream_index]->time_base) * 1000)
+            //           << std::endl;
+            //
+            // std::cout << "pkt->pts ms = " << pkt->pts * (av_q2d(ic->streams[pkt->stream_index]->time_base) * 1000)
+            //           << std::endl;
+            //
+            //
+            // std::cout << "pkt->pts ms = "
+            //           << (av_rescale_q(pkt->pts, ic->streams[pkt->stream_index]->time_base, AV_TIME_BASE_Q) / 1000)
+            //           << std::endl;
 
-            std::cout << "pkt->pts ms = " << pkt->pts * (av_q2d(ic->streams[pkt->stream_index]->time_base) * 1000)
-                      << std::endl;
+            AVCodecContext *cc = 0;
+            if (pkt->stream_index == videoStream)
+            {
+                std::cout << "图像" << std::endl;
+                cc = vc;
+            }
+            if (pkt->stream_index == audioStream)
+            {
+                std::cout << "音频" << std::endl;
+                cc = ac;
+            }
 
-            std::cout << "pkt->pts ms = "
-                      << (av_rescale_q(pkt->pts, ic->streams[pkt->stream_index]->time_base, AV_TIME_BASE_Q) / 1000)
-                      << std::endl;
+            /// 解码视频
+            /// 发送packet到解码线程  send传NULL后调用多次receive取出所有缓冲帧
+            re = avcodec_send_packet(cc, pkt);
+            /// 释放，引用计数-1 为0释放空间
+            av_packet_unref(pkt);
+            if (re != 0)
+            {
+                char buf[1024] = { 0 };
+                av_strerror(re, buf, sizeof(buf) - 1);
+                std::cout << "avcodec_send_packet  failed! :" << buf << std::endl;
+                continue;
+            }
+
+            for (;;)
+            {
+                /// 从线程中获取解码接口,一次send可能对应多次receive
+                re = avcodec_receive_frame(cc, frame);
+                if (re != 0)
+                {
+                    break;
+                }
+                std::cout << "recv frame " << frame->format << " " << frame->linesize[0] << std::endl;
+
+                /// 视频
+                if (cc == vc)
+                {
+                    vctx = sws_getCachedContext(vctx,                         /// 传NULL会新创建
+                                                frame->width, frame->height,  /// 输入的宽高
+                                                (AVPixelFormat)frame->format, /// 输入格式 YUV420p
+                                                frame->width, frame->height,  /// 输出的宽高
+                                                AV_PIX_FMT_RGBA,              /// 输入格式RGBA
+                                                SWS_BILINEAR,                 /// 尺寸变化的算法
+                                                0, 0, 0);
+
+                    // if (vctx)
+                    // {
+                    //     std::cout << "像素格式尺寸转换上下文创建或者获取成功！" << std::endl;
+                    // }
+                    // else
+                    // {
+                    //     std::cout << "像素格式尺寸转换上下文创建或者获取失败！" << std::endl;
+                    // }
+
+                    if (vctx)
+                    {
+                        if (!rgb)
+                        {
+                            rgb = new unsigned char[frame->width * frame->height * 4];
+                        }
+                        uint8_t *data[2] = { 0 };
+                        data[0]          = rgb;
+                        int lines[2]     = { 0 };
+                        lines[0]         = frame->width * 4;
+                        re               = sws_scale(vctx,
+                                                     frame->data,     /// 输入数据
+                                                     frame->linesize, /// 输入行大小
+                                                     0,
+                                                     frame->height, /// 输入高度
+                                                     data,          /// 输出数据和大小
+                                                     lines);
+                        std::cout << "sws_scale = " << re << std::endl;
+                    }
+                }
+            }
         }
 
+        av_frame_free(&frame);
         av_packet_free(&pkt);
+
+
+        if (ic)
+        {
+            ///释放封装上下文，并且把ic置0
+            avformat_close_input(&ic);
+        }
+
+        getchar();
+        return 0;
     }
-
-
-    if (ic)
-    {
-        ///释放封装上下文，并且把ic置0
-        avformat_close_input(&ic);
-    }
-
-    getchar();
-    return 0;
 }
