@@ -65,6 +65,7 @@ set(QT6_MOUDLES
     Qt6::Core
 	Qt6::Widgets
     Qt6::Gui
+	Qt6::Multimedia      # 添加多媒体模块
 )
 
 # libevent

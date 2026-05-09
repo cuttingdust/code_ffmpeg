@@ -1,0 +1,1 @@
+ffmpeg -i v1080.mp4 -f s16le out.pcm
