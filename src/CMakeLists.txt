@@ -82,7 +82,7 @@ message("SDL2_LIBS = ${SDL2_LIBS}")
 
 
 # Qt6
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Multimedia)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Multimedia OpenGLWidgets)
 message("Qt6_FOUND = ${Qt6_FOUND}")
 message("Qt6_VERSION = ${Qt6_VERSION}")
 message("Qt6_LIBS = ${Qt6_LIBS}")
@@ -153,6 +153,7 @@ add_subdirectory(XView)
 add_subdirectory(XCodecRecord)
 add_subdirectory(XCodecLocalPlayer)
 add_subdirectory(ffmpeg_audio)
+add_subdirectory(ffmpeg_opengl)
 
 
 # 拷贝assert目录到输出目录

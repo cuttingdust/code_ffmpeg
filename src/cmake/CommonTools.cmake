@@ -66,6 +66,7 @@ set(QT6_MOUDLES
 	Qt6::Widgets
     Qt6::Gui
 	Qt6::Multimedia      # 添加多媒体模块
+	Qt6::OpenGLWidgets
 )
 
 # libevent
@@ -470,6 +471,51 @@ macro(set_cpp name)
 			)
 		endif()
     endif()
+endmacro()
+
+macro(generate_qt_deploy name)
+	# ========== 使用 windeployqt 部署 Qt DLL ==========
+	# 1. 找到 windeployqt.exe 的路径
+	get_target_property(QT6_QMAKE_LOCATION Qt6::qmake IMPORTED_LOCATION)
+	get_filename_component(QT6_BIN_DIR ${QT6_QMAKE_LOCATION} DIRECTORY)
+	set(WINDEPLOYQT ${QT6_BIN_DIR}/windeployqt.exe)
+
+	# 2. 检查 windeployqt 是否存在
+	if(NOT EXISTS ${WINDEPLOYQT})
+		message(WARNING "windeployqt.exe not found at: ${WINDEPLOYQT}")
+		message(WARNING "Qt DLL deployment will not work. Please check Qt installation.")
+	else()
+		# 3. 生成单个部署脚本到项目根目录
+		set(DEPLOY_BAT_DIR ${CMAKE_SOURCE_DIR})
+		
+		file(WRITE ${DEPLOY_BAT_DIR}/deploy_qt.bat 
+			"@echo off
+			echo ==========================================
+			echo Deploying Qt libraries for ${PROJECT_NAME}...
+			echo ==========================================
+			echo.
+			echo Target executable: ${OUT_RUN_PATH}/${PROJECT_NAME}.exe
+			echo.
+			\"${WINDEPLOYQT}\" \"${OUT_RUN_PATH}/${name}.exe\" --openglwidgets --multimedia
+			echo.
+			if %errorlevel% equ 0 (
+				echo [SUCCESS] Qt DLLs deployed successfully!
+			) else (
+				echo [ERROR] Deployment failed with error code %errorlevel%
+			)
+			echo.
+			pause
+		")
+		
+		message(STATUS "==========================================")
+		message(STATUS "Qt deploy script generated at: ${DEPLOY_BAT_DIR}/deploy_qt.bat")
+		message(STATUS "")
+		message(STATUS "Usage:")
+		message(STATUS "  1. Build your project in Visual Studio")
+		message(STATUS "  2. Double-click deploy_qt.bat")
+		message(STATUS "  3. Qt DLLs will be copied to ${OUT_RUN_PATH}")
+		message(STATUS "==========================================")
+	endif()
 endmacro()
 
 # 配置库环境配置（兼容windows linux mac）
