@@ -1,8 +1,10 @@
-﻿#include "XPlayVideo.h"
+#include "XPlayVideo.h"
 #include "ui_xplayvideo.h"
 
 #include <AVLog.h>
 #include <LocalPlayer.h>
+#include <XOpenGLVideoWidget.h>
+#include <XOverlayUtil.h>
 
 #include <QtWidgets/QStyle>
 #include <QtGui/QCloseEvent>
@@ -74,7 +76,7 @@ void XPlayVideo::adjustWindowSize()
     int total_width  = video_width_ + frame_width;
     int total_height = video_height_ + control_height + title_height;
 
-    ui->video_widget->setFixedSize(video_width_, video_height_);
+    ui->openGLWidget->setFixedSize(video_width_, video_height_);
     resize(total_width, total_height);
 
     LOGI("调整窗口大小: " << total_width << "x" << total_height << ", 视频: " << video_width_ << "x" << video_height_);
@@ -89,10 +91,11 @@ void XPlayVideo::setFile(const std::string& filepath, int camera_id, const QStri
     setWindowTitle(QString("回放: %1 - %2").arg(camera_name).arg(QString::fromStdString(filepath)));
 
     player_ = std::make_unique<LocalPlayer>();
+    player_->setOpenGLWidget(ui->openGLWidget);
+    player_->setRenderBackend(RenderBackend::OpenGL);
+    player_->setOverlayStyle(defaultRecOverlayStyle());
 
-    void* winId = (void*)ui->video_widget->winId();
-
-    if (player_->open(filepath, winId))
+    if (player_->open(filepath))
     {
         double duration = player_->getDuration();
         int    hours    = int(duration) / 3600;

@@ -37,7 +37,6 @@ FormatContextWrapper::FormatContextWrapper() : impl_(std::make_unique<PImpl>())
 
 FormatContextWrapper::~FormatContextWrapper() = default;
 
-// ✅ 添加 close 方法
 auto FormatContextWrapper::close() -> void
 {
     if (impl_->ctx_)
@@ -138,14 +137,18 @@ auto FormatContextWrapper::addStream() -> AVStream*
 auto FormatContextWrapper::writeHeader(AVDictionary** options) -> int
 {
     if (!impl_->ctx_ || impl_->is_input_)
+    {
         return -1;
+    }
     return avformat_write_header(impl_->ctx_, options);
 }
 
 auto FormatContextWrapper::writeTrailer() -> int
 {
     if (!impl_->ctx_ || impl_->is_input_)
+    {
         return -1;
+    }
     return av_write_trailer(impl_->ctx_);
 }
 
@@ -165,12 +168,15 @@ auto FormatContextWrapper::getDuration() const -> double
         return 0.0;
     }
 
-    return impl_->ctx_->duration / (double)AV_TIME_BASE;
+    return impl_->ctx_->duration / (double)AV_TIME_BASE; /// 秒
+    // return impl_->ctx_->duration / ((double)AV_TIME_BASE / 1000); /// 毫秒
 }
 
 auto FormatContextWrapper::getBitRate() const -> int64_t
 {
     if (!impl_->ctx_)
+    {
         return 0;
+    }
     return impl_->ctx_->bit_rate;
 }

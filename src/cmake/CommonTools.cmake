@@ -473,49 +473,71 @@ macro(set_cpp name)
     endif()
 endmacro()
 
-macro(generate_qt_deploy name)
-	# ========== 使用 windeployqt 部署 Qt DLL ==========
-	# 1. 找到 windeployqt.exe 的路径
+macro(register_qt_deploy_target name)
+	set_property(GLOBAL APPEND PROPERTY QT_DEPLOY_TARGETS ${name})
+endmacro()
+
+function(generate_qt_deploy_script)
+	get_property(QT_DEPLOY_TARGETS GLOBAL PROPERTY QT_DEPLOY_TARGETS)
+	if(NOT QT_DEPLOY_TARGETS)
+		return()
+	endif()
+
+	list(REMOVE_DUPLICATES QT_DEPLOY_TARGETS)
+
 	get_target_property(QT6_QMAKE_LOCATION Qt6::qmake IMPORTED_LOCATION)
 	get_filename_component(QT6_BIN_DIR ${QT6_QMAKE_LOCATION} DIRECTORY)
 	set(WINDEPLOYQT ${QT6_BIN_DIR}/windeployqt.exe)
 
-	# 2. 检查 windeployqt 是否存在
 	if(NOT EXISTS ${WINDEPLOYQT})
 		message(WARNING "windeployqt.exe not found at: ${WINDEPLOYQT}")
 		message(WARNING "Qt DLL deployment will not work. Please check Qt installation.")
-	else()
-		# 3. 生成单个部署脚本到项目根目录
-		set(DEPLOY_BAT_DIR ${CMAKE_SOURCE_DIR})
-		
-		file(WRITE ${DEPLOY_BAT_DIR}/deploy_qt.bat 
-			"@echo off
-			echo ==========================================
-			echo Deploying Qt libraries for ${PROJECT_NAME}...
-			echo ==========================================
-			echo.
-			echo Target executable: ${OUT_RUN_PATH}/${PROJECT_NAME}.exe
-			echo.
-			\"${WINDEPLOYQT}\" \"${OUT_RUN_PATH}/${name}.exe\" --openglwidgets --multimedia
-			echo.
-			if %errorlevel% equ 0 (
-				echo [SUCCESS] Qt DLLs deployed successfully!
-			) else (
-				echo [ERROR] Deployment failed with error code %errorlevel%
-			)
-			echo.
-			pause
-		")
-		
-		message(STATUS "==========================================")
-		message(STATUS "Qt deploy script generated at: ${DEPLOY_BAT_DIR}/deploy_qt.bat")
-		message(STATUS "")
-		message(STATUS "Usage:")
-		message(STATUS "  1. Build your project in Visual Studio")
-		message(STATUS "  2. Double-click deploy_qt.bat")
-		message(STATUS "  3. Qt DLLs will be copied to ${OUT_RUN_PATH}")
-		message(STATUS "==========================================")
+		return()
 	endif()
+
+	set(DEPLOY_BAT_DIR ${CMAKE_SOURCE_DIR})
+	set(deploy_commands
+		"@echo off\n"
+		"echo ==========================================\n"
+		"echo Deploying Qt libraries for OpenGL apps...\n"
+		"echo Output directory: ${OUT_RUN_PATH}\n"
+		"echo ==========================================\n"
+		"echo.\n"
+	)
+
+	foreach(target IN LISTS QT_DEPLOY_TARGETS)
+		string(APPEND deploy_commands
+			"echo Deploying ${target}.exe...\n"
+			"\"${WINDEPLOYQT}\" \"${OUT_RUN_PATH}/${target}.exe\" --openglwidgets --multimedia\n"
+			"if %errorlevel% neq 0 (\n"
+			"    echo [ERROR] ${target} deployment failed with error code %errorlevel%\n"
+			"    pause\n"
+			"    exit /b %errorlevel%\n"
+			")\n"
+			"echo.\n"
+		)
+	endforeach()
+
+	string(APPEND deploy_commands
+		"echo [SUCCESS] Qt DLLs deployed successfully!\n"
+		"echo.\n"
+		"pause\n"
+	)
+
+	file(WRITE ${DEPLOY_BAT_DIR}/deploy_qt.bat ${deploy_commands})
+
+	message(STATUS "==========================================")
+	message(STATUS "Qt deploy script generated at: ${DEPLOY_BAT_DIR}/deploy_qt.bat")
+	message(STATUS "Targets: ${QT_DEPLOY_TARGETS}")
+	message(STATUS "Usage:")
+	message(STATUS "  1. Build your project in Visual Studio")
+	message(STATUS "  2. Double-click deploy_qt.bat")
+	message(STATUS "  3. Qt DLLs will be copied to ${OUT_RUN_PATH}")
+	message(STATUS "==========================================")
+endfunction()
+
+macro(generate_qt_deploy name)
+	register_qt_deploy_target(${name})
 endmacro()
 
 # 配置库环境配置（兼容windows linux mac）

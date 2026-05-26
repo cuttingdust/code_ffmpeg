@@ -1,8 +1,12 @@
-﻿#pragma once
+#pragma once
 #include "XCodec_Global.h"
 #include "XMediaClient.h"
 #include "XDisplayTask.h"
 #include "XRecordTask.h"
+#include "XRenderBackend.h"
+#include "XOverlayStyle.h"
+
+class XOpenGLVideoWidget;
 
 /// RTSP 播放客户端
 class XCODEC_EXPORT RtspClient : public XMediaClient
@@ -21,6 +25,19 @@ public:
     // ==================== 显示控制 ====================
 
     void setRenderWindow(void* winId);
+    void setOpenGLWidget(XOpenGLVideoWidget* widget);
+    void setRenderBackend(RenderBackend backend);
+    RenderBackend renderBackend() const
+    {
+        return render_backend_;
+    }
+
+    void setOverlayStyle(const XOverlayStyle& style);
+    XOverlayStyle overlayStyle() const
+    {
+        return overlay_style_;
+    }
+
     void setRenderCallback(XDisplayTask::RenderCallback cb);
     void setFirstFrameCallback(XDisplayTask::FirstFrameCallback cb);
 
@@ -52,10 +69,15 @@ protected:
 private:
     void destroyTasks();
     void createTasks();
+    void applyDisplayRender();
 
 private:
     XDisplayTask::Ptr display_task_;
     XRecordTask::Ptr  record_task_;
     bool              record_enabled_ = false;
     void*             external_win_   = nullptr;
+    XOpenGLVideoWidget* opengl_widget_  = nullptr;
+    RenderBackend       render_backend_ = RenderBackend::SDL;
+    XOverlayStyle       overlay_style_;
+    XDisplayTask::RenderCallback custom_render_cb_;
 };

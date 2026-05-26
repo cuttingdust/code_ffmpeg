@@ -27,7 +27,7 @@ int main()
 
         auto start_time = std::chrono::steady_clock::now();
 
-        // 播放 20 秒后暂停
+        /// 播放 20 秒后暂停
         std::this_thread::sleep_for(std::chrono::seconds(20));
 
         printf("暂停播放...\n");

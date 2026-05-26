@@ -1,6 +1,7 @@
-﻿#include "XDisplayTask.h"
+#include "XDisplayTask.h"
 #include "AVLog.h"
 #include "FrameWrapper.h"
+#include "XOverlayUtil.h"
 #include <sstream>
 #include <utility>
 #include <SDL.h>
@@ -14,6 +15,8 @@ XDisplayTask::XDisplayTask()
     last_frame_time_ = std::chrono::steady_clock::now();
     rec_font_        = nullptr;
     rec_texture_     = nullptr;
+    overlay_style_   = defaultRecOverlayStyle();
+    rec_style_       = recStyleFromOverlay(overlay_style_);
 }
 
 XDisplayTask::~XDisplayTask()
@@ -49,6 +52,18 @@ void XDisplayTask::setFirstFrameCallback(FirstFrameCallback cb)
 void XDisplayTask::setRecordingIndicator(bool show)
 {
     show_rec_indicator_ = show;
+}
+
+void XDisplayTask::setOverlayStyle(const XOverlayStyle& style)
+{
+    overlay_style_ = style;
+    rec_style_     = recStyleFromOverlay(style);
+    destroyRecTexture();
+}
+
+XOverlayStyle XDisplayTask::overlayStyle() const
+{
+    return overlay_style_;
 }
 
 void XDisplayTask::setPaused(bool paused)
@@ -243,7 +258,8 @@ void XDisplayTask::drawRecOverlay(void* renderer_ptr)
 
     if (rec_texture_)
     {
-        SDL_Rect dst_rect = { 8, 8, rec_texture_width_, rec_texture_height_ };
+        SDL_Rect dst_rect = { overlay_style_.margin_left, overlay_style_.margin_top, rec_texture_width_,
+                              rec_texture_height_ };
         SDL_RenderCopy(renderer, (SDL_Texture*)rec_texture_, nullptr, &dst_rect);
     }
 }

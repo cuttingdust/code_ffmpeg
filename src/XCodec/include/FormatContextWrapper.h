@@ -39,7 +39,7 @@ public:
     auto writeTrailer() -> int;
 
     /// 打印格式信息
-    void dumpInfo(int index, const char* url, int is_output) const;
+    auto dumpInfo(int index, const char* url, int is_output) const -> void;
 
     /// 获取时长（秒）
     auto getDuration() const -> double;

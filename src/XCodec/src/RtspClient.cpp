@@ -1,7 +1,12 @@
-﻿#include "RtspClient.h"
+#include "RtspClient.h"
 #include "AVLog.h"
+#include "XRecordingOverlay.h"
+#include "XOverlayUtil.h"
+#include "XOpenGLDisplay.h"
+#include "XOpenGLVideoWidget.h"
+#include "FrameWrapper.h"
 
-RtspClient::RtspClient()
+RtspClient::RtspClient() : overlay_style_(defaultRecOverlayStyle())
 {
     LOGI("RTSP客户端创建");
     createTasks();
@@ -45,10 +50,29 @@ void RtspClient::createTasks()
     decode_task_->setErrorCallback(error_cb);
     display_task_->setErrorCallback(error_cb);
 
-    if (external_win_)
+    applyDisplayRender();
+}
+
+void RtspClient::applyDisplayRender()
+{
+    if (!display_task_)
     {
-        display_task_->setWindow(external_win_);
+        return;
     }
+
+    if (custom_render_cb_)
+    {
+        display_task_->setRenderCallback(custom_render_cb_);
+        return;
+    }
+
+    if (render_backend_ == RenderBackend::OpenGL && opengl_widget_)
+    {
+        bindOpenGLDisplayTask(display_task_.get(), opengl_widget_);
+        return;
+    }
+
+    bindSdlDisplayTask(display_task_.get(), external_win_);
 }
 
 void RtspClient::destroyTasks()
@@ -123,13 +147,20 @@ void RtspClient::reconnectImpl()
     LOGI("RtspClient 重连实现 - 重新创建任务");
 
     void* saved_win = external_win_;
+    auto  saved_backend = render_backend_;
+    auto* saved_widget  = opengl_widget_;
 
     destroyTasks();
     createTasks();
 
-    if (saved_win && display_task_)
+    render_backend_ = saved_backend;
+    opengl_widget_  = saved_widget;
+    external_win_   = saved_win;
+    applyDisplayRender();
+    applyOverlayStyle(overlay_style_, display_task_.get(), opengl_widget_);
+
+    if (saved_win && render_backend_ == RenderBackend::SDL)
     {
-        display_task_->setWindow(saved_win);
         LOGI("重连后重新设置窗口: " << saved_win);
     }
 
@@ -274,18 +305,35 @@ void RtspClient::wait()
 void RtspClient::setRenderWindow(void* winId)
 {
     external_win_ = winId;
-    if (display_task_)
+    applyDisplayRender();
+}
+
+void RtspClient::setOpenGLWidget(XOpenGLVideoWidget* widget)
+{
+    opengl_widget_ = widget;
+    if (opengl_widget_)
     {
-        display_task_->setWindow(winId);
+        opengl_widget_->setOverlayStyle(overlay_style_);
     }
+    applyDisplayRender();
+}
+
+void RtspClient::setRenderBackend(RenderBackend backend)
+{
+    render_backend_ = backend;
+    applyDisplayRender();
+}
+
+void RtspClient::setOverlayStyle(const XOverlayStyle& style)
+{
+    overlay_style_ = style;
+    applyOverlayStyle(style, display_task_.get(), opengl_widget_);
 }
 
 void RtspClient::setRenderCallback(XDisplayTask::RenderCallback cb)
 {
-    if (display_task_)
-    {
-        display_task_->setRenderCallback(std::move(cb));
-    }
+    custom_render_cb_ = std::move(cb);
+    applyDisplayRender();
 }
 
 void RtspClient::setFirstFrameCallback(XDisplayTask::FirstFrameCallback cb)
@@ -298,10 +346,9 @@ void RtspClient::setFirstFrameCallback(XDisplayTask::FirstFrameCallback cb)
 
 void RtspClient::setRecordingIndicator(bool show)
 {
-    if (display_task_)
-    {
-        display_task_->setRecordingIndicator(show);
-    }
+    const bool use_gl  = render_backend_ == RenderBackend::OpenGL;
+    const bool use_sdl = !use_gl;
+    applyRecordingIndicator(show, display_task_.get(), opengl_widget_, use_sdl, use_gl);
 }
 
 bool RtspClient::startRecording(const std::string& filename, int duration_sec)

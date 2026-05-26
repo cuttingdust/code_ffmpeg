@@ -57,7 +57,9 @@ auto BaseAVFormat::getStreams() const -> std::vector<AVStream *>
 auto BaseAVFormat::getCodecParameters(int stream_index) const -> std::shared_ptr<CodecParametersWrapper>
 {
     if (!fmt_ctx_)
+    {
         return nullptr;
+    }
 
     AVFormatContext *ctx = fmt_ctx_->get();
     if (stream_index < 0 || stream_index >= static_cast<int>(ctx->nb_streams))

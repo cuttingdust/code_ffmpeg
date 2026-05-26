@@ -70,15 +70,12 @@
     <number>0</number>
    </property>
    <item>
-    <widget class="QWidget" name="video_widget" native="true">
+    <widget class="XOpenGLVideoWidget" name="openGLWidget">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
        <horstretch>0</horstretch>
        <verstretch>0</verstretch>
       </sizepolicy>
-     </property>
-     <property name="styleSheet">
-      <string notr="true">background-color: black;</string>
      </property>
     </widget>
    </item>
@@ -193,6 +190,13 @@
   </layout>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
+ <customwidgets>
+  <customwidget>
+   <class>XOpenGLVideoWidget</class>
+   <extends>QOpenGLWidget</extends>
+   <header>XOpenGLVideoWidget.h</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections>
   <connection>

@@ -1,9 +1,51 @@
 ﻿#include "LocalPlayer.h"
 #include "AVLog.h"
-#include <chrono>
+#include "XOpenGLDisplay.h"
+#include "XRecordingOverlay.h"
+#include "XOverlayUtil.h"
+#include "XOpenGLVideoWidget.h"
+#include "XDemuxTask.h"
+#include "XDecodeTask.h"
+#include "XDisplayTask.h"
 
-LocalPlayer::LocalPlayer()
+#include <atomic>
+#include <chrono>
+#include <thread>
+
+class LocalPlayer::PImpl
 {
+public:
+    void controlLoop();
+
+public:
+    XDemuxTask::Ptr   demux_task_;
+    XDecodeTask::Ptr  decode_task_;
+    XDisplayTask::Ptr display_task_;
+
+    std::string         filepath_;
+    void*               window_         = nullptr;
+    XOpenGLVideoWidget* opengl_widget_  = nullptr;
+    RenderBackend       render_backend_ = RenderBackend::SDL;
+    XOverlayStyle       overlay_style_;
+    double              duration_     = 0.0;
+    double              frame_rate_   = 25.0;
+    int                 video_width_  = 0;
+    int                 video_height_ = 0;
+
+    std::atomic<bool>   is_playing_{ false };
+    std::atomic<bool>   is_paused_{ false };
+    std::atomic<bool>   is_finished_{ false };
+    std::atomic<bool>   should_stop_{ false };
+    std::atomic<bool>   seek_request_{ false };
+    std::atomic<double> seek_target_{ 0.0 };
+    std::atomic<double> speed_{ 1.0 };
+
+    std::thread control_thread_;
+};
+
+LocalPlayer::LocalPlayer() : impl_(std::make_unique<PImpl>())
+{
+    impl_->overlay_style_ = defaultRecOverlayStyle();
     LOGI("本地播放器创建");
 }
 
@@ -12,76 +54,111 @@ LocalPlayer::~LocalPlayer()
     stop();
 }
 
+void LocalPlayer::setOpenGLWidget(QWidget* widget)
+{
+    impl_->opengl_widget_ = dynamic_cast<XOpenGLVideoWidget*>(widget);
+}
+
+void LocalPlayer::setRenderBackend(RenderBackend backend)
+{
+    impl_->render_backend_ = backend;
+}
+
+RenderBackend LocalPlayer::renderBackend() const
+{
+    return impl_->render_backend_;
+}
+
+void LocalPlayer::setOverlayStyle(const XOverlayStyle& style)
+{
+    impl_->overlay_style_ = style;
+    applyOverlayStyle(style, impl_->display_task_.get(), impl_->opengl_widget_);
+}
+
 bool LocalPlayer::open(const std::string& filepath, void* winId)
 {
-    filepath_ = filepath;
-    window_   = winId;
+    impl_->filepath_ = filepath;
+    impl_->window_   = winId;
 
     try
     {
-        demux_task_   = XDemuxTask::create();
-        decode_task_  = XDecodeTask::create();
-        display_task_ = XDisplayTask::create();
+        impl_->demux_task_   = XDemuxTask::create();
+        impl_->decode_task_  = XDecodeTask::create();
+        impl_->display_task_ = XDisplayTask::create();
 
-        demux_task_->setName("LocalDemux");
-        decode_task_->setName("LocalDecode");
-        display_task_->setName("LocalDisplay");
+        impl_->demux_task_->setName("LocalDemux");
+        impl_->decode_task_->setName("LocalDecode");
+        impl_->display_task_->setName("LocalDisplay");
 
-        demux_task_->setNext(decode_task_);
-        decode_task_->setNext(display_task_);
+        impl_->demux_task_->setNext(impl_->decode_task_);
+        impl_->decode_task_->setNext(impl_->display_task_);
 
-        /// 设置队列大小
-        demux_task_->setMaxQueueSize(500);
-        decode_task_->setMaxQueueSize(500);
-        display_task_->setMaxQueueSize(1000);
+        impl_->demux_task_->setMaxQueueSize(500);
+        impl_->decode_task_->setMaxQueueSize(500);
+        impl_->display_task_->setMaxQueueSize(1000);
 
-        /// 设置空闲超时（本地文件不需要超时检测）
-        demux_task_->setIdleTimeoutMs(0);
-        decode_task_->setIdleTimeoutMs(0);
-        display_task_->setIdleTimeoutMs(0);
+        impl_->demux_task_->setIdleTimeoutMs(0);
+        impl_->decode_task_->setIdleTimeoutMs(0);
+        impl_->display_task_->setIdleTimeoutMs(0);
 
-        if (!demux_task_->open(filepath))
+        if (!impl_->demux_task_->open(filepath))
         {
             LOGE("打开文件失败: " << filepath);
             return false;
         }
 
-        auto video_stream = demux_task_->getVideoStream();
+        auto video_stream = impl_->demux_task_->getVideoStream();
         if (!video_stream)
         {
             LOGE("未找到视频流");
             return false;
         }
 
-        video_width_  = video_stream->codecpar->width;
-        video_height_ = video_stream->codecpar->height;
-        duration_     = demux_task_->getDuration();
+        impl_->video_width_  = video_stream->codecpar->width;
+        impl_->video_height_ = video_stream->codecpar->height;
+        impl_->duration_     = impl_->demux_task_->getDuration();
 
         if (video_stream->avg_frame_rate.num > 0)
         {
-            frame_rate_ = av_q2d(video_stream->avg_frame_rate);
+            impl_->frame_rate_ = av_q2d(video_stream->avg_frame_rate);
         }
         else if (video_stream->r_frame_rate.num > 0)
         {
-            frame_rate_ = av_q2d(video_stream->r_frame_rate);
+            impl_->frame_rate_ = av_q2d(video_stream->r_frame_rate);
         }
 
-        LOGI("视频: " << video_width_ << "x" << video_height_ << ", 时长: " << duration_ << "秒"
-                      << ", 帧率: " << frame_rate_ << " fps");
+        LOGI("视频: " << impl_->video_width_ << "x" << impl_->video_height_ << ", 时长: " << impl_->duration_ << "秒"
+                      << ", 帧率: " << impl_->frame_rate_ << " fps");
 
-        decode_task_->setHardwareDecode(false);
-        if (!decode_task_->initDecoder(video_stream->codecpar->codec_id, video_stream))
+        impl_->decode_task_->setHardwareDecode(false);
+        if (!impl_->decode_task_->initDecoder(video_stream->codecpar->codec_id, video_stream))
         {
             LOGE("初始化解码器失败");
             return false;
         }
 
-        display_task_->setWindow(winId);
+        if (impl_->render_backend_ == RenderBackend::OpenGL)
+        {
+            if (!impl_->opengl_widget_)
+            {
+                LOGE("OpenGL 渲染需要先调用 setOpenGLWidget()");
+                return false;
+            }
 
-        auto error_cb = [this](const std::string& msg) { LOGE("LocalPlayer 错误: " << msg); };
-        demux_task_->setErrorCallback(error_cb);
-        decode_task_->setErrorCallback(error_cb);
-        display_task_->setErrorCallback(error_cb);
+            bindOpenGLDisplayTask(impl_->display_task_.get(), impl_->opengl_widget_);
+            impl_->opengl_widget_->setOverlayStyle(impl_->overlay_style_);
+            LOGI("使用 OpenGL 主线程渲染");
+        }
+        else
+        {
+            bindSdlDisplayTask(impl_->display_task_.get(), winId);
+            LOGI("使用 SDL 渲染");
+        }
+
+        auto error_cb = [](const std::string& msg) { LOGE("LocalPlayer 错误: " << msg); };
+        impl_->demux_task_->setErrorCallback(error_cb);
+        impl_->decode_task_->setErrorCallback(error_cb);
+        impl_->display_task_->setErrorCallback(error_cb);
 
         LOGI("打开文件成功: " << filepath);
         return true;
@@ -95,44 +172,42 @@ bool LocalPlayer::open(const std::string& filepath, void* winId)
 
 void LocalPlayer::play()
 {
-    if (is_playing_)
+    if (impl_->is_playing_)
     {
         LOGW("已经在播放中");
         return;
     }
 
-    should_stop_  = false;
-    is_playing_   = true;
-    is_paused_    = false;
-    is_finished_  = false;
-    seek_request_ = false;
+    impl_->should_stop_  = false;
+    impl_->is_playing_   = true;
+    impl_->is_paused_    = false;
+    impl_->is_finished_  = false;
+    impl_->seek_request_ = false;
 
-    // 启动控制线程
-    control_thread_ = std::thread(&LocalPlayer::controlLoop, this);
+    impl_->control_thread_ = std::thread(&LocalPlayer::PImpl::controlLoop, impl_.get());
 
-    // 启动任务链（先启动下游，再启动上游）
-    display_task_->start();
-    decode_task_->start();
-    demux_task_->start();
+    impl_->display_task_->start();
+    impl_->decode_task_->start();
+    impl_->demux_task_->start();
 
-    LOGI("开始播放: " << filepath_);
+    LOGI("开始播放: " << impl_->filepath_);
 }
 
 void LocalPlayer::pause()
 {
-    if (!is_playing_ || is_paused_)
+    if (!impl_->is_playing_ || impl_->is_paused_)
     {
         return;
     }
-    is_paused_ = true;
+    impl_->is_paused_ = true;
 
-    if (demux_task_)
+    if (impl_->demux_task_)
     {
-        demux_task_->setPaused(true);
+        impl_->demux_task_->setPaused(true);
     }
-    if (display_task_)
+    if (impl_->display_task_)
     {
-        display_task_->setPaused(true);
+        impl_->display_task_->setPaused(true);
     }
 
     LOGI("暂停播放");
@@ -140,61 +215,60 @@ void LocalPlayer::pause()
 
 void LocalPlayer::resume()
 {
-    if (!is_playing_ || !is_paused_)
+    if (!impl_->is_playing_ || !impl_->is_paused_)
     {
         return;
     }
 
-    if (demux_task_)
+    if (impl_->demux_task_)
     {
-        demux_task_->setPaused(false);
+        impl_->demux_task_->setPaused(false);
+    }
+    if (impl_->display_task_)
+    {
+        impl_->display_task_->setPaused(false);
     }
 
-    if (display_task_)
-    {
-        display_task_->setPaused(false);
-    }
-
-    is_paused_ = false;
+    impl_->is_paused_ = false;
     LOGI("恢复播放");
 }
 
 void LocalPlayer::stop()
 {
-    if (!is_playing_ && !is_finished_)
+    if (!impl_->is_playing_ && !impl_->is_finished_)
     {
         return;
     }
 
     LOGI("停止播放");
-    should_stop_ = true;
-    is_playing_  = false;
-    is_paused_   = false;
+    impl_->should_stop_ = true;
+    impl_->is_playing_  = false;
+    impl_->is_paused_   = false;
 
-    if (demux_task_)
+    if (impl_->demux_task_)
     {
-        demux_task_->stop();
-        decode_task_->stop();
-        display_task_->stop();
+        impl_->demux_task_->stop();
+        impl_->decode_task_->stop();
+        impl_->display_task_->stop();
     }
 
-    if (control_thread_.joinable())
+    if (impl_->control_thread_.joinable())
     {
-        control_thread_.join();
+        impl_->control_thread_.join();
     }
 
-    if (demux_task_)
+    if (impl_->demux_task_)
     {
-        demux_task_->wait();
-        decode_task_->wait();
-        display_task_->wait();
+        impl_->demux_task_->wait();
+        impl_->decode_task_->wait();
+        impl_->display_task_->wait();
     }
 
-    if (demux_task_)
+    if (impl_->demux_task_)
     {
-        demux_task_->reset();
-        decode_task_->reset();
-        display_task_->reset();
+        impl_->demux_task_->reset();
+        impl_->decode_task_->reset();
+        impl_->display_task_->reset();
     }
 
     LOGI("播放已停止");
@@ -202,13 +276,12 @@ void LocalPlayer::stop()
 
 void LocalPlayer::seek(double seconds)
 {
-    if (!demux_task_)
+    if (!impl_->demux_task_)
     {
         return;
     }
 
-    // 直接调用同步 seek，会等待完成
-    demux_task_->seek(seconds);
+    impl_->demux_task_->seek(seconds);
     LOGI("Seek 到: " << seconds << "秒");
 }
 
@@ -244,49 +317,76 @@ void LocalPlayer::setSpeed(double speed)
         return;
     }
 
-    speed_ = speed;
+    impl_->speed_ = speed;
 
-    if (demux_task_)
+    if (impl_->demux_task_)
     {
-        demux_task_->setSpeed(speed);
+        impl_->demux_task_->setSpeed(speed);
     }
 
     LOGI("设置播放速度: " << speed << "x");
 }
 
+double LocalPlayer::getSpeed() const
+{
+    return impl_->speed_.load();
+}
+
 double LocalPlayer::getDuration() const
 {
-    return duration_;
+    return impl_->duration_;
 }
 
 double LocalPlayer::getCurrentTime() const
 {
-    if (demux_task_)
+    if (impl_->demux_task_)
     {
-        return demux_task_->getCurrentTime();
+        return impl_->demux_task_->getCurrentTime();
     }
     return 0.0;
 }
 
-void LocalPlayer::controlLoop()
+bool LocalPlayer::isPlaying() const
+{
+    return impl_->is_playing_;
+}
+
+bool LocalPlayer::isPaused() const
+{
+    return impl_->is_paused_;
+}
+
+bool LocalPlayer::isFinished() const
+{
+    return impl_->is_finished_;
+}
+
+int LocalPlayer::getWidth() const
+{
+    return impl_->video_width_;
+}
+
+int LocalPlayer::getHeight() const
+{
+    return impl_->video_height_;
+}
+
+void LocalPlayer::PImpl::controlLoop()
 {
     LOGI("控制线程启动");
 
     while (!should_stop_ && is_playing_)
     {
-        // 处理暂停
         if (is_paused_)
         {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
         }
 
-        // 检查是否播放结束
         if (demux_task_ && demux_task_->isEofReached())
         {
             LOGI("文件读取完成，等待队列清空...");
 
-            // 等待下游队列清空
             for (int i = 0; i < 10; i++)
             {
                 if ((!decode_task_ || decode_task_->getQueueSize() == 0) &&

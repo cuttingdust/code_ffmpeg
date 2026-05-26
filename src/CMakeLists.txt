@@ -154,8 +154,11 @@ add_subdirectory(XCodecRecord)
 add_subdirectory(XCodecLocalPlayer)
 add_subdirectory(ffmpeg_audio)
 add_subdirectory(ffmpeg_opengl)
+add_subdirectory(XPlay)
 
 
 # 拷贝assert目录到输出目录
 set(ASSERT_PATH ${CMAKE_CURRENT_SOURCE_DIR}/assert)
 file(COPY ${ASSERT_PATH} DESTINATION ${OUT_RUN_PATH})
+
+generate_qt_deploy_script()

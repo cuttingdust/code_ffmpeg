@@ -1,8 +1,9 @@
-﻿#pragma once
+#pragma once
 
 #include "XTask.h"
 #include "XVideoView.h"
 #include "FrameWrapper.h"
+#include "XOverlayStyle.h"
 #include <chrono>
 #include <functional>
 #include <SDL_pixels.h>
@@ -49,6 +50,9 @@ public:
 
     void setRecordingIndicator(bool show);
 
+    void setOverlayStyle(const XOverlayStyle& style);
+    XOverlayStyle overlayStyle() const;
+
     void setPaused(bool paused) override;
 
 protected:
@@ -65,6 +69,7 @@ private:
 
 private:
     std::unique_ptr<XVideoView> view_;
+    XOverlayStyle               overlay_style_;
     RecStyle                    rec_style_;
     RenderCallback              render_cb_;
     FirstFrameCallback          first_frame_cb_;

@@ -1,11 +1,11 @@
-﻿#include "XCameraWidget.h"
+#include "XCameraWidget.h"
 
 #include "RecordClient.h"
 #include "RtspClient.h"
-#include "XDisplayTask.h"
-#include "XVideoView.h"
+#include "XOpenGLVideoWidget.h"
 #include "XCameraConfig.h"
 #include "XRecorderManager.h"
+#include "XOverlayUtil.h"
 
 #include <filesystem>
 
@@ -13,8 +13,8 @@
 #include <QtWidgets/QMessageBox>
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QMenu>
+#include <QtWidgets/QVBoxLayout>
 #include <QtGui/QtEvents>
-#include <QtGui/QPainter>
 #include <QtCore/QTimer>
 
 class XCameraWidget::PImpl
@@ -25,6 +25,7 @@ public:
 
 public:
     XCameraWidget                *owenr_ = nullptr;
+    XOpenGLVideoWidget           *video_widget_ = nullptr;
     std::shared_ptr<RtspClient>   rtsp_client_;
     QString                       current_url_;
     bool                          is_loading_    = false;
@@ -40,7 +41,14 @@ XCameraWidget::PImpl::PImpl(XCameraWidget *owenr) : owenr_(owenr)
 XCameraWidget::XCameraWidget(QWidget *p) : QWidget(p), impl_(std::make_unique<XCameraWidget::PImpl>(this))
 {
     setAcceptDrops(true);
-    setAttribute(Qt::WA_NativeWindow);
+
+    auto *layout = new QVBoxLayout(this);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(0);
+
+    impl_->video_widget_ = new XOpenGLVideoWidget(this);
+    impl_->video_widget_->setOverlayStyle(defaultRecOverlayStyle());
+    layout->addWidget(impl_->video_widget_);
 }
 
 XCameraWidget::~XCameraWidget()
@@ -98,9 +106,15 @@ bool XCameraWidget::open(const QString &url)
     impl_->rtsp_client_->setUrl(url.toStdString());
     impl_->rtsp_client_->setReconnectInterval(5);
     impl_->rtsp_client_->setMaxReconnects(3);
-    impl_->rtsp_client_->setRenderWindow(reinterpret_cast<void *>(winId()));
+    impl_->rtsp_client_->setOpenGLWidget(impl_->video_widget_);
+    impl_->rtsp_client_->setRenderBackend(RenderBackend::OpenGL);
+    impl_->rtsp_client_->setOverlayStyle(defaultRecOverlayStyle());
 
     impl_->is_loading_ = true;
+    if (impl_->video_widget_)
+    {
+        impl_->video_widget_->setOverlayMessage(tr("加载中..."));
+    }
     update();
 
     if (!impl_->loading_timer_)
@@ -132,6 +146,10 @@ bool XCameraWidget::open(const QString &url)
                                                   impl_->loading_timer_->stop();
                                               }
                                               impl_->is_loading_ = false;
+                                              if (impl_->video_widget_)
+                                              {
+                                                  impl_->video_widget_->setOverlayMessage(QString());
+                                              }
                                               updateMenuState();
                                               update();
                                           });
@@ -280,8 +298,6 @@ void XCameraWidget::setRecordingIndicatorFromManager(bool recording)
     {
         impl_->rtsp_client_->setRecordingIndicator(recording);
     }
-
-    update(); // 刷新 Qt 绘制（作为备用）
 }
 
 auto XCameraWidget::getRtspClient() const -> std::shared_ptr<RtspClient>
@@ -361,45 +377,10 @@ void XCameraWidget::dropEvent(QDropEvent *event)
 
 void XCameraWidget::paintEvent(QPaintEvent *event)
 {
-    QStyleOption opt;
-    opt.initFrom(this);
-    QPainter painter(this);
-    style()->drawPrimitive(QStyle::PE_Widget, &opt, &painter, this);
-
-    if (impl_->is_loading_)
-    {
-        painter.setPen(Qt::white);
-        painter.drawText(rect(), Qt::AlignCenter, "加载中...");
-    }
-
-    // Qt 层面备用 REC 绘制（当 SDL 不可用时）
-    if (is_recording_flag_)
-    {
-        painter.save();
-        painter.setBrush(QColor(255, 0, 0, 180));
-        painter.setPen(Qt::NoPen);
-        QRect recRect(8, 8, 55, 24);
-        painter.drawRoundedRect(recRect, 4, 4);
-        painter.setPen(Qt::white);
-        QFont font = painter.font();
-        font.setPointSize(10);
-        font.setBold(true);
-        painter.setFont(font);
-        painter.drawText(recRect, Qt::AlignCenter, "REC");
-        painter.restore();
-    }
+    Q_UNUSED(event)
 }
 
 void XCameraWidget::resizeEvent(QResizeEvent *event)
 {
-    if (impl_->rtsp_client_ && impl_->rtsp_client_->isRunning())
-    {
-        if (auto display_task = impl_->rtsp_client_->getDisplayTask())
-        {
-            if (auto view = display_task->getVideoView())
-            {
-                view->scale(event->size().width(), event->size().height());
-            }
-        }
-    }
+    QWidget::resizeEvent(event);
 }

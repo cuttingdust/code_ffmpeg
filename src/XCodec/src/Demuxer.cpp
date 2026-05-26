@@ -1,5 +1,4 @@
 ﻿#include "Demuxer.h"
-#include "AVException.h"
 #include <iostream>
 #include <thread>
 
@@ -61,7 +60,6 @@ auto Demuxer::readPacket(AVPacket* pkt) -> int
 
     int ret = safe_av_read_frame(fmt_ctx_->get(), pkt);
 
-    // ✅ 添加日志
     // LOGI("av_read_frame 返回: " << ret);
 
     if (ret >= 0)
@@ -99,7 +97,7 @@ auto Demuxer::seek(double timestamp, int stream_index, int flags) -> bool
         return false;
     }
 
-    AVFormatContext* ctx     = fmt_ctx_->get();
+    AVFormatContext* ctx        = fmt_ctx_->get();
     int64_t          seek_ts_us = (int64_t)(timestamp * AV_TIME_BASE);
 
     if (stream_index >= 0 && std::cmp_less(stream_index, ctx->nb_streams))
@@ -107,6 +105,9 @@ auto Demuxer::seek(double timestamp, int stream_index, int flags) -> bool
         AVStream* stream = ctx->streams[stream_index];
         seek_ts_us       = av_rescale_q(seek_ts_us, AV_TIME_BASE_Q, stream->time_base);
     }
+
+    /// 刷新解码器缓冲
+    avformat_flush(ctx);
 
     return av_seek_frame(ctx, stream_index, seek_ts_us, flags) >= 0;
 }

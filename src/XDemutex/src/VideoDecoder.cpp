@@ -1,4 +1,4 @@
-﻿#include "VideoDecoder.h"
+#include "VideoDecoder.h"
 #include "AVException.h"
 #include "FrameWrapper.h"
 
@@ -334,26 +334,12 @@ auto VideoDecoder::decode_packet(const AVPacket* pkt, std::vector<AVFrame*>& out
 
     int64_t start_time = av_gettime_relative();
 
-    /// ===== 处理 MP4 格式的 H.264/H.265 数据 =====
-    AVPacket* input_pkt      = pkt;
-    AVPacket  temp_pkt       = { 0 };
-    bool      need_free_temp = false;
-
     /// 发送packet
-    int ret = avcodec_send_packet(impl_->ctx_->get(), input_pkt);
+    int ret = avcodec_send_packet(impl_->ctx_->get(), pkt);
     if (ret < 0)
     {
-        if (need_free_temp)
-        {
-            av_free(temp_pkt.data);
-        }
         impl_->stats_.errors++;
         throw AVException("发送packet失败", ret);
-    }
-
-    if (need_free_temp)
-    {
-        av_free(temp_pkt.data);
     }
 
     int         frame_count    = 0;

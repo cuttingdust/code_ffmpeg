@@ -6,6 +6,10 @@ project(${CURRENT_DIR})
 set(DPS_LIBRARYS
     ${SDL2_MOUDLES}
     ${FFMEPG_MOUDLES}
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Widgets
+    Qt6::OpenGLWidgets
 )
 
 cpp_library(${PROJECT_NAME})

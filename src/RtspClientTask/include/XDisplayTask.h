@@ -51,7 +51,7 @@ private:
     bool                        window_created_       = false;
     bool                        reconnecting_         = false;
     bool                        first_frame_received_ = false;
-    void*                       external_win_         = nullptr; // 外部窗口句柄
+    void*                       external_win_         = nullptr; /// 外部窗口句柄
 
     std::chrono::steady_clock::time_point last_frame_time_;
     int                                   fps_         = 0;
