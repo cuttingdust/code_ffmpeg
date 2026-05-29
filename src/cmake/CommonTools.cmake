@@ -425,14 +425,21 @@ macro(set_cpp name)
 			# COMPILE_FLAGS "-bigobj"
 			# )
 			
-			# 为特定目标设置MSVC运行时库
+			# 为特定目标设置MSVC运行时库与调试信息
 			target_compile_options(${name} PRIVATE
-				# Debug 配置使用 /MDd
 				"$<$<CONFIG:Debug>:/MDd>"
-				# Release, RelWithDebInfo, MinSizeRel 使用 /MD
+				"$<$<CONFIG:Debug>:/Zi>"
+				"$<$<CONFIG:Debug>:/Od>"
+				"$<$<CONFIG:Debug>:/JMC->"
 				"$<$<CONFIG:Release>:/MD>"
 				"$<$<CONFIG:RelWithDebInfo>:/MD>"
+				"$<$<CONFIG:RelWithDebInfo>:/Zi>"
 				"$<$<CONFIG:MinSizeRel>:/MD>"
+			)
+
+			target_link_options(${name} PRIVATE
+				"$<$<CONFIG:Debug>:/DEBUG>"
+				"$<$<CONFIG:RelWithDebInfo>:/DEBUG>"
 			)
     endif()
 
@@ -465,11 +472,6 @@ macro(set_cpp name)
 
     if(WIN32)
         get_target_property(debug_postfix ${name} DEBUG_POSTFIX)
-		if(MSVC)
-		 target_compile_options(${name} PRIVATE
-			$<$<CONFIG:Debug>:/ZI>
-			)
-		endif()
     endif()
 endmacro()
 

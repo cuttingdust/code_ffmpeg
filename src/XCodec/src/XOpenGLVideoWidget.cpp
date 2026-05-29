@@ -1,11 +1,6 @@
 ﻿#include "XOpenGLVideoWidget.h"
 #include "XOverlayUtil.h"
-
-extern "C" {
-#include <libavutil/frame.h>
-#include <libavutil/pixfmt.h>
-#include <libswscale/swscale.h>
-}
+#include "AVConst.h"
 
 #include <algorithm>
 #include <cmath>

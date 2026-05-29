@@ -15,6 +15,7 @@ cpp_execute(${PROJECT_NAME})
 register_qt_deploy_target(${PROJECT_NAME})
 
 if(MSVC)
+    set_property(DIRECTORY ${CMAKE_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
     set_target_properties(${PROJECT_NAME} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY ${OUT_RUN_PATH})
     set_target_properties(${PROJECT_NAME} PROPERTIES FOLDER "XOPENGL_TEST")
     target_compile_options(${PROJECT_NAME} PRIVATE /utf-8)

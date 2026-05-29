@@ -468,6 +468,24 @@ void XDisplayTask::process()
         if (render_cb_)
         {
             render_cb_(frame);
+
+            if (!first_frame_received_)
+            {
+                first_frame_received_ = true;
+                if (first_frame_cb_)
+                {
+                    first_frame_cb_();
+                }
+            }
+
+            if (reconnecting_)
+            {
+                LOGI("网络已恢复，继续播放");
+                reconnecting_ = false;
+            }
+
+            last_frame_time_ = std::chrono::steady_clock::now();
+            updateFPS();
         }
         else
         {

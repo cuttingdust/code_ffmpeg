@@ -1,4 +1,4 @@
-#include "XCameraWidget.h"
+﻿#include "XCameraWidget.h"
 
 #include "RecordClient.h"
 #include "RtspClient.h"
@@ -24,7 +24,7 @@ public:
     ~PImpl() = default;
 
 public:
-    XCameraWidget                *owenr_ = nullptr;
+    XCameraWidget                *owenr_        = nullptr;
     XOpenGLVideoWidget           *video_widget_ = nullptr;
     std::shared_ptr<RtspClient>   rtsp_client_;
     QString                       current_url_;
@@ -69,18 +69,24 @@ bool XCameraWidget::isPlaying() const
 QString XCameraWidget::getCameraName() const
 {
     if (impl_->camera_id_ < 0)
+    {
         return QString();
+    }
     auto config = XCameraConfig::instance();
     auto cam    = config->getCamera(impl_->camera_id_);
     if (cam)
+    {
         return QString::fromStdString(cam->name);
+    }
     return QString();
 }
 
 void XCameraWidget::updateMenuState()
 {
     if (!context_menu_)
+    {
         return;
+    }
 
     bool playing = isPlaying();
 
@@ -106,8 +112,10 @@ bool XCameraWidget::open(const QString &url)
     impl_->rtsp_client_->setUrl(url.toStdString());
     impl_->rtsp_client_->setReconnectInterval(5);
     impl_->rtsp_client_->setMaxReconnects(3);
-    impl_->rtsp_client_->setOpenGLWidget(impl_->video_widget_);
-    impl_->rtsp_client_->setRenderBackend(RenderBackend::OpenGL);
+    // impl_->rtsp_client_->setOpenGLWidget(impl_->video_widget_);
+    // impl_->rtsp_client_->setRenderBackend(RenderBackend::OpenGL);
+    impl_->rtsp_client_->setRenderWindow(reinterpret_cast<void *>(winId()));
+    impl_->rtsp_client_->setRenderBackend(RenderBackend::SDL);
     impl_->rtsp_client_->setOverlayStyle(defaultRecOverlayStyle());
 
     impl_->is_loading_ = true;
@@ -267,10 +275,14 @@ void XCameraWidget::startRecording()
 void XCameraWidget::stopRecording()
 {
     if (impl_->camera_id_ < 0)
+    {
         return;
+    }
 
     if (!isRecording())
+    {
         return;
+    }
 
     XRecorderManager::instance().stopRecording(impl_->camera_id_);
 
@@ -286,7 +298,9 @@ void XCameraWidget::stopRecording()
 bool XCameraWidget::isRecording() const
 {
     if (impl_->camera_id_ < 0)
+    {
         return false;
+    }
     return XRecorderManager::instance().isRecording(impl_->camera_id_);
 }
 

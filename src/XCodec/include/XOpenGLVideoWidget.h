@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "XCodec_Global.h"
 #include "XOverlayStyle.h"

@@ -15,6 +15,7 @@ extern "C" {
 #include <libavutil/dict.h>
 #include <libavutil/frame.h>
 #include <libavutil/rational.h>
+#include <libswscale/swscale.h>
 }
 
 /// ==================== 时间工具 ====================
@@ -28,7 +29,9 @@ extern "C" {
 inline int64_t seconds_to_pts(double seconds, AVRational time_base)
 {
     if (time_base.num == 0 || time_base.den == 0)
+    {
         return 0;
+    }
     return seconds * time_base.den / time_base.num;
 }
 
@@ -41,7 +44,9 @@ inline int64_t seconds_to_pts(double seconds, AVRational time_base)
 inline double pts_to_seconds(int64_t pts, AVRational time_base)
 {
     if (time_base.num == 0 || time_base.den == 0)
+    {
         return 0;
+    }
     return pts * time_base.num / (double)time_base.den;
 }
 
