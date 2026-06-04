@@ -1,0 +1,151 @@
+---
+description: Linear 工作流 — 斜杠命令、.linear.yaml、docs/plan 与 Git/PR 同步（口扫多仓）
+alwaysApply: true
+---
+
+# Linear 工作流（斜杠命令为主）
+
+## 核心原则
+
+1. **以当前 git 仓库为准**：读取工作区根目录的 `.linear.yaml`；Issue 创建在其中的 `team` + `project` 下。
+2. **一仓一 Linear Project**：`project.slug` 与 git 仓绑定；**Linear 里显示名**用 `project.linear_name`，格式 **`中文说明(仓库slug)`**，例：`音视频开发(code_ffmpeg)`。
+3. **一个大产品一个 Team**（如 `口扫`）；子仓与主仓 `team` 相同，`project` 不同。
+4. **禁止**在未配置时猜测 Project/Team；无 `.linear.yaml` 或 `enabled: false` 时提示 `/linear-init`，或仅输出「创建单」供用户粘贴到 Linear。
+5. **禁止**用 Checklist 堆测试用例；**一任务/一用例 = 一个 Sub-issue**（Type 区分 Task / Test / Bug）。
+6. **完成定义**：commit 带 `LIN-xxx` 同步 plan 打勾；**PR 合并**将对应 **Story → Done** 并勾 plan 中 Story 行。
+
+## 配置文件 `.linear.yaml`
+
+- 位置：当前仓库根目录（与 `.git` 同级）。
+- 无文件：执行 `/linear-init` 引导创建；在 init 完成前，除 init 外不调用 Linear API。
+- `enabled: false`：不自动同步；斜杠仍可输出创建单。
+
+创建 Issue 前读取：`team`、`project.slug`、`project.linear_name`、`project.title_cn`、`repo.slug`、`planning.root`、`sync.*`。
+
+**Project 命名（必遵）：**
+
+- `project.slug`：英文/代码标识，与 git 仓库名一致，用于 Label、分支、配置匹配（如 `code_ffmpeg`）。
+- `project.title_cn`：中文简短说明，由**你指定**（如 `音视频开发`、`渲染引擎`）。
+- `project.linear_name`：写入 **Linear Project 的显示名称**，默认合成：
+
+  ```text
+  {title_cn}({slug})
+  ```
+
+  例：`音视频开发(code_ffmpeg)`。若你已手写 `linear_name`，以 yaml 为准，不再自动拼接。
+
+- **禁止**仅用 slug 作为 Linear Project 名（如单独 `code_ffmpeg`），除非你在 init 明确确认。
+
+## Linear 层级（与 docs/plan 对齐）
+
+| 文档 | Linear | 类型 |
+|------|--------|------|
+| `## 1. 模块` | Epic | — |
+| `### 1.1 需求` | Story | Feature/Story |
+| `#### 1.1.1 开发任务` | Sub-issue | **Task** |
+| `#### … TC: …` / 测试节 | Sub-issue | **Test**（一用例一 Issue） |
+| 缺陷 | Issue | **Bug**（`/bug`，挂父 Story） |
+
+规划目录：**本仓库** `docs/plan/`（路径以 yaml 为准）。
+
+`docs/plan` 行格式（自动打勾依赖 Issue 号）：
+
+```markdown
+### 1.1 导出报表  LIN-100
+- [ ] 1.1.1 后端 API  LIN-101
+- [ ] TC: CSV 完整  LIN-103
+```
+
+## 斜杠命令（标准入口）
+
+自然语言仅作别名：明确出现「创建需求」等且意图唯一时，走与下表相同流程。
+
+### 接入
+
+| 命令 | 行为 |
+|------|------|
+| `/linear-init` | 无 `.linear.yaml` 时：询问并生成配置（见下「init 问卷」） |
+| `/linear-on` `/linear-off` | 切换 `enabled` |
+| `/linear-status` | 显示 team、project.slug、project.linear_name、enabled、当前 LIN |
+
+**init 问卷（用户未给则逐项问，不得静默建 Project）：**
+
+1. 产品线 **Team** 名？（例：`口扫`；须确认）
+2. **仓库 slug**（英文标识，与 git 仓名一致）？（例：`code_ffmpeg`、`rendering`）
+3. **中文项目说明** `title_cn`（你定，用于显示）？（例：`音视频开发`、`渲染引擎`）
+4. 合成 **Linear Project 显示名**并请你确认：`{title_cn}({slug})` → 写入 `project.linear_name`
+5. 仓库角色：`main` 或 `component`？若 component：**main_repo_slug**？
+6. 绑定已有 Linear Project 还是新建？新建时 API/界面使用的 name = **`project.linear_name`**，不是单独 slug
+
+`repo.slug` 默认等于 `project.slug`；`repo.display` 可与 `title_cn` 相同或更长的描述。
+
+### 创建（先预览，用户回复 y 再执行 API；无 API 则输出创建单）
+
+| 命令 | 创建 |
+|------|------|
+| `/req [标题]` | **Story**；若指明子任务则 **Sub Task** 挂指定 Story |
+| `/bug [标题]` | **Bug**，必须关联父 Story |
+| `/tc [标题]` | **Sub Test**，必须关联父 Story；一用例一 Issue |
+| `/epic [标题]` | **Epic**（少用） |
+
+预览含：Type、标题（前缀 `[project.slug]` 或 `[title_cn]`，以 yaml `defaults.issue_title_prefix` 为准）、父 Issue、Labels（`repo:slug`）、所属 Linear Project **`linear_name`**。
+
+### 状态与分支
+
+| 命令 | 行为 |
+|------|------|
+| `/branch` | 按 `defaults.branch_pattern` 输出推荐分支（如 `feat/LIN-123-slug`），不自动建分支 |
+| `/commit-msg` | 生成 `feat(LIN-123): 描述` |
+| `/linear-start` | Issue → In Progress |
+| `/linear-review` | → In Review |
+| `/linear-done` | → Done（手动；PR 合并也会自动 Done Story） |
+| `/link` | 提示当前应对应的 LIN 与 commit 模板 |
+
+### 同步
+
+| 命令 | 行为 |
+|------|------|
+| `/sync` | 根据分支/commit/用户说明，更新 Linear 状态 + `docs/plan` 勾选 |
+| `/plan-sync` | 解析 `docs/plan` 三层 → 预览批量 Epic/Story/Sub → 确认后创建 |
+
+## 父 Issue 解析顺序
+
+`/tc`、`/bug`、`/branch` 解析父 Story：
+
+1. 用户消息中的 `LIN-xxx`
+2. 当前 git 分支名中的 `LIN-xxx`
+3. 询问用户（不得猜测）
+
+## Git 自动同步（配置 `sync` 开启时）
+
+**commit**（message 含 `LIN-xxx`）：
+
+- 更新对应 Sub/Task 或约定状态（In Progress 等，与团队工作流一致）。
+- **`docs/plan`**：将含该 `LIN-xxx` 的行 `- [ ]` 改为 `- [x]`。
+- 无 `LIN-xxx` 的行不修改。
+
+**PR 合并**（合并到 `main_branch`，默认 `main`；PR/分支/描述含 **Story** 的 `LIN-xxx`）：
+
+- Linear：**Story → Done**。
+- **plan**：Story 标题行（含 `LIN-100`）及已在本 PR 完成的 Sub 行打勾。
+- 仅 Sub 的 PR：只勾 Sub 行，**不**将 Story 标 Done。
+
+实现：有 Linear API/MCP 则执行；否则在 `/sync` 或 PR 合并后提示用户手动改，并给出应勾选的 plan 行列表。
+
+## 多仓库
+
+- 打开文件夹 = 某 git 根；只认该根 `.linear.yaml`。
+- 子仓 BUG/任务 → `project.slug: rendering`，Linear 显示名例：`渲染引擎(rendering)`。
+- 主仓 → `project.slug: cad-app`，Linear 显示名例：`口扫设计软件(cad-app)`，`repo_role: main`。
+- 对话意图属于另一 Project 时：询问「记入哪个 Project？」
+
+## API
+
+- API Key：**不得**写入提交到 git 的 yaml；使用环境变量 `LINEAR_API_KEY` 或本地 `linear.yaml.local`（gitignore）。
+- 无 Key：创建类命令输出结构化「创建单」（标题、Type、Team、Project、父 Issue、描述）。
+
+## 与开发流程
+
+- 改代码前：若分支无 `LIN-xxx`，建议 `/req` 或 `/link`。
+- 不要因聊天结束就标 Done；以 commit + PR 合并规则为准。
+- 规则不影响 Cursor Tab / Ctrl+K，仅 Agent 会话。

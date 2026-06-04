@@ -1,0 +1,33 @@
+enabled: true
+
+team: "HOME"
+team_id: "706e5b35-91b6-44b6-8173-fa9187b10faa"
+
+project:
+  slug: "code_ffmpeg"
+  title_cn: "音视频开发"
+  linear_name: "音视频开发(code_ffmpeg)"
+  id: "6aa9ed7e-eb13-431d-b159-26ab074b4f63"
+
+repo:
+  slug: "code_ffmpeg"
+  display: "音视频开发"
+
+repo_role: "main"
+
+planning:
+  root: "docs/plan"
+
+sync:
+  on_commit: true
+  on_commit_update_plan: true
+  on_pr_merge: true
+  on_pr_merge_story_done: true
+  on_pr_merge_update_plan: true
+  main_branch: "main"
+
+defaults:
+  issue_title_prefix: "[code_ffmpeg]"
+  branch_pattern: "feat/LIN-{id}-{slug}"
+
+# API：Cursor Linear MCP 或 LINEAR_API_KEY；勿提交密钥到 git
