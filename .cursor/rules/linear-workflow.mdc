@@ -64,6 +64,7 @@ alwaysApply: true
 
 | 命令 | 行为 |
 |------|------|
+| `/linear-help` | 显示本工作流命令速查、常用示例和详细说明位置 |
 | `/linear-init` | 无 `.linear.yaml` 时：询问并生成配置（见下「init 问卷」） |
 | `/linear-on` `/linear-off` | 切换 `enabled` |
 | `/linear-status` | 显示 team、project.slug、project.linear_name、enabled、当前 LIN |
