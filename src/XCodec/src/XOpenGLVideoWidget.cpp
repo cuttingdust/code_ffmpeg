@@ -93,10 +93,46 @@ XOpenGLVideoWidget::XOpenGLVideoWidget(QWidget* parent) : QOpenGLWidget(parent)
 
 XOpenGLVideoWidget::~XOpenGLVideoWidget()
 {
+    gl_initialized_.store(false, std::memory_order_release);
     makeCurrent();
     destroyPbos();
     destroyTextures();
     doneCurrent();
+}
+
+bool XOpenGLVideoWidget::init()
+{
+    if (isInit())
+    {
+        return true;
+    }
+
+    if (!isVisible() || width() <= 0 || height() <= 0)
+    {
+        return false;
+    }
+
+    makeCurrent();
+    if (!context() || !context()->isValid())
+    {
+        doneCurrent();
+        return false;
+    }
+
+    initGlResources();
+    doneCurrent();
+    return isInit();
+}
+
+bool XOpenGLVideoWidget::isInit() const
+{
+    return gl_initialized_.load(std::memory_order_acquire);
+}
+
+void XOpenGLVideoWidget::setFirstFrameCallback(FirstFrameCallback cb)
+{
+    first_frame_cb_ = std::move(cb);
+    first_frame_notified_.store(false, std::memory_order_release);
 }
 
 void XOpenGLVideoWidget::setScaleMode(ScaleMode mode)
@@ -216,6 +252,11 @@ int XOpenGLVideoWidget::droppedFrames() const
 
 void XOpenGLVideoWidget::submitFrame(const AVFrame* frame)
 {
+    if (!isInit())
+    {
+        return;
+    }
+
     if (!frame || !frame->data[0])
     {
         return;
@@ -288,11 +329,22 @@ void XOpenGLVideoWidget::submitFrame(const AVFrame* frame)
             Qt::QueuedConnection);
 }
 
-void XOpenGLVideoWidget::initializeGL()
+void XOpenGLVideoWidget::initGlResources()
 {
+    bool expected = false;
+    if (!gl_initialized_.compare_exchange_strong(expected, true, std::memory_order_acq_rel))
+    {
+        return;
+    }
+
     initializeOpenGLFunctions();
     initShaders();
     initGeometry();
+}
+
+void XOpenGLVideoWidget::initializeGL()
+{
+    initGlResources();
 }
 
 void XOpenGLVideoWidget::resizeGL(int w, int h)
@@ -342,6 +394,12 @@ void XOpenGLVideoWidget::paintGL()
             default:
                 drawYuv420pFrame(*frame);
                 break;
+        }
+
+        if (!first_frame_notified_.exchange(true, std::memory_order_acq_rel) && first_frame_cb_)
+        {
+            const FirstFrameCallback cb = first_frame_cb_;
+            QMetaObject::invokeMethod(this, [cb]() { cb(); }, Qt::QueuedConnection);
         }
     }
 

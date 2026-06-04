@@ -53,8 +53,9 @@ void XRtspDemo::initClient()
     client_->setRenderBackend(RenderBackend::OpenGL);
     client_->setOverlayStyle(defaultRecOverlayStyle());
     ui->openGLWidget->setOverlayMessage(tr("连接中..."));
+    ui->openGLWidget->init();
 
-    client_->setFirstFrameCallback(
+    ui->openGLWidget->setFirstFrameCallback(
             [this]()
             {
                 QMetaObject::invokeMethod(this,

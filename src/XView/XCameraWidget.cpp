@@ -112,11 +112,11 @@ bool XCameraWidget::open(const QString &url)
     impl_->rtsp_client_->setUrl(url.toStdString());
     impl_->rtsp_client_->setReconnectInterval(5);
     impl_->rtsp_client_->setMaxReconnects(3);
-    // impl_->rtsp_client_->setOpenGLWidget(impl_->video_widget_);
-    // impl_->rtsp_client_->setRenderBackend(RenderBackend::OpenGL);
-    impl_->rtsp_client_->setRenderWindow(reinterpret_cast<void *>(winId()));
-    impl_->rtsp_client_->setRenderBackend(RenderBackend::SDL);
+    impl_->rtsp_client_->setOpenGLWidget(impl_->video_widget_);
+    impl_->rtsp_client_->setRenderBackend(RenderBackend::OpenGL);
     impl_->rtsp_client_->setOverlayStyle(defaultRecOverlayStyle());
+
+    impl_->video_widget_->init();
 
     impl_->is_loading_ = true;
     if (impl_->video_widget_)
@@ -143,7 +143,7 @@ bool XCameraWidget::open(const QString &url)
     }
     impl_->loading_timer_->start(8000);
 
-    impl_->rtsp_client_->setFirstFrameCallback(
+    impl_->video_widget_->setFirstFrameCallback(
             [this]()
             {
                 QMetaObject::invokeMethod(this,

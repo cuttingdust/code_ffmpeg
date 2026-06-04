@@ -469,15 +469,6 @@ void XDisplayTask::process()
         {
             render_cb_(frame);
 
-            if (!first_frame_received_)
-            {
-                first_frame_received_ = true;
-                if (first_frame_cb_)
-                {
-                    first_frame_cb_();
-                }
-            }
-
             if (reconnecting_)
             {
                 LOGI("网络已恢复，继续播放");

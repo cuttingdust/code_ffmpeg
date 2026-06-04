@@ -15,7 +15,7 @@ inline void bindOpenGLDisplayTask(XDisplayTask* task, XOpenGLVideoWidget* widget
     task->setRenderCallback(
             [widget](const FrameWrapper& frame)
             {
-                if (frame)
+                if (frame && widget->isInit())
                 {
                     widget->submitFrame(frame.get());
                 }

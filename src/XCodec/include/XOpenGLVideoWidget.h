@@ -15,6 +15,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <vector>
@@ -50,6 +51,13 @@ public:
 
     explicit XOpenGLVideoWidget(QWidget* parent = nullptr);
     ~XOpenGLVideoWidget() override;
+
+    /// 确保 OpenGL 资源已创建（通常由 initializeGL 自动完成；播放前可主动调用）
+    bool init();
+    bool isInit() const;
+
+    using FirstFrameCallback = std::function<void()>;
+    void setFirstFrameCallback(FirstFrameCallback cb);
 
     void submitFrame(const AVFrame* frame);
 
@@ -125,6 +133,7 @@ private:
         }
     };
 
+    void initGlResources();
     void initShaders();
     void initGeometry();
     void ensureTextures(int width, int height, FramePixelFormat format);
@@ -195,12 +204,16 @@ private:
     mutable std::mutex                 frame_mutex_;
     std::shared_ptr<const FrameBuffer> pending_frame_;
     std::shared_ptr<const FrameBuffer> current_frame_;
+    std::atomic<bool>                  gl_initialized_{ false };
+    std::atomic<bool>                  first_frame_notified_{ false };
     std::atomic<bool>                  update_scheduled_{ false };
     std::atomic<int>                   dropped_frames_{ 0 };
 
     std::atomic<bool> show_rec_indicator_{ false };
     QString           overlay_message_;
     XOverlayStyle     overlay_style_;
+
+    FirstFrameCallback first_frame_cb_;
 
     int           render_fps_  = 0;
     int           frame_count_ = 0;
