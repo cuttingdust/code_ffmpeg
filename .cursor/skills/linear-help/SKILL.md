@@ -20,12 +20,14 @@ Give the user a concise help menu for the Linear workflow.
    - Create: `/req`, `/bug`, `/tc`, `/epic`.
    - Development: `/branch`, `/commit-msg`, `/link`.
    - Status: `/linear-start`, `/linear-review`, `/linear-done`.
-   - Sync: `/sync`, `/plan-sync`.
+   - Sync: `/plan-sync` (`docs/plan -> Linear`), `/linear-pull` (`Linear -> docs/plan`), `/sync` (development progress/status).
 3. Include 3-5 practical examples, such as:
    - `/req 支持导出报表`
    - `/bug LIN-100 导出 CSV 中文乱码`
    - `/tc LIN-100 CSV 字段完整性校验`
    - `/branch LIN-123 导出报表`
+   - `/plan-sync`
+   - `/linear-pull`
    - `/sync LIN-123`
 4. Mention the detailed guide if present: `.cursor/rules/linear-workflow-usage.md`.
 5. Keep the answer short enough to use as an in-chat cheat sheet.

@@ -106,8 +106,15 @@ alwaysApply: true
 
 | 命令 | 行为 |
 |------|------|
-| `/sync` | 根据分支/commit/用户说明，更新 Linear 状态 + `docs/plan` 勾选 |
-| `/plan-sync` | 解析 `docs/plan` 三层 → 预览批量 Epic/Story/Sub → 确认后创建 |
+| `/plan-sync` | **docs/plan → Linear**：解析三层规划 → 预览批量 Epic/Story/Sub → 确认后创建并回写 `LIN-xxx` |
+| `/linear-pull` | **Linear → docs/plan**：拉取当前 Project 的 Epic/Story/Sub/Test/Bug → 预览后生成或更新规划文档 |
+| `/sync` | **开发进度同步**：根据分支/commit/PR/用户说明，更新 Linear 状态 + `docs/plan` 勾选 |
+
+方向约定：
+
+- `/plan-sync`：用于前期把本地规划推到 Linear，不负责同步开发完成状态。
+- `/linear-pull`：用于把 Linear 中已有任务拉回 `docs/plan`，不删除本地文档中 Linear 找不到的内容。
+- `/sync`：用于已有 `LIN-xxx` 后的开发过程同步，不批量创建 Issue，也不重建 plan。
 
 ## 父 Issue 解析顺序
 
@@ -131,7 +138,14 @@ alwaysApply: true
 - **plan**：Story 标题行（含 `LIN-100`）及已在本 PR 完成的 Sub 行打勾。
 - 仅 Sub 的 PR：只勾 Sub 行，**不**将 Story 标 Done。
 
-实现：有 Linear API/MCP 则执行；否则在 `/sync` 或 PR 合并后提示用户手动改，并给出应勾选的 plan 行列表。
+**Linear 拉取到文档**（`/linear-pull`）：
+
+- 从 `.linear.yaml` 读取当前 Project；不得猜另一个 Project。
+- 拉取 Epic/Story/Sub Task/Sub Test/Bug，并按 `docs/plan` 层级生成或更新。
+- 已存在同一 `LIN-xxx` 的行：只更新明确字段，如标题和勾选状态。
+- Linear 中找不到的本地内容：不删除，只报告差异。
+
+实现：有 Linear API/MCP 则执行；否则在 `/sync`、`/plan-sync`、`/linear-pull` 或 PR 合并后提示用户手动改，并给出应处理的 plan 行列表或创建单。
 
 ## 多仓库
 

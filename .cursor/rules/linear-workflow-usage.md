@@ -300,15 +300,62 @@ docs/plan/
 /plan-sync
 ```
 
+它表示 **`docs/plan -> Linear`**，用于把本地规划推送到 Linear。
+
 它会解析 `docs/plan/` 中的三层结构：
 
 - Epic
 - Story
 - Sub Task / Sub Test
 
-然后先展示批量创建预览。你确认后才会创建 Linear Issue。
+然后先展示批量创建预览。你确认后才会创建 Linear Issue，并把创建出来的 `LIN-xxx` 回写到对应 plan 行。
+
+适合场景：
+
+- 你先在 `docs/plan/` 写好了模块、需求、任务和测试用例。
+- Linear 里还没有这些任务。
+- 你想一次性批量创建，并保持文档和 Linear 编号一致。
+
+### 从 Linear 拉回 plan
+
+```text
+/linear-pull
+```
+
+它表示 **`Linear -> docs/plan`**，用于把当前 `.linear.yaml` 绑定的 Linear Project 拉回本地规划文档。
+
+它会读取 Linear 中的：
+
+- Epic
+- Story
+- Sub Task
+- Sub Test
+- Bug
+
+然后按 `docs/plan` 的层级预览生成或更新：
+
+```markdown
+## 1. 模块
+
+### 1.1 需求 LIN-100
+
+- [ ] 1.1.1 开发任务 LIN-101
+- [x] TC: 已完成测试用例 LIN-102
+- [ ] BUG: 已知缺陷 LIN-103
+```
+
+如果文档里已经有相同的 `LIN-xxx`，它只更新明确匹配的标题、状态或勾选。  
+如果文档里有内容但 Linear 中找不到，它不会直接删除，只会提示差异。
 
 ## 同步
+
+这套工作流里有三个容易混淆的同步命令：
+
+```text
+/plan-sync    docs/plan -> Linear，创建或补齐 Linear Issue
+/linear-pull  Linear -> docs/plan，把 Linear 任务拉回文档
+/sync         开发进度同步，更新状态和勾选
+```
 
 ### 手动同步
 
@@ -321,6 +368,9 @@ docs/plan/
 - 更新 Linear Issue 状态。
 - 勾选 `docs/plan` 中对应 `LIN-xxx` 的任务行。
 - 必要时提示你确认。
+
+它不负责批量创建 Linear Issue。需要从 plan 创建任务时，用 `/plan-sync`。  
+它也不负责从 Linear 重建文档。需要从 Linear 拉回文档时，用 `/linear-pull`。
 
 ### commit 同步
 
