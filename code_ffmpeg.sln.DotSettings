@@ -1,0 +1,50 @@
+<wpf:ResourceDictionary xml:space="preserve" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:s="clr-namespace:System;assembly=mscorlib" xmlns:ss="urn:shemas-jetbrains-com:settings-storage-xaml" xmlns:wpf="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+	<!-- Team-shared ReSharper settings: {RepoName}.sln.DotSettings at repo root -->
+	<!-- Loaded beside src/build/{RepoName}.sln; merges with GlobalSettingsStorage, overrides keys below only -->
+
+	<s:Boolean x:Key="/Default/CodeEditing/CppDocumentationComment/AddBriefTag/@EntryValue">True</s:Boolean>
+	<s:String x:Key="/Default/CodeEditing/CppDocumentationComment/CommentStyle/@EntryValue">Eol</s:String>
+	<s:String x:Key="/Default/CodeEditing/CppDocumentationComment/TagPrefix/@EntryValue">Backslash</s:String>
+	<s:Boolean x:Key="/Default/CodeEditing/CppDocumentationComment/UseLiveTemplate/@EntryValue">True</s:Boolean>
+
+	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=EBC68DF20DE88A43A3ACF081AFD07CCC/@KeyIndexDefined">True</s:Boolean>
+	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=EBC68DF20DE88A43A3ACF081AFD07CCC/Applicability/=Live/@EntryIndexedValue">True</s:Boolean>
+	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=EBC68DF20DE88A43A3ACF081AFD07CCC/Applicability/=Surround/@EntryIndexedValue">True</s:Boolean>
+	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=EBC68DF20DE88A43A3ACF081AFD07CCC/Description/@EntryValue">Documentation template</s:String>
+	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=EBC68DF20DE88A43A3ACF081AFD07CCC/Field/=DETAILDESCRIPTION/@KeyIndexDefined">True</s:Boolean>
+	<s:Int64 x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=EBC68DF20DE88A43A3ACF081AFD07CCC/Field/=DETAILDESCRIPTION/Order/@EntryValue">7</s:Int64>
+	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=EBC68DF20DE88A43A3ACF081AFD07CCC/Field/=MDESCRIPTION/@KeyIndexDefined">True</s:Boolean>
+	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=EBC68DF20DE88A43A3ACF081AFD07CCC/Field/=MDESCRIPTION/Expression/@EntryValue">constant("")</s:String>
+	<s:Int64 x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=EBC68DF20DE88A43A3ACF081AFD07CCC/Field/=MDESCRIPTION/Order/@EntryValue">5</s:Int64>
+	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=EBC68DF20DE88A43A3ACF081AFD07CCC/Field/=MNAME/@KeyIndexDefined">True</s:Boolean>
+	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=EBC68DF20DE88A43A3ACF081AFD07CCC/Field/=MNAME/Expression/@EntryValue">cppMacroParameterName()</s:String>
+	<s:Int64 x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=EBC68DF20DE88A43A3ACF081AFD07CCC/Field/=MNAME/InitialRange/@EntryValue">-1</s:Int64>
+	<s:Int64 x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=EBC68DF20DE88A43A3ACF081AFD07CCC/Field/=MNAME/Order/@EntryValue">4</s:Int64>
+	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=EBC68DF20DE88A43A3ACF081AFD07CCC/Field/=PDESCRIPTION/@KeyIndexDefined">True</s:Boolean>
+	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=EBC68DF20DE88A43A3ACF081AFD07CCC/Field/=PDESCRIPTION/Expression/@EntryValue">constant("")</s:String>
+	<s:Int64 x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=EBC68DF20DE88A43A3ACF081AFD07CCC/Field/=PDESCRIPTION/Order/@EntryValue">3</s:Int64>
+	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=EBC68DF20DE88A43A3ACF081AFD07CCC/Field/=PNAME/@KeyIndexDefined">True</s:Boolean>
+	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=EBC68DF20DE88A43A3ACF081AFD07CCC/Field/=PNAME/Expression/@EntryValue">cppFunctionParameterName()</s:String>
+	<s:Int64 x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=EBC68DF20DE88A43A3ACF081AFD07CCC/Field/=PNAME/InitialRange/@EntryValue">-1</s:Int64>
+	<s:Int64 x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=EBC68DF20DE88A43A3ACF081AFD07CCC/Field/=PNAME/Order/@EntryValue">2</s:Int64>
+	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=EBC68DF20DE88A43A3ACF081AFD07CCC/Field/=RETURN/@KeyIndexDefined">True</s:Boolean>
+	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=EBC68DF20DE88A43A3ACF081AFD07CCC/Field/=RETURN/Expression/@EntryValue">cppFunctionReturnValue()</s:String>
+	<s:Int64 x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=EBC68DF20DE88A43A3ACF081AFD07CCC/Field/=RETURN/Order/@EntryValue">6</s:Int64>
+	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=EBC68DF20DE88A43A3ACF081AFD07CCC/Field/=TDESCRIPTION/@KeyIndexDefined">True</s:Boolean>
+	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=EBC68DF20DE88A43A3ACF081AFD07CCC/Field/=TDESCRIPTION/Expression/@EntryValue">constant("")</s:String>
+	<s:Int64 x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=EBC68DF20DE88A43A3ACF081AFD07CCC/Field/=TDESCRIPTION/Order/@EntryValue">1</s:Int64>
+	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=EBC68DF20DE88A43A3ACF081AFD07CCC/Field/=TNAME/@KeyIndexDefined">True</s:Boolean>
+	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=EBC68DF20DE88A43A3ACF081AFD07CCC/Field/=TNAME/Expression/@EntryValue">cppTemplateParameterName()</s:String>
+	<s:Int64 x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=EBC68DF20DE88A43A3ACF081AFD07CCC/Field/=TNAME/InitialRange/@EntryValue">-1</s:Int64>
+	<s:Int64 x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=EBC68DF20DE88A43A3ACF081AFD07CCC/Field/=TNAME/Order/@EntryValue">0</s:Int64>
+	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=EBC68DF20DE88A43A3ACF081AFD07CCC/IsBlessed/@EntryValue">True</s:Boolean>
+	<s:Boolean x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=EBC68DF20DE88A43A3ACF081AFD07CCC/Scope/=74E586EA91EEBE4CA893A5216F6D2C2A/@KeyIndexDefined">True</s:Boolean>
+	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=EBC68DF20DE88A43A3ACF081AFD07CCC/Scope/=74E586EA91EEBE4CA893A5216F6D2C2A/Type/@EntryValue">InCppComment</s:String>
+	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=EBC68DF20DE88A43A3ACF081AFD07CCC/Shortcut/@EntryValue">doc2</s:String>
+	<s:String x:Key="/Default/PatternsAndTemplates/LiveTemplates/Template/=EBC68DF20DE88A43A3ACF081AFD07CCC/Text/@EntryValue">/// \brief		$END$&#xD;
+/// \details	$DETAILDESCRIPTION$&#xD;
+/// \tparam $TNAME$ $TDESCRIPTION$&#xD;
+/// \param $PNAME$ $PDESCRIPTION$&#xD;
+/// \param $MNAME$ $MDESCRIPTION$&#xD;
+/// \return $RETURN$</s:String>
+</wpf:ResourceDictionary>
