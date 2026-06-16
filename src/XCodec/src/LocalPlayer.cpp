@@ -5,8 +5,10 @@
 #include "XOverlayUtil.h"
 #include "XOpenGLVideoWidget.h"
 #include "XDemuxTask.h"
-#include "XDecodeTask.h"
-#include "XDisplayTask.h"
+#include "XVideoDecodeTask.h"
+#include "XVideoDisplayTask.h"
+#include "XAudioDecodeTask.h"
+#include "XAudioPlayTask.h"
 
 #include <atomic>
 #include <chrono>
@@ -18,9 +20,11 @@ public:
     void controlLoop();
 
 public:
-    XDemuxTask::Ptr   demux_task_;
-    XDecodeTask::Ptr  decode_task_;
-    XDisplayTask::Ptr display_task_;
+    XDemuxTask::Ptr        demux_task_;
+    XVideoDecodeTask::Ptr  decode_task_;
+    XVideoDisplayTask::Ptr display_task_;
+    XAudioDecodeTask::Ptr  audio_decode_task_;
+    XAudioPlayTask::Ptr    audio_play_task_;
 
     std::string         filepath_;
     void*               window_         = nullptr;
@@ -82,24 +86,10 @@ bool LocalPlayer::open(const std::string& filepath, void* winId)
 
     try
     {
-        impl_->demux_task_   = XDemuxTask::create();
-        impl_->decode_task_  = XDecodeTask::create();
-        impl_->display_task_ = XDisplayTask::create();
-
+        impl_->demux_task_ = XDemuxTask::create();
         impl_->demux_task_->setName("LocalDemux");
-        impl_->decode_task_->setName("LocalDecode");
-        impl_->display_task_->setName("LocalDisplay");
-
-        impl_->demux_task_->setNext(impl_->decode_task_);
-        impl_->decode_task_->setNext(impl_->display_task_);
-
         impl_->demux_task_->setMaxQueueSize(500);
-        impl_->decode_task_->setMaxQueueSize(500);
-        impl_->display_task_->setMaxQueueSize(1000);
-
         impl_->demux_task_->setIdleTimeoutMs(0);
-        impl_->decode_task_->setIdleTimeoutMs(0);
-        impl_->display_task_->setIdleTimeoutMs(0);
 
         if (!impl_->demux_task_->open(filepath))
         {
@@ -107,58 +97,131 @@ bool LocalPlayer::open(const std::string& filepath, void* winId)
             return false;
         }
 
-        auto video_stream = impl_->demux_task_->getVideoStream();
-        if (!video_stream)
+        auto* video_stream = impl_->demux_task_->getVideoStream();
+        auto* audio_stream = impl_->demux_task_->getAudioStream();
+        if (!video_stream && !audio_stream)
         {
-            LOGE("未找到视频流");
+            LOGE("未找到音视频流");
             return false;
         }
 
-        impl_->video_width_  = video_stream->codecpar->width;
-        impl_->video_height_ = video_stream->codecpar->height;
-        impl_->duration_     = impl_->demux_task_->getDuration();
+        impl_->duration_ = impl_->demux_task_->getDuration();
 
-        if (video_stream->avg_frame_rate.num > 0)
+        if (video_stream)
         {
-            impl_->frame_rate_ = av_q2d(video_stream->avg_frame_rate);
-        }
-        else if (video_stream->r_frame_rate.num > 0)
-        {
-            impl_->frame_rate_ = av_q2d(video_stream->r_frame_rate);
-        }
+            impl_->decode_task_  = XVideoDecodeTask::create();
+            impl_->display_task_ = XVideoDisplayTask::create();
 
-        LOGI("视频: " << impl_->video_width_ << "x" << impl_->video_height_ << ", 时长: " << impl_->duration_ << "秒"
-                      << ", 帧率: " << impl_->frame_rate_ << " fps");
+            impl_->decode_task_->setName("LocalDecode");
+            impl_->display_task_->setName("LocalDisplay");
 
-        impl_->decode_task_->setHardwareDecode(false);
-        if (!impl_->decode_task_->initDecoder(video_stream->codecpar->codec_id, video_stream))
-        {
-            LOGE("初始化解码器失败");
-            return false;
-        }
+            impl_->demux_task_->setNext(impl_->decode_task_);
+            impl_->decode_task_->setNext(impl_->display_task_);
 
-        if (impl_->render_backend_ == RenderBackend::OpenGL)
-        {
-            if (!impl_->opengl_widget_)
+            impl_->decode_task_->setMaxQueueSize(500);
+            impl_->display_task_->setMaxQueueSize(1000);
+            impl_->decode_task_->setIdleTimeoutMs(0);
+            impl_->display_task_->setIdleTimeoutMs(0);
+
+            impl_->video_width_  = video_stream->codecpar->width;
+            impl_->video_height_ = video_stream->codecpar->height;
+
+            if (video_stream->avg_frame_rate.num > 0)
             {
-                LOGE("OpenGL 渲染需要先调用 setOpenGLWidget()");
+                impl_->frame_rate_ = av_q2d(video_stream->avg_frame_rate);
+            }
+            else if (video_stream->r_frame_rate.num > 0)
+            {
+                impl_->frame_rate_ = av_q2d(video_stream->r_frame_rate);
+            }
+
+            LOGI("视频: " << impl_->video_width_ << "x" << impl_->video_height_ << ", 帧率: " << impl_->frame_rate_
+                          << " fps");
+
+            impl_->decode_task_->setHardwareDecode(false);
+            if (!impl_->decode_task_->initDecoder(video_stream->codecpar->codec_id, video_stream))
+            {
+                LOGE("初始化解码器失败");
                 return false;
             }
 
-            bindOpenGLDisplayTask(impl_->display_task_.get(), impl_->opengl_widget_);
-            impl_->opengl_widget_->setOverlayStyle(impl_->overlay_style_);
-            LOGI("使用 OpenGL 主线程渲染");
+            if (impl_->render_backend_ == RenderBackend::OpenGL)
+            {
+                if (!impl_->opengl_widget_)
+                {
+                    LOGE("OpenGL 渲染需要先调用 setOpenGLWidget()");
+                    return false;
+                }
+
+                bindOpenGLDisplayTask(impl_->display_task_.get(), impl_->opengl_widget_);
+                impl_->opengl_widget_->setOverlayStyle(impl_->overlay_style_);
+                LOGI("使用 OpenGL 主线程渲染");
+            }
+            else
+            {
+                bindSdlDisplayTask(impl_->display_task_.get(), winId);
+                LOGI("使用 SDL 渲染");
+            }
         }
         else
         {
-            bindSdlDisplayTask(impl_->display_task_.get(), winId);
-            LOGI("使用 SDL 渲染");
+            LOGI("无视频流，仅音频播放");
         }
+
+        if (audio_stream)
+        {
+            impl_->audio_decode_task_ = XAudioDecodeTask::create();
+            impl_->audio_play_task_   = XAudioPlayTask::create();
+
+            impl_->audio_decode_task_->setName("LocalAudioDecode");
+            impl_->audio_play_task_->setName("LocalAudioPlay");
+
+            impl_->demux_task_->setAudioNext(impl_->audio_decode_task_);
+            impl_->audio_decode_task_->setNext(impl_->audio_play_task_);
+
+            impl_->audio_decode_task_->setMaxQueueSize(500);
+            impl_->audio_play_task_->setMaxQueueSize(200);
+            impl_->audio_decode_task_->setIdleTimeoutMs(0);
+            impl_->audio_play_task_->setIdleTimeoutMs(0);
+
+            LOGI("音频: " << audio_stream->codecpar->sample_rate << "Hz");
+
+            if (!impl_->audio_decode_task_->initDecoder(audio_stream))
+            {
+                LOGE("音频解码器初始化失败");
+                return false;
+            }
+
+            if (!impl_->audio_play_task_->openFromDecoder(impl_->audio_decode_task_->getDecoder()))
+            {
+                LOGE("音频播放设备打开失败");
+                return false;
+            }
+
+            impl_->audio_play_task_->setVolume(1.0);
+            impl_->audio_play_task_->setSpeed(impl_->speed_.load());
+        }
+
+        LOGI("时长: " << impl_->duration_ << " 秒");
 
         auto error_cb = [](const std::string& msg) { LOGE("LocalPlayer 错误: " << msg); };
         impl_->demux_task_->setErrorCallback(error_cb);
-        impl_->decode_task_->setErrorCallback(error_cb);
-        impl_->display_task_->setErrorCallback(error_cb);
+        if (impl_->decode_task_)
+        {
+            impl_->decode_task_->setErrorCallback(error_cb);
+        }
+        if (impl_->display_task_)
+        {
+            impl_->display_task_->setErrorCallback(error_cb);
+        }
+        if (impl_->audio_decode_task_)
+        {
+            impl_->audio_decode_task_->setErrorCallback(error_cb);
+        }
+        if (impl_->audio_play_task_)
+        {
+            impl_->audio_play_task_->setErrorCallback(error_cb);
+        }
 
         LOGI("打开文件成功: " << filepath);
         return true;
@@ -186,8 +249,22 @@ void LocalPlayer::play()
 
     impl_->control_thread_ = std::thread(&LocalPlayer::PImpl::controlLoop, impl_.get());
 
-    impl_->display_task_->start();
-    impl_->decode_task_->start();
+    if (impl_->audio_play_task_)
+    {
+        impl_->audio_play_task_->start();
+    }
+    if (impl_->audio_decode_task_)
+    {
+        impl_->audio_decode_task_->start();
+    }
+    if (impl_->display_task_)
+    {
+        impl_->display_task_->start();
+    }
+    if (impl_->decode_task_)
+    {
+        impl_->decode_task_->start();
+    }
     impl_->demux_task_->start();
 
     LOGI("开始播放: " << impl_->filepath_);
@@ -205,9 +282,21 @@ void LocalPlayer::pause()
     {
         impl_->demux_task_->setPaused(true);
     }
+    if (impl_->decode_task_)
+    {
+        impl_->decode_task_->setPaused(true);
+    }
     if (impl_->display_task_)
     {
         impl_->display_task_->setPaused(true);
+    }
+    if (impl_->audio_decode_task_)
+    {
+        impl_->audio_decode_task_->setPaused(true);
+    }
+    if (impl_->audio_play_task_)
+    {
+        impl_->audio_play_task_->setPaused(true);
     }
 
     LOGI("暂停播放");
@@ -224,9 +313,21 @@ void LocalPlayer::resume()
     {
         impl_->demux_task_->setPaused(false);
     }
+    if (impl_->decode_task_)
+    {
+        impl_->decode_task_->setPaused(false);
+    }
     if (impl_->display_task_)
     {
         impl_->display_task_->setPaused(false);
+    }
+    if (impl_->audio_decode_task_)
+    {
+        impl_->audio_decode_task_->setPaused(false);
+    }
+    if (impl_->audio_play_task_)
+    {
+        impl_->audio_play_task_->setPaused(false);
     }
 
     impl_->is_paused_ = false;
@@ -248,8 +349,22 @@ void LocalPlayer::stop()
     if (impl_->demux_task_)
     {
         impl_->demux_task_->stop();
-        impl_->decode_task_->stop();
-        impl_->display_task_->stop();
+        if (impl_->decode_task_)
+        {
+            impl_->decode_task_->stop();
+        }
+        if (impl_->display_task_)
+        {
+            impl_->display_task_->stop();
+        }
+        if (impl_->audio_decode_task_)
+        {
+            impl_->audio_decode_task_->stop();
+        }
+        if (impl_->audio_play_task_)
+        {
+            impl_->audio_play_task_->stop();
+        }
     }
 
     if (impl_->control_thread_.joinable())
@@ -260,15 +375,49 @@ void LocalPlayer::stop()
     if (impl_->demux_task_)
     {
         impl_->demux_task_->wait();
-        impl_->decode_task_->wait();
-        impl_->display_task_->wait();
+        if (impl_->decode_task_)
+        {
+            impl_->decode_task_->wait();
+        }
+        if (impl_->display_task_)
+        {
+            impl_->display_task_->wait();
+        }
+        if (impl_->audio_decode_task_)
+        {
+            impl_->audio_decode_task_->wait();
+        }
+        if (impl_->audio_play_task_)
+        {
+            impl_->audio_play_task_->wait();
+        }
     }
 
     if (impl_->demux_task_)
     {
         impl_->demux_task_->reset();
-        impl_->decode_task_->reset();
-        impl_->display_task_->reset();
+        if (impl_->decode_task_)
+        {
+            impl_->decode_task_->reset();
+        }
+        if (impl_->display_task_)
+        {
+            impl_->display_task_->reset();
+        }
+        if (impl_->audio_decode_task_)
+        {
+            impl_->audio_decode_task_->reset();
+        }
+        if (impl_->audio_play_task_)
+        {
+            impl_->audio_play_task_->reset();
+        }
+
+        impl_->decode_task_.reset();
+        impl_->display_task_.reset();
+        impl_->audio_decode_task_.reset();
+        impl_->audio_play_task_.reset();
+        impl_->demux_task_.reset();
     }
 
     LOGI("播放已停止");
@@ -322,6 +471,10 @@ void LocalPlayer::setSpeed(double speed)
     if (impl_->demux_task_)
     {
         impl_->demux_task_->setSpeed(speed);
+    }
+    if (impl_->audio_play_task_)
+    {
+        impl_->audio_play_task_->setSpeed(speed);
     }
 
     LOGI("设置播放速度: " << speed << "x");
@@ -389,8 +542,14 @@ void LocalPlayer::PImpl::controlLoop()
 
             for (int i = 0; i < 10; i++)
             {
-                if ((!decode_task_ || decode_task_->getQueueSize() == 0) &&
-                    (!display_task_ || display_task_->getQueueSize() == 0))
+                const bool video_drained =
+                    (!decode_task_ || decode_task_->getQueueSize() == 0) &&
+                    (!display_task_ || display_task_->getQueueSize() == 0);
+                const bool audio_drained =
+                    (!audio_decode_task_ || audio_decode_task_->getQueueSize() == 0) &&
+                    (!audio_play_task_ || audio_play_task_->getQueueSize() == 0);
+
+                if (video_drained && audio_drained)
                 {
                     LOGI("播放结束");
                     is_playing_  = false;

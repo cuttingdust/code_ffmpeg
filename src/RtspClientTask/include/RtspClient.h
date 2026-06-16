@@ -1,8 +1,8 @@
 ﻿#pragma once
 
 #include "XDemuxTask.h"
-#include "XDecodeTask.h"
-#include "XDisplayTask.h"
+#include "XVideoDecodeTask.h"
+#include "XVideoDisplayTask.h"
 #include "XRecordTask.h"
 
 #include <atomic>
@@ -48,7 +48,7 @@ public:
     auto set_max_reconnects(int count) -> void;
 
     /// 设置自定义渲染回调
-    auto setRenderCallback(XDisplayTask::RenderCallback cb) -> void;
+    auto setRenderCallback(XVideoDisplayTask::RenderCallback cb) -> void;
 
     //////////////////////////////////////////////////////////////////
 
@@ -66,10 +66,10 @@ public:
     auto getDemuxTask() -> XDemuxTask::Ptr;
 
     /// 获取解码任务（用于高级配置）
-    auto getDecodeTask() -> XDecodeTask::Ptr;
+    auto getDecodeTask() -> XVideoDecodeTask::Ptr;
 
     /// 获取显示任务（用于高级配置）
-    auto getDisplayTask() -> XDisplayTask::Ptr;
+    auto getDisplayTask() -> XVideoDisplayTask::Ptr;
 
 
 private:
@@ -82,8 +82,8 @@ private:
 
     /// 任务链
     XDemuxTask::Ptr   demux_task_;
-    XDecodeTask::Ptr  decode_task_;
-    XDisplayTask::Ptr display_task_;
+    XVideoDecodeTask::Ptr  decode_task_;
+    XVideoDisplayTask::Ptr display_task_;
     XRecordTask::Ptr  record_task_;
 
     /// 重连配置

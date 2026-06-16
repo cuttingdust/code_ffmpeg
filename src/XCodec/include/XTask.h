@@ -10,7 +10,7 @@
 #include <functional>
 
 /// 基础任务类（继承自XThread）
-class XTask : public XThread
+class XCODEC_EXPORT XTask : public XThread
 {
 public:
     XTask() = default;

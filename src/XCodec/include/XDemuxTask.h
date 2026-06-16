@@ -5,7 +5,7 @@
 #include <atomic>
 #include <chrono>
 
-class XDemuxTask : public XTask
+class XCODEC_EXPORT XDemuxTask : public XTask
 {
     DECLARE_CREATE(XDemuxTask)
 public:
@@ -60,6 +60,25 @@ public:
         return current_time_.load();
     }
 
+    /// \brief 设置视频解码链入口（等同 setNext，语义更明确）
+    auto setVideoNext(std::shared_ptr<XTask> next) -> void
+    {
+        setNext(std::move(next));
+    }
+
+    /// \brief 设置音频解码链入口（与视频链并行，不经 setNext）
+    auto setAudioNext(std::shared_ptr<XTask> next) -> void
+    {
+        audio_next_ = std::move(next);
+    }
+
+    auto getAudioNext() const -> std::shared_ptr<XTask>
+    {
+        return audio_next_;
+    }
+
+    /// 停止视频链 (next_) 与音频链 (audio_next_)
+    auto stop() -> void;
 
 protected:
     auto process() -> void override;
@@ -83,4 +102,6 @@ private:
     std::atomic<double> current_time_{ 0.0 };
 
     std::chrono::steady_clock::time_point next_frame_time_;
+
+    std::shared_ptr<XTask> audio_next_; ///< 音频支路入口，与 next_（视频）并行
 };

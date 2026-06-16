@@ -27,12 +27,13 @@ struct RecStyle
     SDL_Color border_color   = { 255, 255, 255, 200 }; ///< 边框颜色（半透明白）
 };
 
-class XDisplayTask : public XTask
+/// \brief 视频显示 Task：从上游接收 AVFrame 并渲染
+class XVideoDisplayTask : public XTask
 {
-    DECLARE_CREATE(XDisplayTask)
+    DECLARE_CREATE(XVideoDisplayTask)
 public:
-    XDisplayTask();
-    ~XDisplayTask() override;
+    XVideoDisplayTask();
+    ~XVideoDisplayTask() override;
 
     using RenderCallback = std::function<void(FrameWrapper&)>;
     void setRenderCallback(RenderCallback cb);

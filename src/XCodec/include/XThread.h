@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "AVLog.h"
+#include "XCodec_Global.h"
 
 #include <memory>
 #include <thread>
@@ -8,7 +9,7 @@
 #include <string>
 
 
-class XThread
+class XCODEC_EXPORT XThread
 {
 public:
     XThread();

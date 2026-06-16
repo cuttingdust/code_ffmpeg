@@ -1,4 +1,4 @@
-#include "XDisplayTask.h"
+#include "XVideoDisplayTask.h"
 #include "AVLog.h"
 #include "FrameWrapper.h"
 #include "XOverlayUtil.h"
@@ -7,9 +7,9 @@
 #include <SDL.h>
 #include <SDL_ttf.h>
 
-XDisplayTask::XDisplayTask()
+XVideoDisplayTask::XVideoDisplayTask()
 {
-    setName("DisplayTask");
+    setName("VideoDisplayTask");
     LOGD("显示任务创建");
     last_stats_      = std::chrono::steady_clock::now();
     last_frame_time_ = std::chrono::steady_clock::now();
@@ -19,13 +19,13 @@ XDisplayTask::XDisplayTask()
     rec_style_       = recStyleFromOverlay(overlay_style_);
 }
 
-XDisplayTask::~XDisplayTask()
+XVideoDisplayTask::~XVideoDisplayTask()
 {
     LOGD("显示任务销毁");
     destroyRecTexture();
 }
 
-void XDisplayTask::destroyRecTexture()
+void XVideoDisplayTask::destroyRecTexture()
 {
     if (rec_texture_)
     {
@@ -39,34 +39,34 @@ void XDisplayTask::destroyRecTexture()
     }
 }
 
-void XDisplayTask::setRenderCallback(RenderCallback cb)
+void XVideoDisplayTask::setRenderCallback(RenderCallback cb)
 {
     render_cb_ = std::move(cb);
 }
 
-void XDisplayTask::setFirstFrameCallback(FirstFrameCallback cb)
+void XVideoDisplayTask::setFirstFrameCallback(FirstFrameCallback cb)
 {
     first_frame_cb_ = std::move(cb);
 }
 
-void XDisplayTask::setRecordingIndicator(bool show)
+void XVideoDisplayTask::setRecordingIndicator(bool show)
 {
     show_rec_indicator_ = show;
 }
 
-void XDisplayTask::setOverlayStyle(const XOverlayStyle& style)
+void XVideoDisplayTask::setOverlayStyle(const XOverlayStyle& style)
 {
     overlay_style_ = style;
     rec_style_     = recStyleFromOverlay(style);
     destroyRecTexture();
 }
 
-XOverlayStyle XDisplayTask::overlayStyle() const
+XOverlayStyle XVideoDisplayTask::overlayStyle() const
 {
     return overlay_style_;
 }
 
-void XDisplayTask::setPaused(bool paused)
+void XVideoDisplayTask::setPaused(bool paused)
 {
     XTask::setPaused(paused);
     if (!paused)
@@ -77,18 +77,18 @@ void XDisplayTask::setPaused(bool paused)
     }
 }
 
-int XDisplayTask::getFPS() const
+int XVideoDisplayTask::getFPS() const
 {
     return fps_;
 }
 
-void XDisplayTask::setWindow(void* win)
+void XVideoDisplayTask::setWindow(void* win)
 {
     external_win_ = win;
     LOGI("设置外部窗口句柄: " << win);
 }
 
-void XDisplayTask::reset()
+void XVideoDisplayTask::reset()
 {
     XTask::reset();
 
@@ -111,7 +111,7 @@ void XDisplayTask::reset()
     destroyRecTexture();
 }
 
-void XDisplayTask::initRecTexture()
+void XVideoDisplayTask::initRecTexture()
 {
     if (!view_)
     {
@@ -243,7 +243,7 @@ void XDisplayTask::initRecTexture()
     SDL_FreeSurface(combined);
 }
 
-void XDisplayTask::drawRecOverlay(void* renderer_ptr)
+void XVideoDisplayTask::drawRecOverlay(void* renderer_ptr)
 {
     SDL_Renderer* renderer = (SDL_Renderer*)renderer_ptr;
     if (!renderer || !show_rec_indicator_)
@@ -264,7 +264,7 @@ void XDisplayTask::drawRecOverlay(void* renderer_ptr)
     }
 }
 
-void XDisplayTask::updateFPS()
+void XVideoDisplayTask::updateFPS()
 {
     frame_count_++;
     auto now     = std::chrono::steady_clock::now();
@@ -279,7 +279,7 @@ void XDisplayTask::updateFPS()
     }
 }
 
-void XDisplayTask::drawReconnectingMessage()
+void XVideoDisplayTask::drawReconnectingMessage()
 {
     if (!view_ || !window_created_)
     {
@@ -295,7 +295,7 @@ void XDisplayTask::drawReconnectingMessage()
     }
 }
 
-void XDisplayTask::defaultRender(FrameWrapper& frame)
+void XVideoDisplayTask::defaultRender(FrameWrapper& frame)
 {
     if (!view_)
     {
@@ -389,7 +389,7 @@ void XDisplayTask::defaultRender(FrameWrapper& frame)
     }
 }
 
-void XDisplayTask::process()
+void XVideoDisplayTask::process()
 {
     LOGI("显示任务开始运行");
 
@@ -487,4 +487,4 @@ void XDisplayTask::process()
     LOGI("显示任务结束");
 }
 
-IMPLEMENT_CREATE(XDisplayTask)
+IMPLEMENT_CREATE(XVideoDisplayTask)

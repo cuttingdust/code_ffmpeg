@@ -6,8 +6,8 @@ RtspClient::RtspClient()
     LOGI("RTSP客户端创建");
 
     demux_task_   = XDemuxTask::create();
-    decode_task_  = XDecodeTask::create();
-    display_task_ = XDisplayTask::create();
+    decode_task_  = XVideoDecodeTask::create();
+    display_task_ = XVideoDisplayTask::create();
 
     demux_task_->setIdleTimeoutMs(5000);
     decode_task_->setIdleTimeoutMs(3000);
@@ -171,7 +171,7 @@ auto RtspClient::set_max_reconnects(int count) -> void
     max_reconnects_ = count;
 }
 
-auto RtspClient::setRenderCallback(XDisplayTask::RenderCallback cb) -> void
+auto RtspClient::setRenderCallback(XVideoDisplayTask::RenderCallback cb) -> void
 {
     if (display_task_)
     {
@@ -229,12 +229,12 @@ auto RtspClient::getDemuxTask() -> XDemuxTask::Ptr
     return demux_task_;
 }
 
-auto RtspClient::getDecodeTask() -> XDecodeTask::Ptr
+auto RtspClient::getDecodeTask() -> XVideoDecodeTask::Ptr
 {
     return decode_task_;
 }
 
-auto RtspClient::getDisplayTask() -> XDisplayTask::Ptr
+auto RtspClient::getDisplayTask() -> XVideoDisplayTask::Ptr
 {
     return display_task_;
 }

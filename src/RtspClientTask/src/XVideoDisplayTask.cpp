@@ -1,10 +1,10 @@
-﻿#include "XDisplayTask.h"
+#include "XVideoDisplayTask.h"
 #include "AVLog.h"
 #include "FrameWrapper.h"
 #include <sstream>
 #include <utility>
 
-XDisplayTask::XDisplayTask()
+XVideoDisplayTask::XVideoDisplayTask()
 {
     setName("DisplayTask");
     LOGD("显示任务创建");
@@ -12,33 +12,33 @@ XDisplayTask::XDisplayTask()
     last_frame_time_ = std::chrono::steady_clock::now();
 }
 
-XDisplayTask::~XDisplayTask()
+XVideoDisplayTask::~XVideoDisplayTask()
 {
     LOGD("显示任务销毁");
 }
 
-void XDisplayTask::setRenderCallback(RenderCallback cb)
+void XVideoDisplayTask::setRenderCallback(RenderCallback cb)
 {
     render_cb_ = std::move(cb);
 }
 
-void XDisplayTask::setFirstFrameCallback(FirstFrameCallback cb)
+void XVideoDisplayTask::setFirstFrameCallback(FirstFrameCallback cb)
 {
     first_frame_cb_ = std::move(cb);
 }
 
-int XDisplayTask::getFPS() const
+int XVideoDisplayTask::getFPS() const
 {
     return fps_;
 }
 
-void XDisplayTask::setWindow(void* win)
+void XVideoDisplayTask::setWindow(void* win)
 {
     external_win_ = win;
     LOGI("设置外部窗口句柄: " << win);
 }
 
-void XDisplayTask::reset()
+void XVideoDisplayTask::reset()
 {
     XTask::reset();
 
@@ -59,7 +59,7 @@ void XDisplayTask::reset()
     first_frame_received_ = false;
 }
 
-void XDisplayTask::updateFPS()
+void XVideoDisplayTask::updateFPS()
 {
     frame_count_++;
     auto now     = std::chrono::steady_clock::now();
@@ -74,7 +74,7 @@ void XDisplayTask::updateFPS()
     }
 }
 
-void XDisplayTask::drawReconnectingMessage()
+void XVideoDisplayTask::drawReconnectingMessage()
 {
     if (!view_ || !window_created_)
     {
@@ -90,7 +90,7 @@ void XDisplayTask::drawReconnectingMessage()
     }
 }
 
-void XDisplayTask::defaultRender(FrameWrapper& frame)
+void XVideoDisplayTask::defaultRender(FrameWrapper& frame)
 {
     /// 如果还没创建渲染器，先创建
     if (!view_)
@@ -176,7 +176,7 @@ void XDisplayTask::defaultRender(FrameWrapper& frame)
     }
 }
 
-void XDisplayTask::process()
+void XVideoDisplayTask::process()
 {
     LOGI("显示任务开始运行");
 
@@ -254,4 +254,4 @@ void XDisplayTask::process()
     LOGI("显示任务结束");
 }
 
-IMPLEMENT_CREATE(XDisplayTask)
+IMPLEMENT_CREATE(XVideoDisplayTask)

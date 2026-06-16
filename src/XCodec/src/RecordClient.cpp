@@ -39,7 +39,7 @@ auto RecordClient::create() -> std::shared_ptr<RecordClient>
 void RecordClient::initTasks()
 {
     demux_task_  = XDemuxTask::create();
-    decode_task_ = XDecodeTask::create();
+    decode_task_ = XVideoDecodeTask::create();
     encode_task_ = XEncodeTask::create();
     muxer_task_  = XMuxerTask::create();
 

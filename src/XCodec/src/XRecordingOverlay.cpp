@@ -1,9 +1,9 @@
 #include "XRecordingOverlay.h"
 
-#include "XDisplayTask.h"
+#include "XVideoDisplayTask.h"
 #include "XOpenGLVideoWidget.h"
 
-void applyOverlayStyle(const XOverlayStyle& style, XDisplayTask* display_task, XOpenGLVideoWidget* widget)
+void applyOverlayStyle(const XOverlayStyle& style, XVideoDisplayTask* display_task, XOpenGLVideoWidget* widget)
 {
     if (display_task)
     {
@@ -15,7 +15,7 @@ void applyOverlayStyle(const XOverlayStyle& style, XDisplayTask* display_task, X
     }
 }
 
-void applyRecordingIndicator(bool show, XDisplayTask* display_task, XOpenGLVideoWidget* widget, bool use_sdl_indicator,
+void applyRecordingIndicator(bool show, XVideoDisplayTask* display_task, XOpenGLVideoWidget* widget, bool use_sdl_indicator,
                              bool use_gl_indicator)
 {
     if (use_gl_indicator && widget)

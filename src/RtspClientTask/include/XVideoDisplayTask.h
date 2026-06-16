@@ -1,16 +1,17 @@
-﻿#pragma once
+#pragma once
 
 #include "XTask.h"
 #include "XVideoView.h"
 #include "FrameWrapper.h"
 #include <chrono>
 
-class XDisplayTask : public XTask
+/// \brief 视频显示 Task：接收 AVFrame 并渲染
+class XVideoDisplayTask : public XTask
 {
-    DECLARE_CREATE(XDisplayTask)
+    DECLARE_CREATE(XVideoDisplayTask)
 public:
-    XDisplayTask();
-    ~XDisplayTask() override;
+    XVideoDisplayTask();
+    ~XVideoDisplayTask() override;
 
     /// 自定义渲染回调
     using RenderCallback = std::function<void(FrameWrapper&)>;
@@ -51,7 +52,7 @@ private:
     bool                        window_created_       = false;
     bool                        reconnecting_         = false;
     bool                        first_frame_received_ = false;
-    void*                       external_win_         = nullptr; /// 外部窗口句柄
+    void*                       external_win_         = nullptr;
 
     std::chrono::steady_clock::time_point last_frame_time_;
     int                                   fps_         = 0;

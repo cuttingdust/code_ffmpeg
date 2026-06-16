@@ -1,21 +1,22 @@
-﻿#pragma once
+#pragma once
 
 #include "XTask.h"
 #include "VideoDecoder.h"
 
-class XDecodeTask : public XTask
+/// \brief 视频解码 Task：从上游接收 AVPacket，输出 AVFrame
+class XVideoDecodeTask : public XTask
 {
-    DECLARE_CREATE(XDecodeTask)
+    DECLARE_CREATE(XVideoDecodeTask)
 public:
-    XDecodeTask();
-    ~XDecodeTask() override;
+    XVideoDecodeTask();
+    ~XVideoDecodeTask() override;
 
 public:
     /// 初始化解码器
-    auto initDecoder(AVCodecID codec_id, AVStream *stream) -> bool;
+    auto initDecoder(AVCodecID codec_id, AVStream* stream) -> bool;
 
     /// 获取解码器
-    auto getDecoder() const -> VideoDecoder *;
+    auto getDecoder() const -> VideoDecoder*;
 
     /// 设置帧回调（用于直接渲染，如果不用下游任务）
     auto setFrameCallback(DecoderConfig::FrameCallback cb) -> void;

@@ -789,7 +789,11 @@ pathDefaults:
 paths:
   main:
     source: "publisher"
-  
+
+  # RtspClient / XCodecRtsp 等示例默认拉 rtsp://localhost:8554/test
+  test:
+    source: "publisher"
+
   sub:
     source: "rtsp://127.0.0.1:8554/main"
     sourceOnDemand: yes

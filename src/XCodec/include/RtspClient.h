@@ -1,7 +1,7 @@
 #pragma once
 #include "XCodec_Global.h"
 #include "XMediaClient.h"
-#include "XDisplayTask.h"
+#include "XVideoDisplayTask.h"
 #include "XRecordTask.h"
 #include "XRenderBackend.h"
 #include "XOverlayStyle.h"
@@ -38,8 +38,8 @@ public:
         return overlay_style_;
     }
 
-    void setRenderCallback(XDisplayTask::RenderCallback cb);
-    void setFirstFrameCallback(XDisplayTask::FirstFrameCallback cb);
+    void setRenderCallback(XVideoDisplayTask::RenderCallback cb);
+    void setFirstFrameCallback(XVideoDisplayTask::FirstFrameCallback cb);
 
     // ==================== 录制控制（按需启用）====================
 
@@ -53,8 +53,8 @@ public:
 
     auto getDecoder() -> VideoDecoder*;
     auto getDemuxTask() -> XDemuxTask::Ptr;
-    auto getDecodeTask() -> XDecodeTask::Ptr;
-    auto getDisplayTask() -> XDisplayTask::Ptr;
+    auto getDecodeTask() -> XVideoDecodeTask::Ptr;
+    auto getDisplayTask() -> XVideoDisplayTask::Ptr;
 
     /// 设置录制指示器显示状态
     void setRecordingIndicator(bool show);
@@ -72,12 +72,12 @@ private:
     void applyDisplayRender();
 
 private:
-    XDisplayTask::Ptr display_task_;
+    XVideoDisplayTask::Ptr display_task_;
     XRecordTask::Ptr  record_task_;
     bool              record_enabled_ = false;
     void*             external_win_   = nullptr;
     XOpenGLVideoWidget* opengl_widget_  = nullptr;
     RenderBackend       render_backend_ = RenderBackend::SDL;
     XOverlayStyle       overlay_style_;
-    XDisplayTask::RenderCallback custom_render_cb_;
+    XVideoDisplayTask::RenderCallback custom_render_cb_;
 };

@@ -1,5 +1,5 @@
 #include "XOverlayUtil.h"
-#include "XDisplayTask.h"
+#include "XVideoDisplayTask.h"
 
 XOverlayStyle defaultRecOverlayStyle()
 {

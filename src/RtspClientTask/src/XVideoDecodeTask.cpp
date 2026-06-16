@@ -1,34 +1,26 @@
-﻿#include "XDecodeTask.h"
+#include "XVideoDecodeTask.h"
 
 #include <utility>
 #include "AVException.h"
 #include "AVLog.h"
 #include "FrameWrapper.h"
 
-XDecodeTask::XDecodeTask()
+XVideoDecodeTask::XVideoDecodeTask()
 {
     setName("DecodeTask");
     LOGD("解码任务创建");
 }
 
-XDecodeTask::~XDecodeTask()
+XVideoDecodeTask::~XVideoDecodeTask()
 {
     LOGD("解码任务销毁");
 }
 
-auto XDecodeTask::setHardwareDecode(bool enable) -> void
-{
-    use_hardware_ = enable;
-}
-
-void XDecodeTask::reset()
+void XVideoDecodeTask::reset()
 {
     XTask::reset();
 
     LOGD("重置解码任务");
-
-    stop();
-    wait();
 
     if (decoder_)
     {
@@ -39,14 +31,14 @@ void XDecodeTask::reset()
     frame_cb_ = nullptr;
 }
 
-bool XDecodeTask::initDecoder(AVCodecID codec_id, AVStream* stream)
+bool XVideoDecodeTask::initDecoder(AVCodecID codec_id, AVStream* stream)
 {
     try
     {
         DecoderConfig config;
         config.codec_id                      = codec_id;
         config.thread_count                  = 16;
-        config.hardware.enable               = use_hardware_;
+        config.hardware.enable               = true;
         config.hardware.auto_select          = true;
         config.hardware.preferred_type       = HardwareContext::Type::D3D11VA;
         config.hardware.transfer_to_software = true;
@@ -95,27 +87,22 @@ bool XDecodeTask::initDecoder(AVCodecID codec_id, AVStream* stream)
     }
 }
 
-auto XDecodeTask::getDecoder() const -> VideoDecoder*
+auto XVideoDecodeTask::getDecoder() const -> VideoDecoder*
 {
     return decoder_.get();
 }
 
-void XDecodeTask::flushDownstream()
-{
-    need_flush_decoder_ = true;
-}
-
-auto XDecodeTask::setFrameCallback(DecoderConfig::FrameCallback cb) -> void
+auto XVideoDecodeTask::setFrameCallback(DecoderConfig::FrameCallback cb) -> void
 {
     frame_cb_ = std::move(cb);
 }
 
-auto XDecodeTask::getStats() const -> VideoDecoder::Stats
+auto XVideoDecodeTask::getStats() const -> VideoDecoder::Stats
 {
     return decoder_ ? decoder_->get_stats() : VideoDecoder::Stats();
 }
 
-void XDecodeTask::process()
+void XVideoDecodeTask::process()
 {
     LOGI("解码任务开始运行");
 
@@ -128,21 +115,6 @@ void XDecodeTask::process()
 
     while (!shouldStop() && !decoder_corrupted)
     {
-        if (shouldPause())
-        {
-            continue;
-        }
-
-        if (need_flush_decoder_.load())
-        {
-            need_flush_decoder_ = false;
-            if (decoder_)
-            {
-                decoder_->flushBuffers();
-                LOGI("解码器缓存已刷新");
-            }
-        }
-
         auto pkt = popPacket();
         if (!pkt)
         {
@@ -261,4 +233,4 @@ void XDecodeTask::process()
     LOGI("解码任务结束");
 }
 
-IMPLEMENT_CREATE(XDecodeTask)
+IMPLEMENT_CREATE(XVideoDecodeTask)

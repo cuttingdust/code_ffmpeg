@@ -1,14 +1,15 @@
-﻿#pragma once
+#pragma once
 
 #include "XTask.h"
 #include "VideoDecoder.h"
 
-class XDecodeTask : public XTask
+/// \brief 视频解码 Task：从上游接收 AVPacket，输出 AVFrame
+class XVideoDecodeTask : public XTask
 {
-    DECLARE_CREATE(XDecodeTask)
+    DECLARE_CREATE(XVideoDecodeTask)
 public:
-    XDecodeTask();
-    ~XDecodeTask() override;
+    XVideoDecodeTask();
+    ~XVideoDecodeTask() override;
 
 public:
     auto setHardwareDecode(bool enable) -> void;

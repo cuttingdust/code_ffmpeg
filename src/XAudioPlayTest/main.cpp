@@ -8,6 +8,8 @@
 
 int main()
 {
+    setlocale(LC_ALL, "zh_CN.UTF-8");
+
     const char *pcm_path = "assert/output.pcm";
 
     std::ifstream ifs(pcm_path, std::ios::binary);

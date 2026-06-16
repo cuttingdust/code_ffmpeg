@@ -1,7 +1,7 @@
 ﻿#pragma once
 #include "XCodec_Global.h"
 #include "XDemuxTask.h"
-#include "XDecodeTask.h"
+#include "XVideoDecodeTask.h"
 #include <atomic>
 #include <chrono>
 #include <functional>
@@ -126,7 +126,7 @@ protected:
 
     /// 任务链（所有客户端都需要的）
     XDemuxTask::Ptr  demux_task_;
-    XDecodeTask::Ptr decode_task_;
+    XVideoDecodeTask::Ptr decode_task_;
 
     /// 流信息
     AVStream* video_stream_ = nullptr;

@@ -147,12 +147,11 @@ auto XDemuxTask::seek(double timestamp, int stream_index) -> bool
     // 清空自己的队列
     clear();
 
-    // 清空下游队列
+    // 清空下游队列（视频链）
     if (next_)
     {
         next_->clear();
 
-        // 继续向下游清空
         auto current = next_;
         while (current && current->getNext())
         {
@@ -160,8 +159,22 @@ auto XDemuxTask::seek(double timestamp, int stream_index) -> bool
             current = current->getNext();
         }
 
-        // ✅ 通知下游刷新解码器状态
         next_->flushDownstream();
+    }
+
+    // 清空下游队列（音频链）
+    if (audio_next_)
+    {
+        audio_next_->clear();
+
+        auto current = audio_next_;
+        while (current && current->getNext())
+        {
+            current->getNext()->clear();
+            current = current->getNext();
+        }
+
+        audio_next_->flushDownstream();
     }
 
     // 执行 seek（强制跳转到关键帧）
@@ -222,6 +235,15 @@ void XDemuxTask::resetFrameTime()
     next_frame_time_ = std::chrono::steady_clock::now();
 }
 
+void XDemuxTask::stop()
+{
+    XTask::stop();
+    if (audio_next_)
+    {
+        audio_next_->stop();
+    }
+}
+
 auto XDemuxTask::process() -> void
 {
     LOGI("解封装线程开始运行");
@@ -242,12 +264,17 @@ auto XDemuxTask::process() -> void
             continue;
         }
 
-        if (next_ && next_->getQueueSize() > max_queue_size_)
+        if (next_ && next_->getQueueSize() >= max_queue_size_)
         {
             sleep(10);
             continue;
         }
 
+        if (audio_next_ && audio_next_->getQueueSize() >= max_queue_size_)
+        {
+            sleep(10);
+            continue;
+        }
 
         PacketWrapper pkt;
         int           ret = demuxer_->readPacket(pkt);
@@ -256,6 +283,10 @@ auto XDemuxTask::process() -> void
         {
             LOGI("文件读取完成，共读取 " << packet_count << " 个包");
             notifyEof();
+            if (audio_next_)
+            {
+                audio_next_->notifyEof();
+            }
             break;
         }
         else if (ret == -2)
@@ -338,6 +369,15 @@ auto XDemuxTask::process() -> void
                 }
 
                 std::this_thread::sleep_until(next_frame_time_);
+            }
+            else if (stream->codecpar->codec_type == AVMEDIA_TYPE_AUDIO)
+            {
+                ++audio_packets_;
+
+                if (audio_next_)
+                {
+                    audio_next_->pushPacket(std::make_unique<PacketWrapper>(std::move(pkt)));
+                }
             }
         }
     }

@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-/// 与 XDisplayTask::RecStyle 默认值对齐的 overlay 样式（不依赖 SDL）
+/// 与 XVideoDisplayTask::RecStyle 默认值对齐的 overlay 样式（不依赖 SDL）
 struct XOverlayStyle
 {
     int      dot_radius     = 6;

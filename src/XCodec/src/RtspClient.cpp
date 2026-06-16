@@ -34,8 +34,8 @@ void RtspClient::initTasks()
 void RtspClient::createTasks()
 {
     demux_task_   = XDemuxTask::create();
-    decode_task_  = XDecodeTask::create();
-    display_task_ = XDisplayTask::create();
+    decode_task_  = XVideoDecodeTask::create();
+    display_task_ = XVideoDisplayTask::create();
 
     demux_task_->setIdleTimeoutMs(5000);
     decode_task_->setIdleTimeoutMs(3000);
@@ -330,13 +330,13 @@ void RtspClient::setOverlayStyle(const XOverlayStyle& style)
     applyOverlayStyle(style, display_task_.get(), opengl_widget_);
 }
 
-void RtspClient::setRenderCallback(XDisplayTask::RenderCallback cb)
+void RtspClient::setRenderCallback(XVideoDisplayTask::RenderCallback cb)
 {
     custom_render_cb_ = std::move(cb);
     applyDisplayRender();
 }
 
-void RtspClient::setFirstFrameCallback(XDisplayTask::FirstFrameCallback cb)
+void RtspClient::setFirstFrameCallback(XVideoDisplayTask::FirstFrameCallback cb)
 {
     if (display_task_)
     {
@@ -405,12 +405,12 @@ auto RtspClient::getDemuxTask() -> XDemuxTask::Ptr
     return demux_task_;
 }
 
-auto RtspClient::getDecodeTask() -> XDecodeTask::Ptr
+auto RtspClient::getDecodeTask() -> XVideoDecodeTask::Ptr
 {
     return decode_task_;
 }
 
-auto RtspClient::getDisplayTask() -> XDisplayTask::Ptr
+auto RtspClient::getDisplayTask() -> XVideoDisplayTask::Ptr
 {
     return display_task_;
 }
