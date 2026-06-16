@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "XCodec_Global.h"
 
@@ -80,7 +80,7 @@ public:
 
     /// \brief 设置播放倍速（与 XDemuxTask / LocalPlayer 倍速语义一致）
     /// \param[in] speed 倍速，范围 (0, 10]；1.0 为正常，2.0 表示两倍速消耗队列 PCM
-    /// \note 通过 drainPcm 按倍速步进读取队列实现，音调会随倍速变化；后期与视频 setSpeed 同步调用
+    /// \note 按采样帧线性插值消费队列，音调会随倍速变化；须保持 S16 帧对齐，不可按字节跳读
     auto setSpeed(double speed) -> void;
 
     /// \brief 获取当前播放倍速
@@ -97,11 +97,17 @@ public:
     auto getVolume() const -> double;
 
 protected:
-    /// \brief 从队列取出 PCM 填入声卡回调缓冲区（由子类在音频线程调用）
-    /// \param[out] dst SDL 回调提供的输出缓冲，先 memset 为静音再拷贝队列数据
-    /// \param[in] len 本次回调需要的字节数，随设备与 samples 变化
-    /// \note 队列空时 dst 保持静音；一块数据可跨多次回调通过 offset 分批消费
+    /// \brief 从队列取出 PCM 填入声卡回调缓冲区（SDL 音频线程入口）
+    /// \param[out] dst SDL 回调提供的输出缓冲；函数内先 memset 静音，再写入队列 PCM
+    /// \param[in] len 本次回调需要的字节数，通常与设备 samples、声道、S16 字节数相关
+    /// \note 调用方：XSDLAudioPlay::sdlCallback；须快速返回，禁止 IO/解码
+    /// \note speed≈1.0 走 memcpy 块拷贝快路径；否则委托 drainPcmWithSpeed 按帧插值
+    /// \note 写出后统一 applyVolumeToS16；队列空时 dst 保持静音（underrun）
     auto drainPcm(uint8_t *dst, int len) -> void;
+
+    /// \brief 设置 PCM 声道布局（open 成功后由子类根据设备参数调用）
+    /// \param[in] channels 声道数
+    auto setPlaybackFormat(int channels) -> void;
 
 private:
     /// \brief 队列中的单块 PCM 缓冲
@@ -139,9 +145,25 @@ private:
     /// \param[in] volume 线性增益 [0.0, 1.0]
     static auto applyVolumeToS16(uint8_t *data, int bytes, double volume) -> void;
 
+    /// \brief 从队列逻辑帧位置读取一帧 S16 交错 PCM（调用方须已持有 queue_mtx_）
+    /// \param[in] frame_index 相对队头的帧索引
+    /// \param[out] dst_frame 输出缓冲，长度至少 playback_channels_
+    /// \return 越界或队列空时 false
+    auto readFrameAtLocked(std::size_t frame_index, int16_t *dst_frame) const -> bool;
+
+    /// \brief 倍速路径：按采样帧线性插值从队列生成输出 PCM 并丢弃已消费帧
+    /// \param[out] dst 输出缓冲，写入 S16 交错 PCM；调用前须已 memset 或由本函数覆盖整帧
+    /// \param[in] len 输出字节数，须 >= playback_frame_bytes_；不足一整帧则直接返回
+    /// \param[in] speed 倍速，>0；1.1 表示单位墙钟时间内多消费 10% 源帧（音调升高）
+    /// \note 调用方须已持有 queue_mtx_；按帧对齐读写，避免按字节跳读导致立体声错位噪音
+    /// \note 第 i 个输出帧对应源帧索引 i*speed，在相邻两源帧间线性 lerp；消费后 discardBytesLocked
+    auto drainPcmWithSpeed(uint8_t *dst, int len, double speed) -> void;
+
     std::deque<AudioChunk> queue_;               ///< PCM 块队列，队头消费队尾生产
     mutable std::mutex     queue_mtx_;           ///< 保护 queue_ 与 max_queue_bytes_
     std::size_t            max_queue_bytes_ = 0; ///< 队列字节上限，0 表示不限
     std::atomic<double>    speed_{ 1.0 };        ///< 播放倍速，drainPcm 按此步进消费队列
     std::atomic<double>    volume_{ 1.0 };       ///< 输出音量，drainPcm 写出前乘增益
+    int                    playback_channels_    = 2; ///< open 后生效的声道数
+    int                    playback_frame_bytes_ = 4; ///< 单帧字节数 = channels * sizeof(int16_t)
 };

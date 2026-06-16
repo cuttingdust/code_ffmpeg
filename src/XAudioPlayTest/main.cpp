@@ -45,8 +45,8 @@ int main()
         return -1;
     }
 
-    player->setSpeed(1.0);
-    player->setVolume(1.0);
+    player->setSpeed(2.0);
+    player->setVolume(0.8);
 
     const auto bytes_per_sec = static_cast<std::size_t>(spec.sample_rate * spec.channels * sizeof(int16_t));
     const auto duration_sec  = static_cast<double>(file_bytes) / static_cast<double>(bytes_per_sec);
