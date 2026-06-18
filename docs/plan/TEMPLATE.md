@@ -1,15 +1,18 @@
 # 规划模板 — docs/plan
 
-> 行尾 **LIN-xxx** 在 `/plan-sync` 或创建 Issue 后填入，供 commit/PR 自动打勾。
+> 行尾 **HIL-xxx** 在 `/plan-sync` 或创建 Issue 后填入，供 commit/PR 自动打勾。  
+> Phase 对应 Linear **Milestone**；Task / Bug / Test 均为**普通 Issue**（默认不用 Sub-issue）。
 
-## 1. 模块名称
+## Phase 1: 阶段名称  MS: Phase 1
 
-### 1.1 需求标题  LIN-100
+### Feature: 功能模块名
 
-#### 1.1.1 开发任务说明  LIN-101
+设计说明、接口草案等（可选；不必单独建 Issue，除非需要 Requirement 跟踪）。
 
-- [ ] 1.1.2 另一开发任务  LIN-102
+- [ ] Task: 具体开发任务  HIL-101
+- [ ] Bug: 缺陷描述  HIL-102
+- [ ] Test: 用例描述  HIL-103
 
-#### TC: 用例简短名  LIN-103
+## Phase 2: 下一阶段  MS: Phase 2
 
-- [ ] TC: 另一用例  LIN-104
+- [ ] Task: 另一任务  HIL-201
