@@ -275,7 +275,7 @@ push PCM
 - [x] TC.1 正常播完，队列归零  HIL-71
 - [x] TC.2 pause / resume（Task + 设备）— `XCodecLocalPlayer` 冒烟  HIL-73
 - [ ] TC.3 无音频流文件 graceful 失败  HIL-70
-- [ ] TC.4 `setVolume(0.5)` 可听感验证（人工）  HIL-72
+- [x] TC.4 `setVolume(0.5)` 可听感验证（人工）  HIL-72
 
 ---
 
@@ -343,4 +343,4 @@ push PCM
 
 ## 10. 下一步（当前）
 
-**下一步**：**HIL-70** 无音频流 graceful 失败；**HIL-72** setVolume 听感验证（人工）。
+**下一步**：**HIL-70** 无音频流 graceful 失败。
