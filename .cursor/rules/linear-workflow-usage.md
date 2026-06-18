@@ -1,603 +1,215 @@
 # Linear 工作流使用手册
 
-这份文档说明如何使用旁边的 `linear-workflow.mdc` 规则。它的目标是把当前 Git 仓库、Linear Project、`docs/plan/`、分支、commit 和 PR 状态串起来，让一个需求从规划到合并都有清晰记录。
+这套工作流现在采用更扁平的模型：
 
-如果只是临时忘了命令，不需要翻完整文档，直接在 Agent 聊天里输入：
+```text
+Linear Project = 当前仓库
+Phase / Milestone = 开发阶段
+Issue = 真正执行的需求、任务、Bug、测试用例
+```
+
+默认不使用 Linear Sub-issue。只有你明确说“挂父 Issue”或“创建子任务”时，才使用 parent/sub-issue。
+
+如果忘了命令，直接输入：
 
 ```text
 /linear-help
 ```
 
-它会显示命令速查、常用示例和当前仓库状态。
+## 核心模型
 
-## 适用场景
-
-当你在一个代码仓库里工作，并希望用 Linear 管理需求、任务、测试用例、Bug、分支和 PR 状态时，使用这套工作流。
-
-典型场景：
-
-- 为当前仓库初始化 Linear 项目绑定。
-- 从 `docs/plan/` 批量创建 Epic、Story、Sub Task、Test。
-- 创建需求、Bug、测试用例，并挂到正确的父 Story。
-- 根据 Issue 生成分支名和 commit message。
-- 在提交、同步或 PR 合并后更新 Linear 状态和 `docs/plan` 勾选。
-
-## 核心概念
-
-### 一仓一 Project
-
-每个 Git 仓库绑定一个 Linear Project。绑定信息写在仓库根目录的 `.linear.yaml`，也就是和 `.git` 同级的位置。
-
-规则要求：
-
-- `team` 表示 Linear 里的产品线或团队，例如 `口扫`。
-- `project.slug` 通常和 Git 仓库名一致，例如 `code_ffmpeg`。
-- `project.title_cn` 是中文项目说明，例如 `音视频开发`。
-- `project.linear_name` 是 Linear 里显示的项目名，默认格式是 `中文说明(仓库slug)`，例如 `音视频开发(code_ffmpeg)`。
-
-### Issue 层级
-
-`docs/plan/` 和 Linear 的对应关系如下：
-
-| 文档层级 | Linear 类型 | 说明 |
-| --- | --- | --- |
-| `## 1. 模块` | Epic | 大模块或大方向 |
-| `### 1.1 需求` | Story | 一个可交付需求 |
-| `#### 1.1.1 开发任务` | Sub-issue / Task | Story 下的开发任务 |
-| `#### TC: ...` | Sub-issue / Test | Story 下的测试用例 |
-| 缺陷 | Bug | 通常挂到父 Story |
-
-规则特别强调：不要用 Checklist 堆测试用例。一个测试用例应该是一个独立的 Sub Test Issue。
-
-## 第一次使用
-
-### 1. 打开目标代码仓库
-
-先在 Cursor 中打开你要工作的 Git 仓库。规则只认当前打开仓库根目录下的 `.linear.yaml`。
-
-如果你打开的是主仓，就配置主仓的 Project。如果打开的是子仓，就配置子仓自己的 Project。
-
-### 2. 执行 `/linear-init`
-
-当仓库还没有 `.linear.yaml` 时，输入：
+推荐结构：
 
 ```text
-/linear-init
-```
-
-Agent 会按规则询问这些信息：
-
-1. Linear Team 名，例如 `口扫`。
-2. 仓库 slug，例如 `code_ffmpeg`。
-3. 中文项目说明，例如 `音视频开发`。
-4. 确认 Linear Project 显示名，例如 `音视频开发(code_ffmpeg)`。
-5. 仓库角色，是 `main` 还是 `component`。
-6. 绑定已有 Linear Project，还是新建 Linear Project。
-
-注意：规则要求不能静默创建 Project，也不能猜 Team 或 Project。必须由你确认。
-
-### 3. 查看绑定状态
-
-初始化后可以输入：
-
-```text
-/linear-status
-```
-
-它会显示当前仓库绑定的：
-
-- Team
-- `project.slug`
-- `project.linear_name`
-- 是否启用自动同步
-- 当前上下文里的 `LIN-xxx`
-
-## 常用命令
-
-### 初始化和开关
-
-```text
-/linear-init
-```
-
-无 `.linear.yaml` 时初始化当前仓库的 Linear 绑定。
-
-```text
-/linear-on
-```
-
-启用自动同步。
-
-```text
-/linear-off
-```
-
-关闭自动同步。关闭后，创建类命令仍可以输出结构化创建单，但不会自动调用 Linear API。
-
-```text
-/linear-status
-```
-
-查看当前 Linear 工作流配置状态。
-
-### 创建需求
-
-```text
-/req 导出报表支持 CSV 和 Excel
-```
-
-通常创建一个 Story。创建前 Agent 会先给你预览：
-
-- Type
-- 标题
-- 所属 Team
-- 所属 Linear Project
-- Labels
-- 父 Issue，如果有
-- 描述
-
-你确认后才会真正创建。
-
-示例结果可能类似：
-
-```text
-Type: Story
-Title: [code_ffmpeg] 导出报表支持 CSV 和 Excel
 Project: 音视频开发(code_ffmpeg)
-Labels: repo:code_ffmpeg
+  Phase 1: 导出基础能力
+    LIN-101 Requirement: 导出报表
+    LIN-102 Task: 实现导出 API
+    LIN-103 Bug: 修复 CSV 中文乱码
+    LIN-104 Test: CSV 字段完整性校验
 ```
 
-### 创建子任务
-
-如果你明确说这是某个 Story 的子任务，或提供父 Story 编号：
-
-```text
-/req LIN-100 增加导出接口参数校验
-```
-
-它会作为 `LIN-100` 下的 Sub Task 预览。
-
-### 创建 Bug
-
-```text
-/bug LIN-100 导出 CSV 时中文乱码
-```
-
-Bug 必须关联父 Story。父 Story 的解析顺序是：
-
-1. 用户消息里的 `LIN-xxx`
-2. 当前 Git 分支名里的 `LIN-xxx`
-3. 如果仍找不到，询问你
-
-不要让 Agent 猜父 Story。
-
-### 创建测试用例
-
-```text
-/tc LIN-100 CSV 导出字段完整性校验
-```
-
-这会创建一个挂在 `LIN-100` 下的 Sub Test。规则要求一个测试用例对应一个 Linear Issue。
-
-更多测试用例示例：
-
-```text
-/tc LIN-100 空数据导出时生成只有表头的 CSV
-/tc LIN-100 Excel 导出时保留金额格式
-/tc LIN-100 导出失败时显示错误提示
-```
-
-### 创建 Epic
-
-```text
-/epic 报表系统重构
-```
-
-Epic 用于更大的模块或阶段，日常不一定常用。
-
-## 分支和提交
-
-### 生成分支名
-
-```text
-/branch LIN-123 导出报表
-```
-
-规则会根据配置里的 `defaults.branch_pattern` 生成推荐分支名，但不会自动创建分支。
-
-示例：
-
-```text
-feat/LIN-123-export-report
-```
-
-你可以手动创建：
-
-```bash
-git checkout -b feat/LIN-123-export-report
-```
-
-### 生成 commit message
-
-```text
-/commit-msg LIN-123 完成 CSV 导出
-```
-
-示例输出：
-
-```text
-feat(LIN-123): 完成 CSV 导出
-```
-
-### 查看当前应该关联什么
-
-```text
-/link
-```
-
-它会根据当前分支、上下文和规则，提示当前应该对应哪个 `LIN-xxx`，以及推荐 commit 模板。
-
-## 状态流转
-
-### 开始开发
-
-```text
-/linear-start LIN-123
-```
-
-将对应 Issue 改为 `In Progress`。
-
-### 进入 Review
-
-```text
-/linear-review LIN-123
-```
-
-将对应 Issue 改为 `In Review`。
-
-### 手动完成
-
-```text
-/linear-done LIN-123
-```
-
-将对应 Issue 改为 `Done`。
-
-注意：规则里说不要因为聊天结束就标 Done。完成应该以 commit 和 PR 合并规则为准。
-
-## docs/plan 用法
-
-### 推荐文件位置
-
-默认规划目录是当前仓库：
-
-```text
-docs/plan/
-```
-
-具体路径以 `.linear.yaml` 里的 `planning.root` 为准。
-
-### 推荐格式
-
-示例：
+对应 `docs/plan`：
 
 ```markdown
-## 1. 报表导出
+## Phase 1: 导出基础能力  MS: phase-1
 
-### 1.1 导出报表 LIN-100
+### Feature: 导出报表  LIN-101
 
-- [ ] 1.1.1 后端 API LIN-101
-- [ ] 1.1.2 前端导出按钮 LIN-102
-- [ ] TC: CSV 字段完整 LIN-103
-- [ ] TC: Excel 金额格式正确 LIN-104
+- [ ] Task: 实现导出 API  LIN-102
+- [ ] Bug: 修复 CSV 中文乱码  LIN-103
+- [ ] Test: CSV 字段完整性校验  LIN-104
 ```
 
-带 `LIN-xxx` 的行可以被 `/sync` 或 Git 同步规则识别并勾选。
+## 初始化
 
-### 从 plan 批量创建 Linear Issue
-
-```text
-/plan-sync
-```
-
-它表示 **`docs/plan -> Linear`**，用于把本地规划推送到 Linear。
-
-它会解析 `docs/plan/` 中的三层结构：
-
-- Epic
-- Story
-- Sub Task / Sub Test
-
-然后先展示批量创建预览。你确认后才会创建 Linear Issue，并把创建出来的 `LIN-xxx` 回写到对应 plan 行。
-
-适合场景：
-
-- 你先在 `docs/plan/` 写好了模块、需求、任务和测试用例。
-- Linear 里还没有这些任务。
-- 你想一次性批量创建，并保持文档和 Linear 编号一致。
-
-### 从 Linear 拉回 plan
-
-```text
-/linear-pull
-```
-
-它表示 **`Linear -> docs/plan`**，用于把当前 `.linear.yaml` 绑定的 Linear Project 拉回本地规划文档。
-
-它会读取 Linear 中的：
-
-- Epic
-- Story
-- Sub Task
-- Sub Test
-- Bug
-
-然后按 `docs/plan` 的层级预览生成或更新：
-
-```markdown
-## 1. 模块
-
-### 1.1 需求 LIN-100
-
-- [ ] 1.1.1 开发任务 LIN-101
-- [x] TC: 已完成测试用例 LIN-102
-- [ ] BUG: 已知缺陷 LIN-103
-```
-
-如果文档里已经有相同的 `LIN-xxx`，它只更新明确匹配的标题、状态或勾选。  
-如果文档里有内容但 Linear 中找不到，它不会直接删除，只会提示差异。
-
-## 同步
-
-这套工作流里有三个容易混淆的同步命令：
-
-```text
-/plan-sync    docs/plan -> Linear，创建或补齐 Linear Issue
-/linear-pull  Linear -> docs/plan，把 Linear 任务拉回文档
-/sync         开发进度同步，更新状态和勾选
-```
-
-### 手动同步
-
-```text
-/sync
-```
-
-它会根据当前分支、commit、用户说明或 `LIN-xxx`：
-
-- 更新 Linear Issue 状态。
-- 勾选 `docs/plan` 中对应 `LIN-xxx` 的任务行。
-- 必要时提示你确认。
-
-它不负责批量创建 Linear Issue。需要从 plan 创建任务时，用 `/plan-sync`。  
-它也不负责从 Linear 重建文档。需要从 Linear 拉回文档时，用 `/linear-pull`。
-
-### commit 同步
-
-如果 commit message 包含 `LIN-xxx`：
-
-```text
-feat(LIN-101): 完成导出接口
-```
-
-同步时会识别 `LIN-101`，并把 `docs/plan` 中含有 `LIN-101` 的行从：
-
-```markdown
-- [ ] 1.1.1 后端 API LIN-101
-```
-
-改为：
-
-```markdown
-- [x] 1.1.1 后端 API LIN-101
-```
-
-### PR 合并同步
-
-当 PR 合并到主分支，并且 PR、分支或描述中包含 Story 的 `LIN-xxx` 时：
-
-- Linear 中对应 Story 会变为 `Done`。
-- `docs/plan` 中 Story 行会被勾选。
-- 本 PR 完成的 Sub 行也会被勾选。
-
-如果 PR 只包含 Sub Task 的 `LIN-xxx`，规则要求只勾选 Sub 行，不自动把 Story 标 Done。
-
-## 多仓库使用
-
-规则按当前打开的 Git 根目录工作。
-
-例如：
-
-- 主仓 `cad-app` 绑定 Project `口扫设计软件(cad-app)`。
-- 子仓 `rendering` 绑定 Project `渲染引擎(rendering)`。
-- 子仓 `code_ffmpeg` 绑定 Project `音视频开发(code_ffmpeg)`。
-
-如果当前打开的是 `rendering`，但你说的需求明显属于 `cad-app`，Agent 应该询问：
-
-```text
-这个需求要记入哪个 Project？
-```
-
-不能擅自把 Issue 创建到另一个 Project。
-
-## 没有 Linear API 时怎么办
-
-如果没有 API Key，或 MCP/API 暂时不可用，创建类命令不会强行失败。规则要求输出结构化创建单，方便你手动粘贴到 Linear。
-
-示例：
-
-```text
-Title: [code_ffmpeg] 导出 CSV 时中文乱码
-Type: Bug
-Team: 口扫
-Project: 音视频开发(code_ffmpeg)
-Parent: LIN-100
-Labels: repo:code_ffmpeg
-Description:
-导出 CSV 后，中文字段在 Excel 中显示乱码。需要确认编码格式和下载响应头。
-```
-
-## API Key 安全
-
-不要把 Linear API Key 写进会提交到 Git 的 `.linear.yaml`。
-
-推荐方式：
-
-```bash
-set LINEAR_API_KEY=your_key_here
-```
-
-或使用本地文件：
-
-```text
-linear.yaml.local
-```
-
-这个文件应加入 `.gitignore`。
-
-## 完整示例
-
-### 示例 1：新仓库接入 Linear
+新仓库先执行：
 
 ```text
 /linear-init
 ```
 
-你回答：
+它会创建或确认当前仓库根目录的 `.linear.yaml`，绑定：
 
-```text
-Team: 口扫
-仓库 slug: code_ffmpeg
-中文项目说明: 音视频开发
-Linear Project 显示名: 音视频开发(code_ffmpeg)
-仓库角色: component
-绑定方式: 新建 Linear Project
-```
+- Linear Team
+- Linear Project
+- 仓库 slug
+- 中文项目说明
+- `docs/plan` 路径
+- 同步配置
 
-然后查看：
+查看当前配置：
 
 ```text
 /linear-status
 ```
 
-确认配置正确后开始创建需求：
+## 创建命令
+
+创建阶段：
 
 ```text
-/req 支持视频导出进度展示
+/phase Phase 1 导出基础能力
 ```
 
-### 示例 2：为需求创建任务和测试
-
-已有 Story：
+创建需求记录：
 
 ```text
-LIN-200 支持视频导出进度展示
+/req 导出报表
 ```
 
-创建开发任务：
+创建真实开发任务：
 
 ```text
-/req LIN-200 后端返回导出进度百分比
-/req LIN-200 前端展示导出进度条
+/task LIN-101 实现导出 API
+```
+
+创建修复任务：
+
+```text
+/bug LIN-101 CSV 导出中文乱码
 ```
 
 创建测试用例：
 
 ```text
-/tc LIN-200 导出中显示实时进度
-/tc LIN-200 导出失败时进度条停止并显示错误
-/tc LIN-200 取消导出后状态恢复
+/tc LIN-101 CSV 字段完整性校验
 ```
 
-### 示例 3：开发并提交
+说明：
 
-生成分支名：
+- `/phase` 创建或预览 Linear Milestone。
+- `/req` 创建普通 Requirement Issue。
+- `/task` 创建普通 Task Issue。
+- `/bug` 创建普通 Bug Issue。
+- `/tc` 创建普通 Test Issue，一用例一 Issue。
+- `LIN-101` 这类编号只作为 Feature/Requirement 关联，不默认作为父 Issue。
+
+## 同步命令
+
+三个同步命令操作同一个 `docs/plan` 文档体系，但方向不同：
 
 ```text
-/branch LIN-201 后端返回导出进度百分比
+/plan-sync    docs/plan -> Linear
+/linear-pull  Linear -> docs/plan
+/sync         开发进度同步
 ```
 
-假设输出：
+### /plan-sync
+
+把本地规划推到 Linear。
+
+适合你先写好了 `docs/plan`，然后想批量创建 Linear Milestone 和普通 Issue。
+
+它会：
+
+- 解析 `## Phase` 为 Milestone。
+- 解析 `### Feature` 为 Requirement Issue（如果需要编号）。
+- 解析 `Task:`、`Bug:`、`Test:` 为普通 Issue。
+- 跳过已经有 `LIN-xxx` 的行，避免重复创建。
+- 创建后把返回的 `LIN-xxx` 写回同一份 plan。
+
+### /linear-pull
+
+把 Linear 中已有内容拉回 `docs/plan`。
+
+适合你以前已经在 Linear 里做过规划，但本地没有文档，或者想把历史任务补进 plan。
+
+它会：
+
+- 读取当前 `.linear.yaml` 绑定的 Project。
+- 拉取 Milestone 和普通 Issue。
+- 按 Phase/Feature/Issue 结构预览写入 `docs/plan`。
+- 已有相同 `LIN-xxx` 的行只更新明确字段。
+- 不删除本地文档里 Linear 找不到的内容，只报告差异。
+
+### /sync
+
+同步开发过程中的完成状态。
+
+适合你已经有 `LIN-xxx`，并且代码提交、PR 或用户说明表明某些 Issue 完成。
+
+它会：
+
+- 根据分支、commit、PR 或用户说明解析 `LIN-xxx`。
+- 更新 Linear Issue 状态。
+- 勾选 `docs/plan` 中对应行。
+- 只处理明确引用的 Issue，不推断整个 Phase 完成。
+
+## 推荐流程
+
+### 新项目
 
 ```text
-feat/LIN-201-export-progress-api
+/linear-init
+/phase Phase 1 基础能力
+/req 核心功能
+/task LIN-101 实现核心接口
+/tc LIN-101 核心接口正常返回
+/plan-sync
 ```
 
-创建分支后开发，提交前生成 commit message：
+### 已有 Linear，后来补文档
 
 ```text
-/commit-msg LIN-201 完成导出进度接口
+/linear-pull
 ```
 
-输出：
-
-```text
-feat(LIN-201): 完成导出进度接口
-```
-
-提交后同步：
-
-```text
-/sync
-```
-
-### 示例 4：从 docs/plan 批量创建
-
-先写规划：
-
-```markdown
-## 1. 视频导出
-
-### 1.1 导出进度展示
-
-- [ ] 1.1.1 后端进度接口
-- [ ] 1.1.2 前端进度条
-- [ ] TC: 导出中显示实时进度
-- [ ] TC: 导出失败显示错误
-```
-
-然后执行：
+然后人工整理 `docs/plan`，再执行：
 
 ```text
 /plan-sync
 ```
 
-Agent 会预览要创建的 Epic、Story、Sub Task、Sub Test。确认后创建，并把返回的 `LIN-xxx` 写回 plan。
+这样新写的、没有 `LIN-xxx` 的计划会补到 Linear，已有编号不会重复创建。
 
-## 常见问题
+### 日常开发
 
-### 没有 `.linear.yaml` 能创建 Issue 吗？
+```text
+/branch LIN-102 实现导出 API
+/linear-start LIN-102
+/commit-msg LIN-102 完成导出 API
+/sync LIN-102
+```
 
-不能直接自动创建。规则要求先执行 `/linear-init`。如果你不想初始化，只能输出创建单给你手动粘贴。
+## 多仓库注意事项
 
-### 可以只说“帮我建个 bug”吗？
+打开哪个 Git 仓库，就只读取该仓库根目录的 `.linear.yaml`。
 
-可以，但 Bug 必须有关联父 Story。如果消息和当前分支都没有 `LIN-xxx`，Agent 会问你父 Story 是哪个。
+如果一个需求明显属于另一个仓库或 Project，Agent 必须询问，不得猜测。
 
-### `/branch` 会直接创建 Git 分支吗？
+## API Key 安全
 
-不会。它只输出推荐分支名。是否创建分支由你决定。
+不要把 Linear API Key 写进会提交到 Git 的 `.linear.yaml`。
 
-### 聊天结束会自动把 Linear 标 Done 吗？
+推荐使用：
 
-不会。规则明确要求不要因为聊天结束就标 Done。Done 应该由 `/linear-done`、commit/PR 同步或 PR 合并触发。
+```text
+LINEAR_API_KEY
+```
 
-### 测试用例能写在 Checklist 里吗？
+或本地忽略文件：
 
-不推荐。规则要求一用例一 Issue，也就是用 `/tc` 创建独立的 Sub Test。
-
-### 当前仓库和需求所属 Project 不一致怎么办？
-
-Agent 应该询问你要记到哪个 Project，不能猜。
-
-## 推荐日常流程
-
-1. 新仓库先 `/linear-init`。
-2. 用 `/linear-status` 确认绑定。
-3. 写或更新 `docs/plan/`。
-4. 用 `/plan-sync` 批量创建需求和子任务，或用 `/req`、`/bug`、`/tc` 单独创建。
-5. 开发前用 `/branch` 生成分支名。
-6. 开始开发时用 `/linear-start`。
-7. 提交时用 `/commit-msg`。
-8. 提交或 PR 后用 `/sync`。
-9. PR 合并后根据规则同步 Story Done 和 plan 勾选。
+```text
+linear.yaml.local
+```

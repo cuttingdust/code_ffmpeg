@@ -17,12 +17,15 @@ Give the user a concise help menu for the Linear workflow.
    - If `.linear.yaml` is missing, tell the user to start with `/linear-init`.
 2. Show the main commands grouped by task:
    - Setup: `/linear-init`, `/linear-status`, `/linear-on`, `/linear-off`.
-   - Create: `/req`, `/bug`, `/tc`, `/epic`.
+   - Plan: `/phase`, `/req`.
+   - Create: `/task`, `/bug`, `/tc`.
    - Development: `/branch`, `/commit-msg`, `/link`.
    - Status: `/linear-start`, `/linear-review`, `/linear-done`.
    - Sync: `/plan-sync` (`docs/plan -> Linear`), `/linear-pull` (`Linear -> docs/plan`), `/sync` (development progress/status).
 3. Include 3-5 practical examples, such as:
-   - `/req 支持导出报表`
+   - `/phase Phase 1 导出基础能力`
+   - `/req 导出报表`
+   - `/task LIN-100 实现导出接口`
    - `/bug LIN-100 导出 CSV 中文乱码`
    - `/tc LIN-100 CSV 字段完整性校验`
    - `/branch LIN-123 导出报表`

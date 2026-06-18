@@ -17,6 +17,6 @@ Synchronize development progress for already-linked Linear issues.
 3. Treat `/sync` as status/progress sync only; do not bulk-create missing Linear issues from plan. Use `/plan-sync` for `docs/plan -> Linear`.
 4. Do not rebuild plan from Linear. Use `/linear-pull` for `Linear -> docs/plan`.
 5. Update only plan lines containing resolved `LIN-xxx`; never modify unrelated checklist lines.
-6. For Sub Task or Test completion, check the matching sub line only.
-7. For merged PRs that reference a Story, mark the Story Done and check the Story line plus completed sub lines.
+6. For Task, Bug, or Test completion, check the matching issue line only.
+7. For merged PRs that reference multiple issues, mark only explicitly referenced issues Done.
 8. Preview changes before making broad updates.
