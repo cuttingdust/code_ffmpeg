@@ -15,7 +15,10 @@ extern "C" {
 #include <libavutil/dict.h>
 #include <libavutil/frame.h>
 #include <libavutil/rational.h>
+#include <libavutil/channel_layout.h>
+#include <libavutil/samplefmt.h>
 #include <libswscale/swscale.h>
+#include <libswresample/swresample.h>
 }
 
 /// ==================== 时间工具 ====================

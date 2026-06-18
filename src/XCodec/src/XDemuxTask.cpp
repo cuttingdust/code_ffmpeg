@@ -130,10 +130,10 @@ auto XDemuxTask::seek(double timestamp, int stream_index) -> bool
 
     LOGI("Seek 到: " << timestamp << "秒");
 
-    // 1. 记录当前暂停状态
+    /// 1. 记录当前暂停状态
     bool was_paused = isPaused();
 
-    // 2. 如果没有暂停，先暂停
+    /// 2. 如果没有暂停，先暂停
     if (!was_paused)
     {
         setPaused(true);
@@ -141,13 +141,13 @@ auto XDemuxTask::seek(double timestamp, int stream_index) -> bool
     }
 
 
-    // 等待一小段时间，让当前正在处理的包完成
+    /// 等待一小段时间，让当前正在处理的包完成
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
-    // 清空自己的队列
+    /// 清空自己的队列
     clear();
 
-    // 清空下游队列（视频链）
+    /// 清空下游队列（视频链）
     if (next_)
     {
         next_->clear();
@@ -162,7 +162,7 @@ auto XDemuxTask::seek(double timestamp, int stream_index) -> bool
         next_->flushDownstream();
     }
 
-    // 清空下游队列（音频链）
+    /// 清空下游队列（音频链）
     if (audio_next_)
     {
         audio_next_->clear();
@@ -177,7 +177,7 @@ auto XDemuxTask::seek(double timestamp, int stream_index) -> bool
         audio_next_->flushDownstream();
     }
 
-    // 执行 seek（强制跳转到关键帧）
+    /// 执行 seek（强制跳转到关键帧）
     int  flags = AVSEEK_FLAG_BACKWARD | AVSEEK_FLAG_FRAME;
     bool ret   = demuxer_->seek(timestamp, stream_index, flags);
     if (ret)
@@ -190,10 +190,10 @@ auto XDemuxTask::seek(double timestamp, int stream_index) -> bool
         LOGE("Seek: 定位失败");
     }
 
-    // 6. 重置帧率时间基准
+    /// 6. 重置帧率时间基准
     resetFrameTime();
 
-    // 7. 恢复之前的暂停状态
+    /// 7. 恢复之前的暂停状态
     if (!was_paused)
     {
         setPaused(false);

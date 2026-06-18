@@ -1,24 +1,15 @@
-#include "AudioDecoder.h"
+﻿#include "AudioDecoder.h"
 
 #include "AVException.h"
 #include "AVLog.h"
-
-extern "C" {
-#include <libavutil/frame.h>
-#include <libavcodec/avcodec.h>
-#include <libswresample/swresample.h>
-}
+#include "ChannelLayoutWrapper.h"
+#include "SwrContextWrapper.h"
 
 class AudioDecoder::PImpl
 {
 public:
     explicit PImpl(AudioDecoder* owner, AudioDecoderConfig cfg) : owner_(owner), config_(std::move(cfg))
     {
-    }
-
-    ~PImpl()
-    {
-        freeSwr();
     }
 
     auto findDecoder() -> void
@@ -60,63 +51,31 @@ public:
         LOGI("AudioDecoder 打开: " << config_.output_sample_rate << "Hz, " << config_.output_channels << "ch, S16");
     }
 
+    /// \brief 创建并初始化 SwrContext，把解码器原生 PCM 统一转换为播放层约定的格式
     auto initSwr() -> void
     {
-        freeSwr();
+        ChannelLayoutWrapper in_layout;
+        in_layout.copy_from(&ctx_->get()->ch_layout);
 
-        AVChannelLayout in_layout{};
-        if (av_channel_layout_copy(&in_layout, &ctx_->get()->ch_layout) < 0)
-        {
-            throw AVException("复制输入声道布局失败");
-        }
+        ChannelLayoutWrapper out_layout =
+                config_.output_channels == 1 ? ChannelLayoutWrapper::mono() : ChannelLayoutWrapper::stereo();
 
-        AVChannelLayout out_layout = AV_CHANNEL_LAYOUT_STEREO;
-        if (config_.output_channels == 1)
-        {
-            out_layout = AV_CHANNEL_LAYOUT_MONO;
-        }
-
-        int ret = swr_alloc_set_opts2(&swr_,
-                                      &out_layout,
-                                      config_.output_sample_fmt,
-                                      config_.output_sample_rate,
-                                      &in_layout,
-                                      ctx_->get()->sample_fmt,
-                                      ctx_->get()->sample_rate,
-                                      0,
-                                      nullptr);
-        av_channel_layout_uninit(&in_layout);
-
-        if (ret < 0 || !swr_)
-        {
-            throw AVException("swr_alloc_set_opts2 失败", ret);
-        }
-
-        ret = swr_init(swr_);
-        if (ret < 0)
-        {
-            throw AVException("swr_init 失败", ret);
-        }
-    }
-
-    auto freeSwr() -> void
-    {
-        if (swr_)
-        {
-            swr_free(&swr_);
-            swr_ = nullptr;
-        }
+        swr_.configure(out_layout,
+                       config_.output_sample_fmt,
+                       config_.output_sample_rate,
+                       in_layout,
+                       ctx_->get()->sample_fmt,
+                       ctx_->get()->sample_rate);
     }
 
     auto resampleFrame(AVFrame* decoded, std::vector<AVFrame*>& out_frames) -> int
     {
-        if (!decoded || !swr_)
+        if (!decoded || !swr_.is_ready())
         {
             return 0;
         }
 
-        const int max_out =
-                swr_get_out_samples(swr_, decoded->nb_samples) + config_.output_sample_rate / 10;
+        const int max_out = swr_.get_out_samples(decoded->nb_samples) + config_.output_sample_rate / 10;
         if (max_out <= 0)
         {
             return 0;
@@ -147,12 +106,7 @@ public:
         }
 
         const int out_samples =
-                swr_convert(swr_, pcm->data, max_out, const_cast<const uint8_t**>(decoded->data), decoded->nb_samples);
-        if (out_samples < 0)
-        {
-            av_frame_free(&pcm);
-            throw AVException("swr_convert 失败", out_samples);
-        }
+                swr_.convert(pcm->data, max_out, const_cast<const uint8_t**>(decoded->data), decoded->nb_samples);
         if (out_samples == 0)
         {
             av_frame_free(&pcm);
@@ -194,7 +148,7 @@ public:
     const AVCodec*                          codec_ = nullptr;
     std::unique_ptr<DecoderContextWrapper>  ctx_;
     std::shared_ptr<CodecParametersWrapper> codec_params_;
-    SwrContext*                             swr_ = nullptr;
+    SwrContextWrapper                       swr_;
     FrameWrapper                            decoded_frame_;
     Stats                                   stats_;
 };

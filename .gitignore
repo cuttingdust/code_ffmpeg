@@ -1,5 +1,6 @@
 # User ================================
 # 用户自定义的其他忽略文件
+src/deploy_qt.bat
 
 # Clion ================================
 # Covers JetBrains IDEs: IntelliJ, RubyMine, PhpStorm, AppCode, PyCharm, CLion, Android Studio and WebStorm

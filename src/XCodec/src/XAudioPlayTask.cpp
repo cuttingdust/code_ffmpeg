@@ -1,11 +1,6 @@
-#include "XAudioPlayTask.h"
+﻿#include "XAudioPlayTask.h"
 
 #include "AVLog.h"
-
-extern "C" {
-#include <libavutil/frame.h>
-#include <libavutil/samplefmt.h>
-}
 
 #include <thread>
 
@@ -158,14 +153,27 @@ void XAudioPlayTask::resetPtsClock()
     pause_wall_          = std::chrono::steady_clock::time_point{};
 }
 
+/// \brief 将当前 PCM 帧映射为「媒体时间轴上的秒数」，供 waitUntilPts 做 sleep 同步
+///
+/// 两条路径：
+/// 1. 正常：frame->pts 有效（AudioDecoder 重采样后会保留 pts 并带上 stream time_base）→ 秒 = pts * time_base
+/// 2. 兜底：pts == AV_NOPTS_VALUE（部分流/flush 帧无时间戳）→ 用 synthetic_pts_sec_ 按样本数累加伪时间戳
+///
+/// \note 仅兜底路径会推进 synthetic_pts_sec_；有真实 pts 时不改 synthetic，避免与文件时间轴混用
+/// \note 返回值为「该帧起始时刻」的秒数，不是帧结束时刻
 auto XAudioPlayTask::framePtsSec(const AVFrame* frame) -> double
 {
+    /// 主路径：上游解码器提供的 DTS/PTS（AudioDecoder 在 resample 后写入 decoded->pts + config_.time_base）
     if (frame && frame->pts != AV_NOPTS_VALUE)
     {
         return frame->pts * av_q2d(frame->time_base);
     }
 
+    /// 兜底路径：无 pts 时，用已播放样本累计时长作为当前帧的「合成 pts」
+    /// synthetic_pts_sec_ 表示下一帧若仍无 pts，应从哪个秒数开始（单调递增）
     const double pts = synthetic_pts_sec_;
+
+    /// 按本帧样本数推进合成时钟：duration = nb_samples / sample_rate_（与 open 后 PCM 采样率一致）
     if (frame && frame->nb_samples > 0 && sample_rate_ > 0)
     {
         synthetic_pts_sec_ += static_cast<double>(frame->nb_samples) / static_cast<double>(sample_rate_);
