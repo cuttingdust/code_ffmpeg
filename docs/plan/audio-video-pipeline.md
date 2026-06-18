@@ -1,7 +1,8 @@
 # 音视频责任链统一规划 — docs/plan
 
 > 目标：在现有 XTask 责任链上补齐 **音频解封装 → 解码 → 播放**，并与视频侧 **命名对称、职责清晰、第一版含 PTS 同步**。  
-> 行尾 **LIN-xxx** 供 `/plan-sync` 或 Issue 跟踪；实施时按 Phase 顺序推进，**每 Phase 可独立验收**。
+> 行尾 **HIL-xxx** 供 `/plan-sync` 或 Issue 跟踪（HOME 团队前缀）；实施时按 Phase 顺序推进，**每 Phase 可独立验收**。  
+> Epic：**HIL-54** [音视频责任链统一规划](https://linear.app/hildness/issue/HIL-54)
 
 ---
 
@@ -99,7 +100,7 @@ Phase R 重命名后曾保留 **一个版本周期的 type alias**（`using XDec
 
 ## 3. 组件设计
 
-### 3.1 AudioDecoder  LIN-201
+### 3.1 AudioDecoder  HIL-59
 
 **职责**：音频 `AVCodecContext` 生命周期；`send_packet` / `receive_frame`；输出 **S16 交错** PCM（经 SwrContext）。
 
@@ -122,7 +123,7 @@ Phase R 重命名后曾保留 **一个版本周期的 type alias**（`using XDec
 
 **不在 AudioDecoder 内**：SDL 设备、线程、队列（交给 Task）。
 
-### 3.2 XAudioDecodeTask  LIN-202
+### 3.2 XAudioDecodeTask  HIL-56
 
 **职责**：线程；`popPacket` → `AudioDecoder` → `pushFrame`（S16 `AVFrame`）。
 
@@ -134,7 +135,7 @@ Phase R 重命名后曾保留 **一个版本周期的 type alias**（`using XDec
 | 背压 | 下游 `getQueueSize() >= max_queue_size_` 时上游 Demux 侧 sleep（与视频链相同模式） |
 | EOF | 收到 EOF 后 flush decoder，帧送尽再结束 |
 
-### 3.3 XAudioPlayTask  LIN-203
+### 3.3 XAudioPlayTask  HIL-55
 
 **职责**：线程；`popFrame` → PTS 同步 → `XAudioPlay::push`；设备生命周期。
 
@@ -147,7 +148,7 @@ Phase R 重命名后曾保留 **一个版本周期的 type alias**（`using XDec
 | seek | `clearQueue()` + 重置时钟（与 Demux seek 联动，Phase 5） |
 | 音量/倍速 | 转发 `XAudioPlay::setVolume`；**播放层 setSpeed 仍视为临时**；长期由 Demux/atempo 驱动 |
 
-### 3.4 XDemuxTask 扩展  LIN-204
+### 3.4 XDemuxTask 扩展  HIL-58
 
 新增成员：
 
@@ -162,7 +163,7 @@ void setVideoNext(std::shared_ptr<XTask> next);  // 可选：setNext 转调，�
 - 视频包：逻辑不变（pacing + `video_next_->pushPacket`）
 - `stop()`：除 `next_` 外，**同时** `audio_next_->stop()`（需在 `XTask::stop` 扩展或 Demux 重写）
 
-### 3.5 视频 Task 重命名（仅类名/文件名）  LIN-205
+### 3.5 视频 Task 重命名（仅类名/文件名）  HIL-57
 
 - `XDecodeTask` → `XVideoDecodeTask`（文件同步重命名）
 - `XDisplayTask` → `XVideoDisplayTask`
@@ -171,7 +172,7 @@ void setVideoNext(std::shared_ptr<XTask> next);  // 可选：setNext 转调，�
 
 ---
 
-## 4. PTS 同步（第一版必做）  LIN-210
+## 4. PTS 同步（第一版必做）  HIL-60
 
 ### 4.1 原则
 
@@ -211,7 +212,7 @@ push PCM
 
 > 每 Phase 结束应可编译、可跑、可验收；避免跨 Phase 大块未测代码。
 
-### Phase R — 视频 Task 重命名（无行为变更）  LIN-220
+### Phase R — 视频 Task 重命名（无行为变更）  HIL-62
 
 - [x] R.1 `XDecodeTask` → `XVideoDecodeTask`（类名、文件名、CREATE 宏）
 - [x] R.2 `XDisplayTask` → `XVideoDisplayTask`
@@ -223,7 +224,7 @@ push PCM
 
 ---
 
-### Phase A — AudioDecoder  LIN-230
+### Phase A — AudioDecoder  HIL-64
 
 - [x] A.1 新增 `AudioDecoder.h/.cpp`（XCodec）
 - [x] A.2 `open` + `decode_packet` + `flush` + swr → S16 stereo
@@ -233,7 +234,7 @@ push PCM
 
 ---
 
-### Phase B — XDemuxTask 音频分叉  LIN-240
+### Phase B — XDemuxTask 音频分叉  HIL-66
 
 - [x] B.1 `setAudioNext` / `audio_next_`；`stop()` 递归停止音频链
 - [x] B.2 `process()` 转发音频包；统计 `audio_packets_`
@@ -244,7 +245,7 @@ push PCM
 
 ---
 
-### Phase C — XAudioDecodeTask  LIN-250
+### Phase C — XAudioDecodeTask  HIL-63
 
 - [x] C.1 新建 Task；`initDecoder`；`process` 循环
 - [x] C.2 链：`demux->setAudioNext(audio_decode)`；`audio_decode->setNext(audio_play)`（见 XAudioDemuxTest）
@@ -253,7 +254,7 @@ push PCM
 
 ---
 
-### Phase D — XAudioPlayTask + PTS  LIN-260
+### Phase D — XAudioPlayTask + PTS  HIL-61
 
 - [x] D.1 新建 Task；持有 `XAudioPlay`；预缓冲 + `start`
 - [x] D.2 实现 §4 PTS sleep / 追帧
@@ -263,22 +264,22 @@ push PCM
 
 ---
 
-### Phase E — E2E 测试工程  LIN-270
+### Phase E — E2E 测试工程  HIL-65
 
 - [x] E.1 新建 `src/XAudioDemuxTest/`（CMake：`XCodec`）
 - [x] E.2 `main`：组装责任链；fallback `v1080.mp4`
 - [x] E.3 `src/CMakeLists.txt` 注册
 
-#### TC: 纯音频 E2E  LIN-271
+#### TC: 纯音频 E2E  HIL-68
 
-- [x] TC.1 正常播完，队列归零
-- [x] TC.2 pause / resume（Task + 设备）— `XCodecLocalPlayer` 冒烟
-- [ ] TC.3 无音频流文件 graceful 失败
-- [ ] TC.4 `setVolume(0.5)` 可听感验证（人工）
+- [x] TC.1 正常播完，队列归零  HIL-71
+- [x] TC.2 pause / resume（Task + 设备）— `XCodecLocalPlayer` 冒烟  HIL-73
+- [ ] TC.3 无音频流文件 graceful 失败  HIL-70
+- [ ] TC.4 `setVolume(0.5)` 可听感验证（人工）  HIL-72
 
 ---
 
-### Phase F — LocalPlayer 集成  LIN-280
+### Phase F — LocalPlayer 集成  HIL-67
 
 - [x] F.1 有音频流时创建并启动音频链；**无视频流时不强制失败**（可选：纯音频文件）
 - [x] F.2 `play/pause/stop/seek/setSpeed` 同步到音频 Task + `XAudioPlay`
@@ -289,7 +290,7 @@ push PCM
 
 ---
 
-### Phase G — 清理与文档  LIN-290
+### Phase G — 清理与文档  HIL-69
 
 - [x] G.1 删除 type alias（确认无引用）
 - [x] G.2 同步 `RtspClientTask` 拷贝模块（类名 + 文件名）
@@ -342,4 +343,4 @@ push PCM
 
 ## 10. 下一步（当前）
 
-**下一步**：Phase B — `XDemuxTask::setAudioNext` + 音频包转发。
+**下一步**：**HIL-70** 无音频流 graceful 失败；**HIL-72** setVolume 听感验证（人工）。

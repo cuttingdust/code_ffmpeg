@@ -28,6 +28,6 @@ sync:
 
 defaults:
   issue_title_prefix: "[code_ffmpeg]"
-  branch_pattern: "feat/LIN-{id}-{slug}"
+  branch_pattern: "feat/HIL-{id}-{slug}"
 
 # API：Cursor Linear MCP 或 LINEAR_API_KEY；勿提交密钥到 git
