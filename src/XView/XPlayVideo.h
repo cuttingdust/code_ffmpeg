@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <QtWidgets/QWidget>
 #include <QtCore/QTimer>
@@ -36,6 +36,7 @@ private slots:
     void onSeekSliderReleased();
     void onSeekSliderMoved(int value);
     void onSpeedChanged(int index);
+    void onVolumeChanged(int value);
     void updateProgress();
 
 private:

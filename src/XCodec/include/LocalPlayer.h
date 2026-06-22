@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "XCodec_Global.h"
 #include "XRenderBackend.h"
@@ -57,6 +57,10 @@ public:
 
     int getWidth() const;
     int getHeight() const;
+
+    bool hasAudio() const;
+    void setVolume(double volume);
+    double getVolume() const;
 
 private:
     class PImpl;

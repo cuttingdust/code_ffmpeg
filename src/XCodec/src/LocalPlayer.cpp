@@ -1,4 +1,4 @@
-﻿#include "LocalPlayer.h"
+#include "LocalPlayer.h"
 #include "AVLog.h"
 #include "XOpenGLDisplay.h"
 #include "XRecordingOverlay.h"
@@ -522,6 +522,37 @@ int LocalPlayer::getWidth() const
 int LocalPlayer::getHeight() const
 {
     return impl_->video_height_;
+}
+
+bool LocalPlayer::hasAudio() const
+{
+    return impl_->audio_play_task_ != nullptr;
+}
+
+void LocalPlayer::setVolume(double volume)
+{
+    if (volume < 0.0)
+    {
+        volume = 0.0;
+    }
+    else if (volume > 1.0)
+    {
+        volume = 1.0;
+    }
+
+    if (impl_->audio_play_task_)
+    {
+        impl_->audio_play_task_->setVolume(volume);
+    }
+}
+
+double LocalPlayer::getVolume() const
+{
+    if (impl_->audio_play_task_ && impl_->audio_play_task_->getPlayer())
+    {
+        return impl_->audio_play_task_->getPlayer()->getVolume();
+    }
+    return 1.0;
 }
 
 void LocalPlayer::PImpl::controlLoop()

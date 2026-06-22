@@ -28,6 +28,12 @@ XPlayVideo::XPlayVideo(QWidget* parent) : QWidget(parent), ui(new Ui::XPlayVideo
     ui->speed_combo->addItem("5.0x", 5.0);
     ui->speed_combo->setCurrentIndex(1); // 默认 1.0x
 
+    ui->volume_slider->setRange(0, 100);
+    ui->volume_slider->setValue(100);
+    ui->volume_slider->setEnabled(false);
+
+    ui->controlLayout->setStretch(ui->controlLayout->indexOf(ui->seek_slider), 1);
+
     // 防抖定时器
     seek_timer_ = new QTimer(this);
     seek_timer_->setSingleShot(true);
@@ -90,6 +96,11 @@ void XPlayVideo::setFile(const std::string& filepath, int camera_id, const QStri
 
     setWindowTitle(QString("回放: %1 - %2").arg(camera_name).arg(QString::fromStdString(filepath)));
 
+    if (player_)
+    {
+        player_->stop();
+    }
+
     player_ = std::make_unique<LocalPlayer>();
     player_->setOpenGLWidget(ui->openGLWidget);
     player_->setRenderBackend(RenderBackend::OpenGL);
@@ -110,8 +121,21 @@ void XPlayVideo::setFile(const std::string& filepath, int camera_id, const QStri
         video_height_ = player_->getHeight();
         adjustWindowSize();
 
+        ui->volume_slider->setEnabled(player_->hasAudio());
+        if (player_->hasAudio())
+        {
+            ui->volume_slider->setValue(static_cast<int>(player_->getVolume() * 100));
+            ui->volume_label->setText(QStringLiteral("🔊"));
+            ui->volume_label->setToolTip(tr("音量"));
+        }
+        else
+        {
+            ui->volume_label->setText(QStringLiteral("🔇"));
+            ui->volume_label->setToolTip(tr("该录像无音频（当前录制仅保存视频流）"));
+        }
+
         LOGI("加载文件成功: " << filepath << ", 时长: " << duration << "秒, 分辨率: " << video_width_ << "x"
-                              << video_height_);
+                              << video_height_ << ", 音频: " << (player_->hasAudio() ? "有" : "无"));
     }
     else
     {
@@ -243,6 +267,14 @@ void XPlayVideo::onSpeedChanged(int index)
     player_->setSpeed(speed);
 
     LOGI("播放速度切换到: " << speed << "x");
+}
+
+void XPlayVideo::onVolumeChanged(int value)
+{
+    if (!player_ || !player_->hasAudio())
+        return;
+
+    player_->setVolume(value / 100.0);
 }
 
 void XPlayVideo::updateProgress()
