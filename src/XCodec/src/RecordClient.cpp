@@ -38,25 +38,30 @@ auto RecordClient::create() -> std::shared_ptr<RecordClient>
 
 void RecordClient::initTasks()
 {
-    demux_task_  = XDemuxTask::create();
-    decode_task_ = XVideoDecodeTask::create();
-    encode_task_ = XEncodeTask::create();
-    muxer_task_  = XMuxerTask::create();
+    demux_task_       = XDemuxTask::create();
+    decode_task_      = XVideoDecodeTask::create();
+    encode_task_      = XEncodeTask::create();
+    muxer_task_       = XMuxerTask::create();
+    audio_remux_task_ = XAudioRemuxTask::create();
 
     demux_task_->setIdleTimeoutMs(5000);
     decode_task_->setIdleTimeoutMs(3000);
     encode_task_->setIdleTimeoutMs(3000);
     muxer_task_->setIdleTimeoutMs(3000);
+    audio_remux_task_->setIdleTimeoutMs(3000);
+    audio_remux_task_->setMaxQueueSize(128);
 
     demux_task_->setNext(decode_task_);
     decode_task_->setNext(encode_task_);
     encode_task_->setNext(muxer_task_);
+    audio_remux_task_->setMuxer(muxer_task_);
 
     auto error_cb = [this](const std::string& msg) { handleError(msg); };
     demux_task_->setErrorCallback(error_cb);
     decode_task_->setErrorCallback(error_cb);
     encode_task_->setErrorCallback(error_cb);
     muxer_task_->setErrorCallback(error_cb);
+    audio_remux_task_->setErrorCallback(error_cb);
 }
 
 void RecordClient::startTasks()
@@ -66,11 +71,15 @@ void RecordClient::startTasks()
         encode_task_->start();
     if (muxer_task_)
         muxer_task_->start();
+    if (audio_remux_task_ && audio_stream_)
+        audio_remux_task_->start();
 }
 
 void RecordClient::stopTasks()
 {
     XMediaClient::stopTasks();
+    if (audio_remux_task_)
+        audio_remux_task_->stop();
     if (encode_task_)
         encode_task_->stop();
     if (muxer_task_)
@@ -80,6 +89,8 @@ void RecordClient::stopTasks()
 void RecordClient::resetTasks()
 {
     XMediaClient::resetTasks();
+    if (audio_remux_task_)
+        audio_remux_task_->reset();
     if (encode_task_)
         encode_task_->reset();
     if (muxer_task_)
@@ -101,6 +112,18 @@ bool RecordClient::openUrlAndGetStream()
     {
         LOGE("未找到视频流");
         return false;
+    }
+
+    audio_stream_ = demux_task_->getAudioStream();
+    if (audio_stream_)
+    {
+        LOGI("音频流: " << audio_stream_->codecpar->sample_rate << "Hz");
+        demux_task_->setAudioNext(audio_remux_task_);
+    }
+    else
+    {
+        LOGW("未找到音频流，将仅录制视频");
+        demux_task_->setAudioNext(nullptr);
     }
 
     /// 获取原始视频流的帧率并保存到 src_framerate_
@@ -145,10 +168,15 @@ bool RecordClient::initEncoderAndMuxer(const std::string& output_file)
     LOGI("编码器时间基: " << time_base.num << "/" << time_base.den);
     LOGI("使用帧率: " << src_framerate_.num << "/" << src_framerate_.den);
 
-    if (!muxer_task_->init(output_file, enc_ctx, time_base, src_framerate_))
+    if (!muxer_task_->init(output_file, enc_ctx, time_base, src_framerate_, audio_stream_))
     {
         LOGE("初始化封装器失败");
         return false;
+    }
+
+    if (audio_remux_task_)
+    {
+        audio_remux_task_->setMuxer(muxer_task_);
     }
 
     return true;
@@ -165,6 +193,8 @@ bool RecordClient::resetAndReopen(const std::string& new_output_file)
         encode_task_->stop();
     if (muxer_task_)
         muxer_task_->stop();
+    if (audio_remux_task_)
+        audio_remux_task_->stop();
 
     if (demux_task_)
         demux_task_->wait();
@@ -174,6 +204,8 @@ bool RecordClient::resetAndReopen(const std::string& new_output_file)
         encode_task_->wait();
     if (muxer_task_)
         muxer_task_->wait();
+    if (audio_remux_task_)
+        audio_remux_task_->wait();
 
     // 重置任务
     if (demux_task_)
@@ -184,6 +216,8 @@ bool RecordClient::resetAndReopen(const std::string& new_output_file)
         encode_task_->reset();
     if (muxer_task_)
         muxer_task_->reset();
+    if (audio_remux_task_)
+        audio_remux_task_->reset();
 
     // 重新打开 URL
     if (!demux_task_->open(url_))
@@ -199,6 +233,16 @@ bool RecordClient::resetAndReopen(const std::string& new_output_file)
     {
         LOGE("重新获取视频流失败");
         return false;
+    }
+
+    audio_stream_ = demux_task_->getAudioStream();
+    if (audio_stream_)
+    {
+        demux_task_->setAudioNext(audio_remux_task_);
+    }
+    else
+    {
+        demux_task_->setAudioNext(nullptr);
     }
 
     // 重新获取帧率
@@ -234,10 +278,15 @@ bool RecordClient::resetAndReopen(const std::string& new_output_file)
     AVCodecContext* enc_ctx   = encode_task_->getCodecContext();
     AVRational      time_base = enc_ctx->time_base;
 
-    if (!muxer_task_->init(new_output_file, enc_ctx, time_base, src_framerate_))
+    if (!muxer_task_->init(new_output_file, enc_ctx, time_base, src_framerate_, audio_stream_))
     {
         LOGE("重新初始化封装器失败");
         return false;
+    }
+
+    if (audio_remux_task_)
+    {
+        audio_remux_task_->setMuxer(muxer_task_);
     }
 
     // 重新启动线程
@@ -245,6 +294,8 @@ bool RecordClient::resetAndReopen(const std::string& new_output_file)
     decode_task_->start();
     encode_task_->start();
     muxer_task_->start();
+    if (audio_remux_task_ && audio_stream_)
+        audio_remux_task_->start();
 
     return true;
 }
@@ -315,6 +366,8 @@ void RecordClient::wait()
         encode_task_->wait();
     if (muxer_task_)
         muxer_task_->wait();
+    if (audio_remux_task_)
+        audio_remux_task_->wait();
     LOGI("录制客户端已停止");
 }
 
@@ -551,6 +604,11 @@ void RecordClient::switchSegment()
     }
     encode_task_->setNext(muxer_task_);
 
+    if (audio_remux_task_)
+    {
+        audio_remux_task_->setMuxer(muxer_task_);
+    }
+
     auto error_cb = [this](const std::string& msg) { handleError(msg); };
     encode_task_->setErrorCallback(error_cb);
     muxer_task_->setErrorCallback(error_cb);
@@ -598,6 +656,8 @@ void RecordClient::reconnectImpl()
         encode_task_->wait();
     if (muxer_task_)
         muxer_task_->wait();
+    if (audio_remux_task_)
+        audio_remux_task_->wait();
 
     resetTasks();
 

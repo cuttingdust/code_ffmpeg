@@ -3,6 +3,7 @@
 #include "XMediaClient.h"
 #include "XEncodeTask.h"
 #include "XMuxerTask.h"
+#include "XAudioRemuxTask.h"
 #include "EncoderConfig.h"
 
 /// 录制客户端
@@ -77,8 +78,9 @@ private:
     auto generateSegmentFilename() -> std::string;
 
 private:
-    XEncodeTask::Ptr encode_task_;
-    XMuxerTask::Ptr  muxer_task_;
+    XEncodeTask::Ptr       encode_task_;
+    XMuxerTask::Ptr        muxer_task_;
+    XAudioRemuxTask::Ptr   audio_remux_task_;
 
     EncoderConfig                         encode_config_;
     std::string                           output_file_;
@@ -87,6 +89,8 @@ private:
     std::thread                           duration_thread_;
     std::atomic<bool>                     duration_monitor_running_{ false };
     std::atomic<bool>                     is_recording_{ false };
+
+    AVStream* audio_stream_ = nullptr;
 
     /// 分段录制相关
     int               segment_duration_ = 0;
