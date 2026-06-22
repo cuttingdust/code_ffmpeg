@@ -2,7 +2,7 @@
 
 > 目标：在现有 XTask 责任链上补齐 **音频解封装 → 解码 → 播放**，并与视频侧 **命名对称、职责清晰、第一版含 PTS 同步**。  
 > 行尾 **HIL-xxx** 供 `/plan-sync` 或 Issue 跟踪（HOME 团队前缀）；**Phase → Linear Milestone**，**Task/Test → 普通 Issue**（无 Sub-issue）。  
-> 实施顺序：**R → A → B → C → D → E → F → G**；每 Phase 可独立验收。
+> 实施顺序：**R → A → B → C → D → E → F → G → H**；每 Phase 可独立验收。
 
 ---
 
@@ -293,6 +293,37 @@ push PCM
 
 细节：删除 alias；`RtspClientTask` 类名/文件名同步；更新本规划文档。
 
+## Phase H: XView 预览/录制音频集成  MS: Phase H
+
+### Feature: RecordClient 录制音频
+
+- [x] Task: RecordClient 录制音频 remux 支路（XAudioRemuxTask + XMuxerTask）  HIL-91
+- [x] Bug: XMuxerTask 关键帧前音频积压与非单调 DTS  HIL-92
+
+细节：主码流视频 decode→encode，音频 AAC remux 直通；关键帧前丢弃音频、DTS 单调、队列上限 128。
+
+**验收**：新录制 MP4 含 AAC 轨（见 HIL-95）。
+
+### Feature: XPlayVideo 回放 UI
+
+- [x] Task: 音量/进度条布局修复  HIL-96
+
+**验收**：进度条占满剩余宽度；无音频时音量禁用。
+
+### Feature: XView 预览音频
+
+- [x] Task: RtspClient 预览按需音频与 XViewer 互斥  HIL-94
+- [x] Task: 预览拖拽默认开启声音  HIL-97
+- [ ] Test: 预览默认有声无 PTS 追帧  HIL-93
+
+细节：`enableAudio()` lazy 挂载；预览/回放互斥；首帧就绪自动开声 + 多窗声音独占。
+
+**验收**：拖拽预览即有声音，无长期「PTS 落后」追帧日志。
+
+### Feature: 录制回放 E2E
+
+- [ ] Test: 录制 MP4 含 AAC 回放有声  HIL-95
+
 ---
 
 ## 6. 测试与资产
@@ -340,4 +371,8 @@ push PCM
 
 ## 10. 下一步（当前）
 
-**下一步**：**HIL-70** 无音频流 graceful 失败。
+**Phase H 开发项已完成（本地未提交）**；待验收：
+
+1. **HIL-95** — 新录制 MP4 回放有声
+2. **HIL-93** — 预览默认有声、无 PTS 追帧
+3. **HIL-70**（Phase E）— 无音频流 graceful 失败
