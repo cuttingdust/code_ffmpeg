@@ -169,6 +169,11 @@ bool XCameraWidget::open(const QString &url)
                                               {
                                                   impl_->video_widget_->setOverlayMessage(QString());
                                               }
+                                              if (impl_->rtsp_client_ && impl_->rtsp_client_->hasAudio()
+                                                  && !audio_enabled_)
+                                              {
+                                                  setAudioEnabled(true);
+                                              }
                                               updateMenuState();
                                               update();
                                           });
