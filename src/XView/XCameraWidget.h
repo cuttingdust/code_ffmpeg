@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <QtWidgets/QWidget>
 #include <memory>
@@ -46,6 +46,21 @@ public:
     /// 获取 RtspClient（用于外部控制）
     auto getRtspClient() const -> std::shared_ptr<RtspClient>;
 
+    /// 预览是否已开启声音
+    auto isAudioEnabled() const -> bool;
+
+    /// 开启/关闭预览声音（多窗口时由 XViewer 协调互斥）
+    auto setAudioEnabled(bool enabled) -> void;
+
+    /// 静音（被其他窗口抢占声音时调用）
+    auto muteAudio() -> void;
+
+    /// 暂停预览音频（不断 RTSP）
+    auto pausePreviewAudio() -> void;
+
+    /// 恢复预览声音（若用户之前开启过）
+    auto resumePreviewAudio() -> void;
+
 signals:
     /// 切换视图信号
     void changeViewMode(int count);
@@ -58,6 +73,9 @@ signals:
 
     /// 当窗口释放摄像头时发出
     void cameraReleased(int camera_id);
+
+    /// 请求独占预览声音（其他窗口应静音）
+    void exclusiveAudioRequested(int camera_id);
 
 protected:
     void dragEnterEvent(QDragEnterEvent *event) override;
@@ -76,7 +94,10 @@ private:
     QMenu   *context_menu_        = nullptr;
     QAction *start_record_action_ = nullptr;
     QAction *stop_record_action_  = nullptr;
+    QAction *enable_audio_action_ = nullptr;
+    QAction *disable_audio_action_ = nullptr;
 
     QTimer           *rec_timer_ = nullptr;        ///< 录制标识刷新定时器
     std::atomic<bool> is_recording_flag_{ false }; ///< 录制状态标志（用于UI显示）
+    std::atomic<bool> audio_enabled_{ false };
 };

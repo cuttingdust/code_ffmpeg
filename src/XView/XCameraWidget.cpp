@@ -1,4 +1,4 @@
-﻿#include "XCameraWidget.h"
+#include "XCameraWidget.h"
 
 #include "RecordClient.h"
 #include "RtspClient.h"
@@ -89,6 +89,7 @@ void XCameraWidget::updateMenuState()
     }
 
     bool playing = isPlaying();
+    const bool has_audio = impl_->rtsp_client_ && impl_->rtsp_client_->hasAudio();
 
     if (start_record_action_)
     {
@@ -97,6 +98,16 @@ void XCameraWidget::updateMenuState()
     if (stop_record_action_)
     {
         stop_record_action_->setEnabled(playing && isRecording());
+    }
+    if (enable_audio_action_)
+    {
+        enable_audio_action_->setVisible(has_audio);
+        enable_audio_action_->setEnabled(playing && has_audio && !audio_enabled_);
+    }
+    if (disable_audio_action_)
+    {
+        disable_audio_action_->setVisible(has_audio);
+        disable_audio_action_->setEnabled(playing && has_audio && audio_enabled_);
     }
 }
 
@@ -189,6 +200,7 @@ void XCameraWidget::stop()
         impl_->rtsp_client_->wait();
         impl_->rtsp_client_.reset();
     }
+    audio_enabled_ = false;
 
     // 停止录制（如果正在录制）
     if (impl_->camera_id_ >= 0 && isRecording())
@@ -319,6 +331,66 @@ auto XCameraWidget::getRtspClient() const -> std::shared_ptr<RtspClient>
     return impl_->rtsp_client_;
 }
 
+bool XCameraWidget::isAudioEnabled() const
+{
+    return audio_enabled_;
+}
+
+void XCameraWidget::setAudioEnabled(bool enabled)
+{
+    if (!impl_->rtsp_client_ || !impl_->rtsp_client_->hasAudio())
+    {
+        audio_enabled_ = false;
+        return;
+    }
+
+    if (enabled)
+    {
+        emit exclusiveAudioRequested(impl_->camera_id_);
+        if (impl_->rtsp_client_->enableAudio())
+        {
+            impl_->rtsp_client_->setVolume(1.0);
+            audio_enabled_ = true;
+        }
+    }
+    else
+    {
+        impl_->rtsp_client_->disableAudio();
+        audio_enabled_ = false;
+    }
+
+    updateMenuState();
+}
+
+void XCameraWidget::muteAudio()
+{
+    if (impl_->rtsp_client_)
+    {
+        impl_->rtsp_client_->disableAudio();
+    }
+    audio_enabled_ = false;
+    updateMenuState();
+}
+
+void XCameraWidget::pausePreviewAudio()
+{
+    if (impl_->rtsp_client_)
+    {
+        impl_->rtsp_client_->pauseAudio();
+    }
+}
+
+void XCameraWidget::resumePreviewAudio()
+{
+    if (!audio_enabled_ || !impl_->rtsp_client_)
+    {
+        return;
+    }
+
+    impl_->rtsp_client_->resumeAudio();
+    impl_->rtsp_client_->setVolume(1.0);
+}
+
 void XCameraWidget::contextMenuEvent(QContextMenuEvent *event)
 {
     if (!context_menu_)
@@ -336,6 +408,11 @@ void XCameraWidget::contextMenuEvent(QContextMenuEvent *event)
         auto recordMenu      = context_menu_->addMenu("录制");
         start_record_action_ = recordMenu->addAction("开始录制", this, &XCameraWidget::startRecording);
         stop_record_action_  = recordMenu->addAction("停止录制", this, &XCameraWidget::stopRecording);
+
+        context_menu_->addSeparator();
+
+        enable_audio_action_  = context_menu_->addAction("开启声音", this, [this]() { setAudioEnabled(true); });
+        disable_audio_action_ = context_menu_->addAction("关闭声音", this, [this]() { setAudioEnabled(false); });
 
         updateMenuState();
     }
