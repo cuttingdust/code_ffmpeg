@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <QtWidgets/QWidget>
 #include <QtWidgets/QMenu>
@@ -13,6 +13,7 @@ namespace Ui
 }
 
 class XCameraWidget;
+class XPlayVideo;
 
 class XViewer : public QWidget
 {
@@ -57,6 +58,15 @@ private:
     /// 更新指定摄像头的所有窗口的 REC 显示
     void updateCameraRecIndicator(int camera_id, bool is_recording);
 
+    /// 进入回放前暂停所有预览音频（不断 RTSP 视频）
+    void suspendAllPreviews();
+
+    /// 回到预览后恢复曾开启声音的窗口
+    void resumeAllPreviews();
+
+    /// 关闭当前回放窗口，避免与预览/新回放争用音频
+    void closeActivePlayback();
+
 private:
     Ui::XViewerClass *ui;
     QMenu             left_menu_;
@@ -69,4 +79,7 @@ private:
 
     /// 回放界面：当前选中的摄像机（点击左侧列表选中的）
     int playback_selected_camera_ = -1;
+
+    /// 当前打开的回放窗口（同时只允许一个）
+    XPlayVideo *active_playback_ = nullptr;
 };

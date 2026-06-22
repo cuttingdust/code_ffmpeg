@@ -16,28 +16,21 @@
 /// 注意：SDL_OpenAudioDevice 不会自动初始化音频子系统，必须先 Init。
 namespace
 {
-    std::once_flag g_sdl_audio_once;     ///< 保证 InitSubSystem 只执行一次
-    std::mutex     g_sdl_audio_init_mtx; ///< 保护 g_sdl_audio_ref 增减
-    int            g_sdl_audio_ref = 0;  ///< 当前存活的播放器实例数
+    std::mutex g_sdl_audio_init_mtx;
+    int        g_sdl_audio_ref = 0;
 
-    /// \brief 增加 SDL 音频子系统引用计数，首次调用时初始化
-    /// \return 初始化成功 true，失败 false
     auto refSdlAudio() -> bool
     {
         std::scoped_lock lock(g_sdl_audio_init_mtx);
         if (g_sdl_audio_ref == 0)
         {
-            std::call_once(g_sdl_audio_once,
-                           []()
-                           {
-                               if (SDL_InitSubSystem(SDL_INIT_AUDIO) != 0)
-                               {
-                                   LOGE("SDL_InitSubSystem(AUDIO) failed: " << SDL_GetError());
-                               }
-                           });
             if ((SDL_WasInit(SDL_INIT_AUDIO) & SDL_INIT_AUDIO) == 0)
             {
-                return false;
+                if (SDL_InitSubSystem(SDL_INIT_AUDIO) != 0)
+                {
+                    LOGE("SDL_InitSubSystem(AUDIO) failed: " << SDL_GetError());
+                    return false;
+                }
             }
         }
         ++g_sdl_audio_ref;

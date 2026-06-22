@@ -5,6 +5,8 @@
 #include "XOpenGLDisplay.h"
 #include "XOpenGLVideoWidget.h"
 #include "FrameWrapper.h"
+#include "XAudioDecodeTask.h"
+#include "XAudioPlayTask.h"
 
 RtspClient::RtspClient() : overlay_style_(defaultRecOverlayStyle())
 {
@@ -33,24 +35,81 @@ void RtspClient::initTasks()
 
 void RtspClient::createTasks()
 {
+    audio_ready_      = false;
+    audio_enabled_    = false;
+    audio_suspended_  = false;
     demux_task_   = XDemuxTask::create();
     decode_task_  = XVideoDecodeTask::create();
     display_task_ = XVideoDisplayTask::create();
+    audio_decode_task_ = XAudioDecodeTask::create();
+    audio_play_task_   = XAudioPlayTask::create();
 
     demux_task_->setIdleTimeoutMs(5000);
     decode_task_->setIdleTimeoutMs(3000);
     display_task_->setIdleTimeoutMs(10000);
+    audio_decode_task_->setIdleTimeoutMs(3000);
+    audio_play_task_->setIdleTimeoutMs(10000);
 
     demux_task_->setNext(decode_task_);
     decode_task_->setNext(display_task_);
+    /// 音频链按需 enableAudio() 时再 setAudioNext
 
     auto error_cb = [this](const std::string& msg) { handleError(msg); };
 
     demux_task_->setErrorCallback(error_cb);
     decode_task_->setErrorCallback(error_cb);
     display_task_->setErrorCallback(error_cb);
+    audio_decode_task_->setErrorCallback(error_cb);
+    audio_play_task_->setErrorCallback(error_cb);
+
+    audio_decode_task_->setNext(audio_play_task_);
 
     applyDisplayRender();
+}
+
+auto RtspClient::initAudio() -> bool
+{
+    audio_ready_ = false;
+
+    if (!demux_task_)
+    {
+        return false;
+    }
+
+    auto* audio_stream = demux_task_->getAudioStream();
+    if (!audio_stream)
+    {
+        LOGI("RTSP 无音频流");
+        return true;
+    }
+
+    if (!audio_decode_task_ || !audio_play_task_)
+    {
+        LOGE("音频 Task 未创建");
+        return false;
+    }
+
+    if (!audio_decode_task_->initDecoder(audio_stream))
+    {
+        LOGE("RTSP 音频解码器初始化失败");
+        return false;
+    }
+
+    if (!audio_play_task_->openFromDecoder(audio_decode_task_->getDecoder()))
+    {
+        LOGE("RTSP 音频播放设备打开失败");
+        return false;
+    }
+
+    audio_play_task_->setVolume(volume_);
+    if (demux_task_)
+    {
+        demux_task_->setAudioNext(audio_decode_task_);
+    }
+    audio_suspended_ = false;
+    audio_ready_       = true;
+    LOGI("RTSP 音频: " << audio_stream->codecpar->sample_rate << "Hz");
+    return true;
 }
 
 void RtspClient::applyDisplayRender()
@@ -77,6 +136,18 @@ void RtspClient::applyDisplayRender()
 
 void RtspClient::destroyTasks()
 {
+    audio_ready_     = false;
+    audio_suspended_ = false;
+    if (audio_play_task_)
+    {
+        audio_play_task_->reset();
+        audio_play_task_.reset();
+    }
+    if (audio_decode_task_)
+    {
+        audio_decode_task_->reset();
+        audio_decode_task_.reset();
+    }
     if (display_task_)
     {
         display_task_->stop();
@@ -119,6 +190,13 @@ void RtspClient::startTasks()
 {
     if (record_task_)
         record_task_->start();
+    if (audio_ready_)
+    {
+        if (audio_play_task_)
+            audio_play_task_->start();
+        if (audio_decode_task_)
+            audio_decode_task_->start();
+    }
     XMediaClient::startTasks();
     if (display_task_)
         display_task_->start();
@@ -129,6 +207,10 @@ void RtspClient::stopTasks()
     XMediaClient::stopTasks();
     if (display_task_)
         display_task_->stop();
+    if (audio_decode_task_)
+        audio_decode_task_->stop();
+    if (audio_play_task_)
+        audio_play_task_->stop();
     if (record_task_)
         record_task_->stop();
 }
@@ -138,6 +220,10 @@ void RtspClient::resetTasks()
     XMediaClient::resetTasks();
     if (display_task_)
         display_task_->reset();
+    if (audio_decode_task_)
+        audio_decode_task_->reset();
+    if (audio_play_task_)
+        audio_play_task_->reset();
     if (record_task_)
         record_task_->reset();
 }
@@ -213,6 +299,14 @@ void RtspClient::reconnectImpl()
         return;
     }
 
+    if (audio_enabled_)
+    {
+        if (!initAudio())
+        {
+            LOGW("重连音频初始化失败，继续仅视频播放");
+        }
+    }
+
     startTasks();
 
     setState(MediaClientState::CONNECTED);
@@ -268,18 +362,19 @@ bool RtspClient::start()
 
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-    if (demux_task_->isRunning() && decode_task_->isRunning() && display_task_->isRunning())
+    const bool video_running =
+        demux_task_->isRunning() && decode_task_->isRunning() && display_task_->isRunning();
+
+    if (video_running)
     {
         setState(MediaClientState::CONNECTED);
         LOGI("RTSP客户端启动成功");
         return true;
     }
-    else
-    {
-        LOGE("任务启动失败");
-        setState(MediaClientState::ERROR);
-        return false;
-    }
+
+    LOGE("任务启动失败");
+    setState(MediaClientState::ERROR);
+    return false;
 }
 
 void RtspClient::stop()
@@ -297,6 +392,10 @@ void RtspClient::wait()
         decode_task_->wait();
     if (display_task_)
         display_task_->wait();
+    if (audio_decode_task_)
+        audio_decode_task_->wait();
+    if (audio_play_task_)
+        audio_play_task_->wait();
     if (record_task_)
         record_task_->wait();
     LOGI("RTSP客户端已停止");
@@ -413,4 +512,137 @@ auto RtspClient::getDecodeTask() -> XVideoDecodeTask::Ptr
 auto RtspClient::getDisplayTask() -> XVideoDisplayTask::Ptr
 {
     return display_task_;
+}
+
+auto RtspClient::hasAudio() const -> bool
+{
+    return demux_task_ && demux_task_->getAudioStream() != nullptr;
+}
+
+auto RtspClient::enableAudio() -> bool
+{
+    if (!demux_task_ || !demux_task_->getAudioStream())
+    {
+        return false;
+    }
+
+    if (audio_ready_ && !audio_suspended_)
+    {
+        audio_enabled_ = true;
+        if (audio_play_task_)
+        {
+            audio_play_task_->setVolume(volume_);
+        }
+        return true;
+    }
+
+    if (!initAudio())
+    {
+        return false;
+    }
+
+    audio_enabled_ = true;
+
+    if (isRunning())
+    {
+        if (audio_play_task_)
+        {
+            audio_play_task_->start();
+        }
+        if (audio_decode_task_)
+        {
+            audio_decode_task_->start();
+        }
+    }
+
+    LOGI("RTSP 预览音频已开启");
+    return true;
+}
+
+auto RtspClient::disableAudio() -> void
+{
+    audio_enabled_ = false;
+    volume_        = 0.0;
+    pauseAudio();
+    LOGI("RTSP 预览音频已关闭");
+}
+
+auto RtspClient::setVolume(double volume) -> void
+{
+    if (volume < 0.0)
+    {
+        volume = 0.0;
+    }
+    else if (volume > 1.0)
+    {
+        volume = 1.0;
+    }
+
+    volume_ = volume;
+    if (volume > 0.0 && !audio_ready_)
+    {
+        enableAudio();
+    }
+    if (audio_play_task_)
+    {
+        audio_play_task_->setVolume(volume);
+    }
+}
+
+auto RtspClient::getVolume() const -> double
+{
+    return volume_;
+}
+
+auto RtspClient::pauseAudio() -> void
+{
+    if (!audio_ready_ || audio_suspended_)
+    {
+        return;
+    }
+
+    /// 断开 Demux 音频分叉，避免解码队列塞满阻塞视频读包
+    if (demux_task_)
+    {
+        demux_task_->setAudioNext(nullptr);
+    }
+
+    if (audio_play_task_)
+    {
+        audio_play_task_->flushDownstream();
+        audio_play_task_->setPaused(true);
+    }
+    if (audio_decode_task_)
+    {
+        audio_decode_task_->setPaused(true);
+    }
+
+    audio_suspended_ = true;
+    LOGI("RTSP 音频已暂停（连接保持）");
+}
+
+auto RtspClient::resumeAudio() -> void
+{
+    if (!audio_enabled_ || !audio_ready_ || !audio_suspended_)
+    {
+        return;
+    }
+
+    if (demux_task_ && audio_decode_task_)
+    {
+        demux_task_->setAudioNext(audio_decode_task_);
+    }
+
+    if (audio_decode_task_)
+    {
+        audio_decode_task_->setPaused(false);
+    }
+    if (audio_play_task_)
+    {
+        audio_play_task_->setPaused(false);
+        audio_play_task_->setVolume(volume_);
+    }
+
+    audio_suspended_ = false;
+    LOGI("RTSP 音频已恢复");
 }

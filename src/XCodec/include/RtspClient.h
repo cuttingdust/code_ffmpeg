@@ -2,6 +2,8 @@
 #include "XCodec_Global.h"
 #include "XMediaClient.h"
 #include "XVideoDisplayTask.h"
+#include "XAudioDecodeTask.h"
+#include "XAudioPlayTask.h"
 #include "XRecordTask.h"
 #include "XRenderBackend.h"
 #include "XOverlayStyle.h"
@@ -59,6 +61,24 @@ public:
     /// 设置录制指示器显示状态
     void setRecordingIndicator(bool show);
 
+    // ==================== 音频控制 ====================
+
+    auto hasAudio() const -> bool;
+    auto setVolume(double volume) -> void;
+    auto getVolume() const -> double;
+
+    /// 按需开启音频（预览默认仅视频，用户开声时再 init）
+    auto enableAudio() -> bool;
+
+    /// 关闭预览音频
+    auto disableAudio() -> void;
+
+    /// 暂停预览音频（保持 RTSP / SDL 设备，供回放独占出声）
+    auto pauseAudio() -> void;
+
+    /// 恢复预览音频（pauseAudio 之后）
+    auto resumeAudio() -> void;
+
 protected:
     void initTasks() override;
     void startTasks() override;
@@ -70,9 +90,16 @@ private:
     void destroyTasks();
     void createTasks();
     void applyDisplayRender();
+    auto initAudio() -> bool;
 
 private:
     XVideoDisplayTask::Ptr display_task_;
+    XAudioDecodeTask::Ptr  audio_decode_task_;
+    XAudioPlayTask::Ptr    audio_play_task_;
+    double                 volume_ = 0.0;
+    bool                   audio_ready_ = false;
+    bool                   audio_enabled_ = false;
+    bool                   audio_suspended_ = false;
     XRecordTask::Ptr  record_task_;
     bool              record_enabled_ = false;
     void*             external_win_   = nullptr;

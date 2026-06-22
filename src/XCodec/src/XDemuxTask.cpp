@@ -1,4 +1,4 @@
-﻿#include "XDemuxTask.h"
+#include "XDemuxTask.h"
 #include "AVLog.h"
 
 XDemuxTask::XDemuxTask()
@@ -253,6 +253,9 @@ auto XDemuxTask::process() -> void
     const int max_fails    = 5;
     int       packet_count = 0;
 
+    const bool is_live =
+            url_.starts_with("rtsp:") || url_.starts_with("RTSP:") || url_.starts_with("rtsps:");
+
     /// 帧率控制
     next_frame_time_ = std::chrono::steady_clock::now();
 
@@ -265,12 +268,6 @@ auto XDemuxTask::process() -> void
         }
 
         if (next_ && next_->getQueueSize() >= max_queue_size_)
-        {
-            sleep(10);
-            continue;
-        }
-
-        if (audio_next_ && audio_next_->getQueueSize() >= max_queue_size_)
         {
             sleep(10);
             continue;
@@ -368,7 +365,10 @@ auto XDemuxTask::process() -> void
                     next_->pushPacket(std::make_unique<PacketWrapper>(std::move(pkt)));
                 }
 
-                std::this_thread::sleep_until(next_frame_time_);
+                if (!is_live)
+                {
+                    std::this_thread::sleep_until(next_frame_time_);
+                }
             }
             else if (stream->codecpar->codec_type == AVMEDIA_TYPE_AUDIO)
             {
@@ -376,7 +376,10 @@ auto XDemuxTask::process() -> void
 
                 if (audio_next_)
                 {
-                    audio_next_->pushPacket(std::make_unique<PacketWrapper>(std::move(pkt)));
+                    if (audio_next_->getQueueSize() < max_queue_size_)
+                    {
+                        audio_next_->pushPacket(std::make_unique<PacketWrapper>(std::move(pkt)));
+                    }
                 }
             }
         }

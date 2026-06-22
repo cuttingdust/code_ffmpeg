@@ -1,4 +1,4 @@
-﻿#include "XViewer.h"
+#include "XViewer.h"
 
 #include "LocalPlayer.h"
 #include "ui_xviewer.h"
@@ -75,6 +75,7 @@ XViewer::XViewer(QWidget *parent) : QWidget(parent), ui(new Ui::XViewerClass)
 
 XViewer::~XViewer()
 {
+    closeActivePlayback();
     delete ui;
 }
 
@@ -239,6 +240,19 @@ void XViewer::view(int count)
                             }
                         }
                     });
+
+            /// 预览声音互斥：同一时刻只有一个窗口出声
+            connect(cam_wids[i], &XCameraWidget::exclusiveAudioRequested, this,
+                    [this](int camera_id)
+                    {
+                        for (int j = 0; j < 16; ++j)
+                        {
+                            if (cam_wids[j] && cam_wids[j]->getCameraId() != camera_id)
+                            {
+                                cam_wids[j]->muteAudio();
+                            }
+                        }
+                    });
         }
         lay->addWidget(cam_wids[i], i / cols, i % cols);
     }
@@ -373,13 +387,19 @@ void XViewer::DelCam()
 
 void XViewer::Preview()
 {
+    closeActivePlayback();
+
     ui->cams->show();
     ui->playback_wid->hide();
     ui->preview->setChecked(true);
+
+    resumeAllPreviews();
 }
 
 void XViewer::Playback()
 {
+    suspendAllPreviews();
+
     ui->cams->hide();
     ui->playback_wid->show();
     ui->playback->setChecked(true);
@@ -393,6 +413,40 @@ void XViewer::Playback()
     ui->cal->ClearDate();
     ui->cal->update();
     ui->time_list->clear();
+}
+
+void XViewer::suspendAllPreviews()
+{
+    for (int i = 0; i < 16; ++i)
+    {
+        if (cam_wids[i])
+        {
+            cam_wids[i]->pausePreviewAudio();
+        }
+    }
+}
+
+void XViewer::resumeAllPreviews()
+{
+    for (int i = 0; i < 16; ++i)
+    {
+        if (cam_wids[i])
+        {
+            cam_wids[i]->resumePreviewAudio();
+        }
+    }
+}
+
+void XViewer::closeActivePlayback()
+{
+    if (!active_playback_)
+    {
+        return;
+    }
+
+    active_playback_->stop();
+    active_playback_->close();
+    active_playback_ = nullptr;
 }
 
 void XViewer::SelectCamera(QModelIndex index)
@@ -493,8 +547,15 @@ void XViewer::PlayVideo(QModelIndex index)
     auto    cam         = XCameraConfig::instance()->getCamera(playback_selected_camera_);
     QString camera_name = cam ? QString::fromStdString(cam->name) : QString("摄像机%1").arg(playback_selected_camera_);
 
+    // 预览与回放互斥：先停预览、关旧回放，再独占 SDL 音频
+    suspendAllPreviews();
+    closeActivePlayback();
+
     // 创建播放窗口
     XPlayVideo *playWidget = new XPlayVideo();
+    active_playback_       = playWidget;
+    connect(playWidget, &QObject::destroyed, this, [this]() { active_playback_ = nullptr; });
+
     playWidget->setFile(filepath, playback_selected_camera_, camera_name);
     playWidget->play();
     playWidget->show();
