@@ -67,6 +67,12 @@ private:
     /// 关闭当前回放窗口，避免与预览/新回放争用音频
     void closeActivePlayback();
 
+    /// 从 camera_to_widgets_ 移除窗口映射
+    void removeCameraWidgetMapping(XCameraWidget *widget, int camera_id);
+
+    /// 关闭所有预览窗口并断开信号（析构/切视图前）
+    void shutdownPreviewWidgets();
+
 private:
     Ui::XViewerClass *ui;
     QMenu             left_menu_;
@@ -82,4 +88,6 @@ private:
 
     /// 当前打开的回放窗口（同时只允许一个）
     XPlayVideo *active_playback_ = nullptr;
+
+    bool shutting_down_ = false;
 };

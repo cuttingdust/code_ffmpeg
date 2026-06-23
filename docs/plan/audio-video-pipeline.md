@@ -314,6 +314,7 @@ push PCM
 
 - [x] Task: RtspClient 预览按需音频与 XViewer 互斥  HIL-94
 - [x] Task: 预览拖拽默认开启声音  HIL-97
+- [x] Bug: 关闭软件时预览 cameraReleased 析构崩溃  HIL-98
 - [ ] Test: 预览默认有声无 PTS 追帧  HIL-93
 
 细节：`enableAudio()` lazy 挂载；预览/回放互斥；首帧就绪自动开声 + 多窗声音独占。

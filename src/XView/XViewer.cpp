@@ -75,8 +75,17 @@ XViewer::XViewer(QWidget *parent) : QWidget(parent), ui(new Ui::XViewerClass)
 
 XViewer::~XViewer()
 {
+    shutting_down_ = true;
     closeActivePlayback();
+    shutdownPreviewWidgets();
     delete ui;
+    ui = nullptr;
+
+    const int wid_size = static_cast<int>(sizeof(cam_wids) / sizeof(cam_wids[0]));
+    for (int i = 0; i < wid_size; ++i)
+    {
+        cam_wids[i] = nullptr;
+    }
 }
 
 bool XViewer::eventFilter(QObject *pObj, QEvent *pEvent)
@@ -126,6 +135,11 @@ void XViewer::contextMenuEvent(QContextMenuEvent *event)
 
 void XViewer::onRecordingStatusChanged(int camera_id, bool is_recording)
 {
+    if (shutting_down_ || !ui)
+    {
+        return;
+    }
+
     /// 更新左侧列表的显示
     refreshCameras();
 
@@ -136,6 +150,49 @@ void XViewer::onRecordingStatusChanged(int camera_id, bool is_recording)
     if (ui->playback->isChecked() && playback_selected_camera_ == camera_id)
     {
         refreshPlaybackDates();
+    }
+}
+
+void XViewer::removeCameraWidgetMapping(XCameraWidget *widget, int camera_id)
+{
+    if (shutting_down_ || camera_id < 0 || !widget)
+    {
+        return;
+    }
+
+    auto it = camera_to_widgets_.find(camera_id);
+    if (it == camera_to_widgets_.end())
+    {
+        return;
+    }
+
+    auto &vec = it->second;
+    std::erase(vec, widget);
+    if (vec.empty())
+    {
+        camera_to_widgets_.erase(it);
+        if (preview_playing_camera_ == camera_id)
+        {
+            preview_playing_camera_ = -1;
+        }
+    }
+}
+
+void XViewer::shutdownPreviewWidgets()
+{
+    camera_to_widgets_.clear();
+    preview_playing_camera_ = -1;
+
+    const int wid_size = static_cast<int>(sizeof(cam_wids) / sizeof(cam_wids[0]));
+    for (int i = 0; i < wid_size; ++i)
+    {
+        if (!cam_wids[i])
+        {
+            continue;
+        }
+
+        disconnect(cam_wids[i], nullptr, this, nullptr);
+        cam_wids[i]->stop();
     }
 }
 
@@ -220,25 +277,9 @@ void XViewer::view(int count)
 
             /// 当窗口释放摄像头时，清除映射
             connect(cam_wids[i], &XCameraWidget::cameraReleased, this,
-                    [this, i](int camera_id)
+                    [this, widget = cam_wids[i]](int camera_id)
                     {
-                        if (camera_id >= 0)
-                        {
-                            auto it = camera_to_widgets_.find(camera_id);
-                            if (it != camera_to_widgets_.end())
-                            {
-                                auto &vec = it->second;
-                                std::erase(vec, cam_wids[i]);
-                                if (vec.empty())
-                                {
-                                    camera_to_widgets_.erase(it);
-                                    if (preview_playing_camera_ == camera_id)
-                                    {
-                                        preview_playing_camera_ = -1;
-                                    }
-                                }
-                            }
-                        }
+                        removeCameraWidgetMapping(widget, camera_id);
                     });
 
             /// 预览声音互斥：同一时刻只有一个窗口出声
@@ -261,6 +302,8 @@ void XViewer::view(int count)
     {
         if (cam_wids[i])
         {
+            removeCameraWidgetMapping(cam_wids[i], cam_wids[i]->getCameraId());
+            disconnect(cam_wids[i], nullptr, this, nullptr);
             delete cam_wids[i];
             cam_wids[i] = nullptr;
         }

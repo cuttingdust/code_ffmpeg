@@ -53,12 +53,8 @@ XCameraWidget::XCameraWidget(QWidget *p) : QWidget(p), impl_(std::make_unique<XC
 
 XCameraWidget::~XCameraWidget()
 {
-    // 释放摄像头
-    if (impl_->camera_id_ >= 0)
-    {
-        emit cameraReleased(impl_->camera_id_);
-    }
     stop();
+    impl_->camera_id_ = -1;
 }
 
 bool XCameraWidget::isPlaying() const
