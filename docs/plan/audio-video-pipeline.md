@@ -282,8 +282,9 @@ push PCM
 - [x] Task: LocalPlayer 音频链集成  HIL-67
 - [x] Bug: 回放切倍速未调用 XAudioPlay setSpeed  HIL-99
 - [x] Task: 回放 atempo 保音调倍速（AudioAtempoFilter）  HIL-100
+- [x] Bug: Seek/拖拽后音频 PTS 失步与 pipeline 未暂停  HIL-101
 
-细节：play/pause/stop/seek/setSpeed 同步；seek flush；`XCodecLocalPlayer` 冒烟。HIL-99：`XAudioPlayTask::setSpeed` 同步 PTS 钟。HIL-100：解码链 `AudioAtempoFilter`，播放设备固定 1.0x。
+细节：play/pause/stop/seek/setSpeed 同步；seek flush；`XCodecLocalPlayer` 冒烟。HIL-99：`XAudioPlayTask::setSpeed` 同步 PTS 钟。HIL-100：解码链 `AudioAtempoFilter`，播放设备固定 1.0x。HIL-101：Seek flush 传播至 play task、PTS 大偏差重对齐、Seek/拖拽全 pipeline 暂停。
 
 **验收**：`output.mp4` 音画同播；pause/resume 音画均停/续。
 

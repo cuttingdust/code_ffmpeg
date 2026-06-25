@@ -40,6 +40,8 @@ protected:
 private:
     auto resetPtsClock() -> void;
 
+    auto reanchorPtsClock(double frame_pts_sec) -> void;
+
     auto framePtsSec(const AVFrame* frame) -> double;
 
     auto waitUntilPts(double frame_pts_sec) -> void;
@@ -66,5 +68,6 @@ private:
 
     static constexpr std::size_t kPrebufferBytes   = 4096 * 4;
     static constexpr int         kCatchUpLagMs     = 100;
+    static constexpr int         kResyncLagMs        = 500;
     static constexpr int         kDrainPollMs      = 20;
 };

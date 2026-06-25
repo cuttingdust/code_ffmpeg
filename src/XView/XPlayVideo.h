@@ -54,6 +54,7 @@ private:
 
     QTimer *progress_timer_ = nullptr;
     bool    is_seeking_     = false;
+    bool    resume_after_seek_ = false;
 
     // 防抖相关
     QTimer *seek_timer_         = nullptr;

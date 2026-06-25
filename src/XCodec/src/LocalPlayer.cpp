@@ -19,6 +19,30 @@ class LocalPlayer::PImpl
 public:
     void controlLoop();
 
+    auto setAllTasksPaused(bool paused) -> void
+    {
+        if (demux_task_)
+        {
+            demux_task_->setPaused(paused);
+        }
+        if (decode_task_)
+        {
+            decode_task_->setPaused(paused);
+        }
+        if (display_task_)
+        {
+            display_task_->setPaused(paused);
+        }
+        if (audio_decode_task_)
+        {
+            audio_decode_task_->setPaused(paused);
+        }
+        if (audio_play_task_)
+        {
+            audio_play_task_->setPaused(paused);
+        }
+    }
+
 public:
     XDemuxTask::Ptr        demux_task_;
     XVideoDecodeTask::Ptr  decode_task_;
@@ -278,27 +302,7 @@ void LocalPlayer::pause()
         return;
     }
     impl_->is_paused_ = true;
-
-    if (impl_->demux_task_)
-    {
-        impl_->demux_task_->setPaused(true);
-    }
-    if (impl_->decode_task_)
-    {
-        impl_->decode_task_->setPaused(true);
-    }
-    if (impl_->display_task_)
-    {
-        impl_->display_task_->setPaused(true);
-    }
-    if (impl_->audio_decode_task_)
-    {
-        impl_->audio_decode_task_->setPaused(true);
-    }
-    if (impl_->audio_play_task_)
-    {
-        impl_->audio_play_task_->setPaused(true);
-    }
+    impl_->setAllTasksPaused(true);
 
     LOGI("暂停播放");
 }
@@ -310,27 +314,7 @@ void LocalPlayer::resume()
         return;
     }
 
-    if (impl_->demux_task_)
-    {
-        impl_->demux_task_->setPaused(false);
-    }
-    if (impl_->decode_task_)
-    {
-        impl_->decode_task_->setPaused(false);
-    }
-    if (impl_->display_task_)
-    {
-        impl_->display_task_->setPaused(false);
-    }
-    if (impl_->audio_decode_task_)
-    {
-        impl_->audio_decode_task_->setPaused(false);
-    }
-    if (impl_->audio_play_task_)
-    {
-        impl_->audio_play_task_->setPaused(false);
-    }
-
+    impl_->setAllTasksPaused(false);
     impl_->is_paused_ = false;
     LOGI("恢复播放");
 }
@@ -431,7 +415,17 @@ void LocalPlayer::seek(double seconds)
         return;
     }
 
+    /// Seek 期间暂停整条 pipeline（含 SDL 音频），避免拖拽时音画不同步
+    const bool was_user_paused = impl_->is_paused_.load();
+    impl_->setAllTasksPaused(true);
+
     impl_->demux_task_->seek(seconds);
+
+    if (!was_user_paused)
+    {
+        impl_->setAllTasksPaused(false);
+    }
+
     LOGI("Seek 到: " << seconds << "秒");
 }
 

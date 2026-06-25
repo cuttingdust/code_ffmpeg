@@ -95,6 +95,11 @@ void XAudioDecodeTask::flushDownstream()
 {
     need_flush_decoder_ = true;
     tempo_filter_.resetPipeline();
+
+    if (next_)
+    {
+        next_->flushDownstream();
+    }
 }
 
 void XAudioDecodeTask::setSpeed(double speed)

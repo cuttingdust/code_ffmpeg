@@ -177,6 +177,14 @@ void XAudioPlayTask::resetPtsClock()
     pause_wall_          = std::chrono::steady_clock::time_point{};
 }
 
+void XAudioPlayTask::reanchorPtsClock(double frame_pts_sec)
+{
+    first_pts_sec_       = frame_pts_sec;
+    synthetic_pts_sec_   = frame_pts_sec;
+    playback_start_wall_ = std::chrono::steady_clock::now();
+    clock_started_       = true;
+}
+
 /// \brief 将当前 PCM 帧映射为「媒体时间轴上的秒数」，供 waitUntilPts 做 sleep 同步
 ///
 /// 两条路径：
@@ -230,11 +238,24 @@ void XAudioPlayTask::waitUntilPts(double frame_pts_sec)
     {
         const auto behind_ms =
                 std::chrono::duration_cast<std::chrono::milliseconds>(now - target).count();
-        if (behind_ms > kCatchUpLagMs)
+        if (behind_ms > kResyncLagMs)
+        {
+            LOGW("音频 PTS 落后 " << behind_ms << "ms，重新对齐时钟");
+            reanchorPtsClock(frame_pts_sec);
+        }
+        else if (behind_ms > kCatchUpLagMs)
         {
             LOGW("音频 PTS 落后 " << behind_ms << "ms，追帧播放");
         }
         return;
+    }
+
+    const auto ahead_ms =
+            std::chrono::duration_cast<std::chrono::milliseconds>(target - now).count();
+    if (ahead_ms > kResyncLagMs)
+    {
+        LOGW("音频 PTS 超前 " << ahead_ms << "ms，重新对齐时钟");
+        reanchorPtsClock(frame_pts_sec);
     }
 
     std::this_thread::sleep_until(target);

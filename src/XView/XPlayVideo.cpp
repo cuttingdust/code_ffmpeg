@@ -218,6 +218,18 @@ void XPlayVideo::onStopClicked()
 void XPlayVideo::onSeekSliderPressed()
 {
     is_seeking_ = true;
+
+    if (player_ && player_->isPlaying() && !player_->isPaused())
+    {
+        resume_after_seek_ = true;
+        player_->pause();
+        ui->play_pause_btn->setText("▶");
+        progress_timer_->stop();
+    }
+    else
+    {
+        resume_after_seek_ = false;
+    }
 }
 
 void XPlayVideo::onSeekSliderMoved(int value)
@@ -256,6 +268,14 @@ void XPlayVideo::onSeekSliderReleased()
         LOGI("Seek 完成，位置: " << seek_time << "秒");
         pending_seek_value_ = -1;
     }
+
+    if (resume_after_seek_ && player_)
+    {
+        player_->resume();
+        ui->play_pause_btn->setText("⏸");
+        progress_timer_->start(500);
+    }
+    resume_after_seek_ = false;
 }
 
 void XPlayVideo::onSpeedChanged(int index)
