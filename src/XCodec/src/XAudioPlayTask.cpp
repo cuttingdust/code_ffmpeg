@@ -91,13 +91,37 @@ auto XAudioPlayTask::getPlayer() const -> XAudioPlay*
     return player_.get();
 }
 
-void XAudioPlayTask::setSpeed(double speed)
+void XAudioPlayTask::setSpeed(double speed, double media_pts_sec)
 {
     if (speed <= 0.0)
     {
         speed = 1.0;
     }
-    speed_ = speed;
+
+    const double old_speed = speed_.load(std::memory_order_relaxed);
+
+    if (player_)
+    {
+        player_->setSpeed(speed);
+    }
+
+    if (clock_started_ && std::abs(old_speed - speed) > 1e-6)
+    {
+        const auto now = std::chrono::steady_clock::now();
+        if (media_pts_sec >= 0.0)
+        {
+            first_pts_sec_ = media_pts_sec;
+        }
+        else
+        {
+            const double elapsed_sec =
+                    std::chrono::duration<double>(now - playback_start_wall_).count();
+            first_pts_sec_ += elapsed_sec * old_speed;
+        }
+        playback_start_wall_ = now;
+    }
+
+    speed_.store(speed, std::memory_order_relaxed);
 }
 
 void XAudioPlayTask::setVolume(double volume)

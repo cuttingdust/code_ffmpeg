@@ -23,8 +23,8 @@ public:
 
     auto getPlayer() const -> XAudioPlay*;
 
-    /// 播放时间轴倍速（与 XDemuxTask::speed_ 一致）；设备层 speed 固定 1.0
-    auto setSpeed(double speed) -> void;
+    /// 播放倍速：PTS 调度 + XAudioPlay 输出倍速（线性插值，音调随倍速变化）
+    auto setSpeed(double speed, double media_pts_sec = -1.0) -> void;
 
     auto setVolume(double volume) -> void;
 

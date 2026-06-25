@@ -474,7 +474,8 @@ void LocalPlayer::setSpeed(double speed)
     }
     if (impl_->audio_play_task_)
     {
-        impl_->audio_play_task_->setSpeed(speed);
+        const double media_sec = impl_->demux_task_ ? impl_->demux_task_->getCurrentTime() : -1.0;
+        impl_->audio_play_task_->setSpeed(speed, media_sec);
     }
 
     LOGI("设置播放速度: " << speed << "x");
