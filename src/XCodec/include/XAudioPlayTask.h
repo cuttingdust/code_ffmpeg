@@ -23,7 +23,7 @@ public:
 
     auto getPlayer() const -> XAudioPlay*;
 
-    /// 播放倍速：PTS 调度 + XAudioPlay 输出倍速（线性插值，音调随倍速变化）
+    /// 播放倍速：仅 PTS 墙钟调度（PCM 倍速由上游 atempo 处理，设备层固定 1.0）
     auto setSpeed(double speed, double media_pts_sec = -1.0) -> void;
 
     auto setVolume(double volume) -> void;

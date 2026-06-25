@@ -146,7 +146,7 @@ Phase R 重命名后曾保留 **一个版本周期的 type alias**（`using XDec
 | 启动 | 队列缓冲达到阈值后 `start()`（沿用 XAudioPlayTest：`>= 4 * 4096` 字节） |
 | pause | `shouldPause()` 时不 pop / 不 push；设备 `pause()` |
 | seek | `clearQueue()` + 重置时钟（与 Demux seek 联动，Phase 5） |
-| 音量/倍速 | 转发 `XAudioPlay::setVolume` / `setSpeed`（线性插值，变调）；保音调倍速待 atempo |
+| 音量/倍速 | `XAudioPlay::setVolume`；倍速由 `AudioAtempoFilter`（atempo）在解码后处理，播放层固定 1.0 |
 
 ### 3.4 XDemuxTask 扩展
 
@@ -281,8 +281,9 @@ push PCM
 
 - [x] Task: LocalPlayer 音频链集成  HIL-67
 - [x] Bug: 回放切倍速未调用 XAudioPlay setSpeed  HIL-99
+- [x] Task: 回放 atempo 保音调倍速（AudioAtempoFilter）  HIL-100
 
-细节：play/pause/stop/seek/setSpeed 同步；seek flush；`XCodecLocalPlayer` 冒烟。HIL-99：`XAudioPlayTask::setSpeed` 同步 `player_->setSpeed` 并重对齐 PTS 钟。
+细节：play/pause/stop/seek/setSpeed 同步；seek flush；`XCodecLocalPlayer` 冒烟。HIL-99：`XAudioPlayTask::setSpeed` 同步 PTS 钟。HIL-100：解码链 `AudioAtempoFilter`，播放设备固定 1.0x。
 
 **验收**：`output.mp4` 音画同播；pause/resume 音画均停/续。
 
@@ -346,13 +347,12 @@ push PCM
 | 双链 EOF 时序 | Demux EOF 后两链分别 flush；AudioPlayTask 等 `queuedBytes==0` |
 | PTS 缺失 | 用样本累计伪 PTS；日志标记 |
 | planar 格式 | 只在 `AudioDecoder` swr 输出 S16 packed |
-| 播放层 `setSpeed` 与 Demux speed 叠加 | LocalPlayer 统一 Demux + AudioPlay 倍速；线性插值变速变调；保音调仍待 atempo |
+| 播放层 `setSpeed` 与 Demux speed 叠加 | Demux 控包速；`AudioAtempoFilter` 保音调变速；`XAudioPlayTask` 仅 PTS 墙钟调度 |
 
 ---
 
 ## 8. 不在本规划内（后续）
 
-- FFmpeg `atempo` 滤镜（保音调倍速）
 - 视频 pacing 与音频主时钟硬同步
 - `AudioDecoder` 硬件加速
 - 多音轨 / 字幕

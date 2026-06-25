@@ -29,6 +29,9 @@ void XAudioDecodeTask::reset()
         decoder_->close();
         decoder_.reset();
     }
+
+    tempo_filter_.close();
+    speed_ = 1.0;
 }
 
 auto XAudioDecodeTask::initDecoder(AVStream* stream) -> bool
@@ -60,6 +63,17 @@ auto XAudioDecodeTask::initDecoder(AVStream* stream) -> bool
         }
 
         decoder_->open();
+
+        if (!tempo_filter_.open(decoder_->output_sample_rate(),
+                                decoder_->output_channels(),
+                                decoder_->output_sample_format()))
+        {
+            LOGE("AudioAtempoFilter 初始化失败");
+            decoder_.reset();
+            return false;
+        }
+        tempo_filter_.setSpeed(speed_.load(std::memory_order_relaxed));
+
         LOGI("音频解码器初始化成功: " << decoder_->output_sample_rate() << "Hz, "
                                        << decoder_->output_channels() << "ch");
         return true;
@@ -80,6 +94,17 @@ auto XAudioDecodeTask::getDecoder() const -> AudioDecoder*
 void XAudioDecodeTask::flushDownstream()
 {
     need_flush_decoder_ = true;
+    tempo_filter_.resetPipeline();
+}
+
+void XAudioDecodeTask::setSpeed(double speed)
+{
+    if (speed <= 0.0)
+    {
+        speed = 1.0;
+    }
+    speed_.store(speed, std::memory_order_relaxed);
+    tempo_filter_.setSpeed(speed);
 }
 
 auto XAudioDecodeTask::getStats() const -> AudioDecoder::Stats
@@ -91,10 +116,34 @@ void XAudioDecodeTask::pushPcmFrames(std::vector<AVFrame*>& frames)
 {
     for (auto* raw_frame : frames)
     {
-        FrameWrapper frame(raw_frame);
-        if (next_)
+        if (!raw_frame)
         {
-            next_->pushFrame(frame.release());
+            continue;
+        }
+
+        std::vector<AVFrame*> filtered;
+        try
+        {
+            if (tempo_filter_.process(raw_frame, filtered) < 0)
+            {
+                av_frame_free(&raw_frame);
+                continue;
+            }
+        }
+        catch (const std::exception& e)
+        {
+            LOGE("AudioAtempoFilter 处理失败: " << e.what());
+            av_frame_free(&raw_frame);
+            continue;
+        }
+
+        for (AVFrame* pcm : filtered)
+        {
+            FrameWrapper frame(pcm);
+            if (next_)
+            {
+                next_->pushFrame(frame.release());
+            }
         }
     }
     frames.clear();
@@ -189,6 +238,10 @@ void XAudioDecodeTask::process()
     {
         decoder_->flush(pcm_frames);
         pushPcmFrames(pcm_frames);
+
+        std::vector<AVFrame*> tail_frames;
+        tempo_filter_.flushOutput(tail_frames);
+        pushPcmFrames(tail_frames);
     }
     catch (const std::exception& e)
     {

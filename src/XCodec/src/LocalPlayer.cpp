@@ -199,6 +199,7 @@ bool LocalPlayer::open(const std::string& filepath, void* winId)
             }
 
             impl_->audio_play_task_->setVolume(1.0);
+            impl_->audio_decode_task_->setSpeed(impl_->speed_.load());
             impl_->audio_play_task_->setSpeed(impl_->speed_.load());
         }
 
@@ -471,6 +472,10 @@ void LocalPlayer::setSpeed(double speed)
     if (impl_->demux_task_)
     {
         impl_->demux_task_->setSpeed(speed);
+    }
+    if (impl_->audio_decode_task_)
+    {
+        impl_->audio_decode_task_->setSpeed(speed);
     }
     if (impl_->audio_play_task_)
     {

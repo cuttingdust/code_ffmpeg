@@ -100,9 +100,9 @@ void XAudioPlayTask::setSpeed(double speed, double media_pts_sec)
 
     const double old_speed = speed_.load(std::memory_order_relaxed);
 
-    if (player_)
+    if (player_ && std::abs(old_speed - speed) > 1e-6)
     {
-        player_->setSpeed(speed);
+        player_->clearQueue();
     }
 
     if (clock_started_ && std::abs(old_speed - speed) > 1e-6)
