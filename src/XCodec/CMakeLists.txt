@@ -3,6 +3,10 @@ get_filename_component(CURRENT_DIR ${CMAKE_CURRENT_SOURCE_DIR} NAME)
 
 project(${CURRENT_DIR})
 
+set(DPS_TARGETS
+    AVLog
+)
+
 set(DPS_LIBRARYS
     ${SDL2_MOUDLES}
     ${FFMEPG_MOUDLES}

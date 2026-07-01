@@ -1,4 +1,4 @@
-﻿#include "RtspClient.h"
+#include "RtspClient.h"
 #include "XVideoView.h"
 #include "AVLog.h"
 
@@ -6,6 +6,7 @@
 
 int main()
 {
+    avLogInit();
     setlocale(LC_ALL, "zh_CN.UTF-8");
 
     try

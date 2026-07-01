@@ -1,10 +1,12 @@
-﻿#include "LocalPlayer.h"
+#include "LocalPlayer.h"
+#include <AVLog.h>
 #include <chrono>
 #include <thread>
 #include <iostream>
 
 int main()
 {
+    avLogInit();
     setlocale(LC_ALL, "zh_CN.UTF-8");
 
     try
