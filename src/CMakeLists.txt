@@ -80,6 +80,11 @@ message("SDL2_FOUND = ${SDL2_FOUND}")
 message("SDL2_VERSION = ${SDL2_VERSION}")
 message("SDL2_LIBS = ${SDL2_LIBS}")
 
+# MLog
+find_package(MLog CONFIG REQUIRED)
+message("MLog_FOUND = ${MLog_FOUND}")
+message("MLog_VERSION = ${MLog_VERSION}")
+message("MLog_LIBS = ${MLog_LIBS}")
 
 # Qt6
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Multimedia OpenGLWidgets)
@@ -116,6 +121,7 @@ endif()
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(CommonTools)
 
+add_subdirectory(AVLog)
 add_subdirectory(ffmepg_test)
 add_subdirectory(ffmepg_open)
 add_subdirectory(rgb_test)

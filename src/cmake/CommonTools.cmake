@@ -94,6 +94,11 @@ set(LOG_MOUDLES
 	spdlog::spdlog_header_only
 )
 
+#mlog
+set(MLOG_MOUDLES
+	MLog::MLog
+)
+
 #python
 set(PYTHON_MOUDLES
 	Python3::Python
@@ -357,13 +362,13 @@ macro(set_cpp name)
             endforeach()
         endif()
 
-        target_link_libraries(${name} ${DPS_TARGETS})
+        target_link_libraries(${name} PUBLIC ${DPS_TARGETS})
 
         set(DPS_TARGETS "")
     endif()
 
     message("DPS_LIBRARYS = ${DPS_LIBRARYS}")
-    target_link_libraries(${name} ${DPS_LIBRARYS})
+    target_link_libraries(${name} PUBLIC ${DPS_LIBRARYS})
     set(DPS_LIBRARYS "")
 
     target_compile_features(${name} PRIVATE
@@ -662,7 +667,7 @@ function(cpp_execute name)
         foreach(i RANGE 1 ${size})
             message("target_link_libraries ${ARGV${i}}")
             set(lib_name ${ARGV${i}})
-            target_link_libraries(${name} ${lib_name}${debug_postfix})
+            target_link_libraries(${name} PUBLIC ${lib_name}${debug_postfix})
         endforeach()
     endif()
 
