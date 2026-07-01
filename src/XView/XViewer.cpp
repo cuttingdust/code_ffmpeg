@@ -7,8 +7,7 @@
 #include "XPlayVideo.h"
 #include "XRecorderManager.h"
 
-#include <qdir.h>
-
+#include <QtCore/QDir>
 #include <QtGui/QMouseEvent>
 #include <QtWidgets/QVBoxLayout>
 #include <QtWidgets/QHBoxLayout>
@@ -213,7 +212,6 @@ void XViewer::updateCameraRecIndicator(int camera_id, bool is_recording)
 
 void XViewer::view(int count)
 {
-    qDebug() << "view" << count;
     int cols     = sqrt(count);
     int wid_size = sizeof(cam_wids) / sizeof(QWidget *);
 
@@ -277,10 +275,7 @@ void XViewer::view(int count)
 
             /// 当窗口释放摄像头时，清除映射
             connect(cam_wids[i], &XCameraWidget::cameraReleased, this,
-                    [this, widget = cam_wids[i]](int camera_id)
-                    {
-                        removeCameraWidgetMapping(widget, camera_id);
-                    });
+                    [this, widget = cam_wids[i]](int camera_id) { removeCameraWidgetMapping(widget, camera_id); });
 
             /// 预览声音互斥：同一时刻只有一个窗口出声
             connect(cam_wids[i], &XCameraWidget::exclusiveAudioRequested, this,

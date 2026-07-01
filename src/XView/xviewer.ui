@@ -26,7 +26,9 @@ background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:0, y2:1, stop:0 rgb
 border: none;
 border-radius:5px;
 color: rgb(255, 255, 255);
-font: 75 12pt &quot;黑体&quot;;
+font-weight: 75;
+font-size: 12pt;
+font-family: &quot;黑体&quot;;
  }
 QPushButton:!hover
  { 
@@ -34,7 +36,9 @@ QPushButton:!hover
  border: none;
 border-radius:5px;
 color: rgb(255, 255, 255);
-font: 75 12pt &quot;黑体&quot;;
+font-weight: 75;
+font-size: 12pt;
+font-family: &quot;黑体&quot;;
  }
 
 
@@ -86,7 +90,9 @@ background-color: #1e1e1e;
 #status
 {
 	color: rgb(255, 255, 255);
-	font: 75 9pt &quot;Adobe Arabic&quot;;
+	font-weight: 75;
+	font-size: 9pt;
+	font-family: &quot;Adobe Arabic&quot;;
 }
 
 
@@ -408,6 +414,53 @@ background-color: rgb(0, 102, 184);
        <width>431</width>
        <height>361</height>
       </rect>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">/* navigation bar */
+QCalendarWidget QWidget#qt_calendar_navigationbar { background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop: 0 #cccccc, stop: 1 #333333); }
+QCalendarWidget QToolButton {
+    height: 60px;
+    width: 150px;
+    color: white;
+    font-size: 24px;
+    icon-size: 56px;
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop: 0 #cccccc, stop: 1 #333333);
+}
+QCalendarWidget QMenu {
+    width: 150px;
+    padding-left: 20px;
+    color: white;
+    font-size: 18px;
+    background-color: rgb(100, 100, 100);
+}
+QCalendarWidget QSpinBox { 
+    width: 150px; 
+    font-size:24px; 
+    color: white; 
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop: 0 #cccccc, stop: 1 #333333); 
+    selection-background-color: rgb(136, 136, 136);
+    selection-color: rgb(255, 255, 255);
+}
+QCalendarWidget QSpinBox::up-button { subcontrol-origin: border;  subcontrol-position: top right;  width:65px; }
+QCalendarWidget QSpinBox::down-button {subcontrol-origin: border; subcontrol-position: bottom right;  width:65px;}
+QCalendarWidget QSpinBox::up-arrow { width:56px;  height:56px; }
+QCalendarWidget QSpinBox::down-arrow { width:56px;  height:56px; }
+ 
+/* header row */
+QCalendarWidget QWidget { alternate-background-color: rgb(128, 128, 128); }
+ 
+/* normal days */
+QCalendarWidget QAbstractItemView:enabled 
+{
+    font-size:24px;  
+    color: rgb(180, 180, 180);  
+    background-color: black;  
+    selection-background-color: rgb(64, 64, 64); 
+    selection-color: rgb(0, 255, 0); 
+}
+ 
+/* days in other months */
+QCalendarWidget QAbstractItemView:disabled { color: rgb(64, 64, 64); }</string>
      </property>
     </widget>
     <widget class="QListWidget" name="time_list">

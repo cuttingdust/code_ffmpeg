@@ -20,7 +20,8 @@
         border: none;
         border-radius: 5px;
         color: white;
-        font: bold 12px;
+        font-weight: bold;
+        font-size: 12px;
     }
     QPushButton:hover {
         background-color: #5c5c5c;
@@ -33,7 +34,8 @@
     QSlider::handle:horizontal {
         background: #0078d7;
         width: 12px;
-        margin: -3px 0;
+        margin-top: -3px;
+        margin-bottom: -3px;
         border-radius: 6px;
     }
     QSlider::sub-page:horizontal {
@@ -42,7 +44,7 @@
     }
     QLabel {
         color: white;
-        font: 12px;
+        font-size: 12px;
     }
     QComboBox {
         background-color: #3c3c3c;

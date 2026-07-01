@@ -1,9 +1,10 @@
-#pragma once
+﻿#pragma once
 
 #include <QtWidgets/QWidget>
 #include <QtWidgets/QMenu>
 #include <QtCore/QModelIndex>
 #include <QtCore/QDate>
+
 #include <memory>
 #include <unordered_map>
 
