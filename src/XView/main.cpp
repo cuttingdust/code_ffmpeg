@@ -1,5 +1,8 @@
-﻿#include "XCameraConfig.h"
+#include "XCameraConfig.h"
 #include "XViewer.h"
+
+#include <AVLog.h>
+#include <AVLogQt.h>
 
 #include <QtWidgets/QApplication>
 
@@ -9,8 +12,17 @@
 
 int main(int argc, char *argv[])
 {
-    qputenv("QT_LOGGING_RULES", "qt.gui.imageio=false");
     setlocale(LC_ALL, "zh_CN.UTF-8");
+
+    /// Qt 分类过滤（在 QApplication 之前设置）
+    qputenv("QT_LOGGING_RULES",
+            "qt.gui.imageio=false\n"
+            "qt.css.*=false");
+
+    QApplication a(argc, argv);
+
+    avLogInit();
+    avLogInstallQtMessageHandler();
 
     // auto *xc = XCameraConfig::instance();
     // xc->load(TEST_CAM_PATH);
@@ -78,8 +90,7 @@ int main(int argc, char *argv[])
     // }
     // xc->deleteCamera(0);
 
-    QApplication a(argc, argv);
-    XViewer      w;
+    XViewer w;
     w.show();
     return a.exec();
 }
