@@ -146,6 +146,7 @@ XSDL::XSDL() : impl_(std::make_unique<XSDL::PImpl>(this))
 XSDL::~XSDL()
 {
     LOGD("XSDL销毁");
+    close();
 }
 
 void XSDL::setOverlayCallback(OverlayCallback cb)

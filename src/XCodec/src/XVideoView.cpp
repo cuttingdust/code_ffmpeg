@@ -51,6 +51,11 @@ XVideoView::PImpl::~PImpl()
 {
     delete[] cache_;
     cache_ = nullptr;
+    if (frame_)
+    {
+        av_frame_free(&frame_);
+        frame_ = nullptr;
+    }
 }
 
 XVideoView::XVideoView() : impl_(std::make_unique<XVideoView::PImpl>(this))

@@ -321,8 +321,38 @@ void LocalPlayer::resume()
 
 void LocalPlayer::stop()
 {
+    if (!impl_->demux_task_)
+    {
+        return;
+    }
+
     if (!impl_->is_playing_ && !impl_->is_finished_)
     {
+        LOGI("释放已打开但未播放的 pipeline");
+        impl_->demux_task_->reset();
+        if (impl_->decode_task_)
+        {
+            impl_->decode_task_->reset();
+        }
+        if (impl_->display_task_)
+        {
+            impl_->display_task_->reset();
+        }
+        if (impl_->audio_decode_task_)
+        {
+            impl_->audio_decode_task_->reset();
+        }
+        if (impl_->audio_play_task_)
+        {
+            impl_->audio_play_task_->reset();
+        }
+
+        impl_->decode_task_.reset();
+        impl_->display_task_.reset();
+        impl_->audio_decode_task_.reset();
+        impl_->audio_play_task_.reset();
+        impl_->demux_task_.reset();
+        LOGI("pipeline 已释放");
         return;
     }
 

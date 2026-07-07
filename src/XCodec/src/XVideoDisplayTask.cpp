@@ -37,6 +37,11 @@ void XVideoDisplayTask::destroyRecTexture()
         TTF_CloseFont((TTF_Font*)rec_font_);
         rec_font_ = nullptr;
     }
+    if (rec_ttf_initialized_ && TTF_WasInit())
+    {
+        TTF_Quit();
+        rec_ttf_initialized_ = false;
+    }
 }
 
 void XVideoDisplayTask::setRenderCallback(RenderCallback cb)
@@ -127,10 +132,14 @@ void XVideoDisplayTask::initRecTexture()
     }
 
     // 初始化 TTF
-    if (TTF_Init() == -1)
+    if (!TTF_WasInit())
     {
-        LOGE("TTF_Init 失败: " << TTF_GetError());
-        return;
+        if (TTF_Init() == -1)
+        {
+            LOGE("TTF_Init 失败: " << TTF_GetError());
+            return;
+        }
+        rec_ttf_initialized_ = true;
     }
 
     // 加载字体
