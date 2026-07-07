@@ -65,6 +65,9 @@ private:
     /// 重置所有任务并重新打开
     bool resetAndReopen(const std::string& new_output_file);
 
+    /// 等待监控线程结束（避免在同一线程内 join 自身）
+    void joinMonitorThreads();
+
     /// 时长监控线程
     void durationMonitorThread();
 

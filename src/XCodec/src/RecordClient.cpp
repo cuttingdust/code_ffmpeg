@@ -12,20 +12,10 @@ RecordClient::~RecordClient()
 {
     LOGI("录制客户端销毁");
 
-    // 先停止所有线程标志
     duration_monitor_running_ = false;
     segment_monitor_running_  = false;
     is_recording_             = false;
-
-    // 等待线程结束
-    if (duration_thread_.joinable())
-    {
-        duration_thread_.join();
-    }
-    if (segment_thread_.joinable())
-    {
-        segment_thread_.join();
-    }
+    joinMonitorThreads();
 
     stop();
     wait();
@@ -327,9 +317,11 @@ bool RecordClient::start()
 void RecordClient::stop()
 {
     LOGI("录制客户端停止");
+    abortReconnect();
     is_recording_             = false;
     duration_monitor_running_ = false;
     segment_monitor_running_  = false;
+    joinMonitorThreads();
 
     if (encode_task_)
     {
@@ -402,7 +394,6 @@ bool RecordClient::startRecording(const std::string& output_file, int duration_s
                 duration_thread_.join();
             }
             duration_thread_ = std::thread(&RecordClient::durationMonitorThread, this);
-            duration_thread_.detach();
         }
         else
         {
@@ -465,10 +456,11 @@ void RecordClient::stopRecording()
 
     LOGI("停止录制...");
 
-    // 先停止监控线程标志
     segment_monitor_running_  = false;
     duration_monitor_running_ = false;
     is_recording_             = false;
+
+    joinMonitorThreads();
 
     // 等待关键帧
     int wait_count = 0;
@@ -493,6 +485,18 @@ int RecordClient::getPacketCount() const
 void RecordClient::setEncodeConfig(const EncoderConfig& config)
 {
     encode_config_ = config;
+}
+
+void RecordClient::joinMonitorThreads()
+{
+    if (duration_thread_.joinable() && duration_thread_.get_id() != std::this_thread::get_id())
+    {
+        duration_thread_.join();
+    }
+    if (segment_thread_.joinable() && segment_thread_.get_id() != std::this_thread::get_id())
+    {
+        segment_thread_.join();
+    }
 }
 
 bool RecordClient::isRecording() const

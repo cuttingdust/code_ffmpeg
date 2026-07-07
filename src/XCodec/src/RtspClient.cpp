@@ -380,6 +380,7 @@ bool RtspClient::start()
 void RtspClient::stop()
 {
     LOGI("RTSP客户端停止");
+    abortReconnect();
     setState(MediaClientState::DISCONNECTED);
     stopTasks();
 }

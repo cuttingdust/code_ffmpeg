@@ -5,6 +5,8 @@
 #include <atomic>
 #include <chrono>
 #include <functional>
+#include <mutex>
+#include <thread>
 
 /// 客户端状态
 enum class MediaClientState
@@ -20,7 +22,7 @@ enum class MediaClientState
 class XCODEC_EXPORT XMediaClient
 {
 public:
-    virtual ~XMediaClient() = default;
+    virtual ~XMediaClient();
 
     // ==================== 基本控制 ====================
 
@@ -105,6 +107,15 @@ protected:
     /// 重连入口
     void reconnect();
 
+    /// 重连工作线程
+    void reconnectWorker();
+
+    /// 等待重连线程结束
+    void joinReconnectThread();
+
+    /// 中止进行中的重连（stop/析构前调用）
+    void abortReconnect();
+
     /// 获取视频流
     AVStream* getVideoStream() const;
 
@@ -137,6 +148,10 @@ protected:
     int                                   reconnect_count_    = 0;
     std::chrono::steady_clock::time_point last_reconnect_time_;
     std::atomic<bool>                     reconnecting_{ false };
+    std::atomic<bool>                     reconnect_abort_{ false };
+    std::atomic<bool>                     shutdown_{ false };
+    std::thread                           reconnect_thread_;
+    std::mutex                            reconnect_thread_mutex_;
 
     /// 错误回调
     ErrorCallback error_cb_;

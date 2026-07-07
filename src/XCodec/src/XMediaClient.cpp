@@ -3,6 +3,13 @@
 
 XMediaClient::XMediaClient() = default;
 
+XMediaClient::~XMediaClient()
+{
+    shutdown_     = true;
+    reconnecting_ = false;
+    joinReconnectThread();
+}
+
 void XMediaClient::setUrl(const std::string& url)
 {
     url_ = url;
@@ -59,8 +66,69 @@ void XMediaClient::handleError(const std::string& msg)
     reconnect();
 }
 
+void XMediaClient::joinReconnectThread()
+{
+    std::lock_guard<std::mutex> lock(reconnect_thread_mutex_);
+    if (reconnect_thread_.joinable() && reconnect_thread_.get_id() != std::this_thread::get_id())
+    {
+        reconnect_thread_.join();
+    }
+}
+
+void XMediaClient::abortReconnect()
+{
+    reconnect_abort_ = true;
+    reconnecting_    = false;
+    joinReconnectThread();
+    reconnect_abort_ = false;
+}
+
+void XMediaClient::reconnectWorker()
+{
+    while (!shutdown_ && !reconnect_abort_)
+    {
+        reconnect_count_++;
+        LOGI("===== 开始第 " << reconnect_count_ << " 次重连 =====");
+        last_reconnect_time_ = std::chrono::steady_clock::now();
+
+        stopTasks();
+
+        if (demux_task_)
+            demux_task_->wait();
+        if (decode_task_)
+            decode_task_->wait();
+
+        resetTasks();
+        reconnectImpl();
+
+        if (shutdown_ || state_ != MediaClientState::ERROR)
+        {
+            break;
+        }
+
+        if (max_reconnects_ > 0 && reconnect_count_ >= max_reconnects_)
+        {
+            LOGE("达到最大重连次数(" << max_reconnects_ << ")，停止重连");
+            break;
+        }
+
+        LOGI("重连失败，等待 " << reconnect_interval_ << " 秒后再次尝试");
+        for (int i = 0; i < reconnect_interval_ && !shutdown_ && !reconnect_abort_; ++i)
+        {
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
+    }
+
+    reconnecting_ = false;
+}
+
 void XMediaClient::reconnect()
 {
+    if (shutdown_)
+    {
+        return;
+    }
+
     if (reconnecting_.exchange(true))
     {
         LOGW("重连已在进行中，忽略本次请求");
@@ -75,39 +143,19 @@ void XMediaClient::reconnect()
         return;
     }
 
-    reconnect_count_++;
-    LOGI("===== 开始第 " << reconnect_count_ << " 次重连 =====");
-    last_reconnect_time_ = std::chrono::steady_clock::now();
+    {
+        std::lock_guard<std::mutex> lock(reconnect_thread_mutex_);
+        if (reconnect_thread_.joinable())
+        {
+            reconnect_thread_.join();
+        }
 
-    std::thread(
-            [this]()
-            {
-                /// 停止所有任务
-                stopTasks();
+        if (shutdown_)
+        {
+            reconnecting_ = false;
+            return;
+        }
 
-                if (demux_task_)
-                    demux_task_->wait();
-                if (decode_task_)
-                    decode_task_->wait();
-
-                /// 重置任务状态
-                resetTasks();
-
-                /// 调用子类的重连实现
-                reconnectImpl();
-
-                /// 如果重连失败，且还有重连次数，继续重试
-                if (state_ == MediaClientState::ERROR && (max_reconnects_ == 0 || reconnect_count_ < max_reconnects_))
-                {
-                    LOGI("重连失败，等待 " << reconnect_interval_ << " 秒后再次尝试");
-                    std::this_thread::sleep_for(std::chrono::seconds(reconnect_interval_));
-                    reconnecting_ = false;
-                    reconnect(); /// 继续重试
-                }
-                else
-                {
-                    reconnecting_ = false;
-                }
-            })
-            .detach();
+        reconnect_thread_ = std::thread(&XMediaClient::reconnectWorker, this);
+    }
 }
