@@ -6,13 +6,22 @@
 #include <XOpenGLVideoWidget.h>
 #include <XOverlayUtil.h>
 
-#include <QtWidgets/QStyle>
+#include <QtWidgets/QSizePolicy>
 #include <QtGui/QCloseEvent>
+#include <QtGui/QGuiApplication>
+#include <QtGui/QResizeEvent>
+#include <QtGui/QScreen>
+
+#include <algorithm>
 
 XPlayVideo::XPlayVideo(QWidget* parent) : QWidget(parent), ui(new Ui::XPlayVideo)
 {
     ui->setupUi(this);
     setAttribute(Qt::WA_DeleteOnClose);
+    setMinimumSize(420, 260);
+    ui->openGLWidget->setMinimumSize(240, 135);
+    ui->openGLWidget->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
+    ui->openGLWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
     progress_timer_ = new QTimer(this);
     connect(progress_timer_, &QTimer::timeout, this, &XPlayVideo::updateProgress);
@@ -33,6 +42,7 @@ XPlayVideo::XPlayVideo(QWidget* parent) : QWidget(parent), ui(new Ui::XPlayVideo
     ui->volume_slider->setEnabled(false);
 
     ui->controlLayout->setStretch(ui->controlLayout->indexOf(ui->seek_slider), 1);
+    updateResponsiveControls(width());
 
     // 防抖定时器
     seek_timer_ = new QTimer(this);
@@ -75,17 +85,30 @@ void XPlayVideo::adjustWindowSize()
         return;
     }
 
-    int control_height = ui->controlLayout->geometry().height();
-    int title_height   = style()->pixelMetric(QStyle::PM_TitleBarHeight);
-    int frame_width    = style()->pixelMetric(QStyle::PM_DefaultFrameWidth) * 2;
+    const int control_height = std::max(ui->controlLayout->sizeHint().height(), 40);
+    QSize     target_video(video_width_, video_height_);
 
-    int total_width  = video_width_ + frame_width;
-    int total_height = video_height_ + control_height + title_height;
+    if (QScreen* screen = QGuiApplication::screenAt(frameGeometry().center()))
+    {
+        const QRect available        = screen->availableGeometry();
+        const int   max_video_width  = std::max(240, available.width() * 9 / 10);
+        const int   max_video_height = std::max(135, (available.height() - control_height) * 9 / 10);
 
-    ui->openGLWidget->setFixedSize(video_width_, video_height_);
-    resize(total_width, total_height);
+        if (target_video.width() > max_video_width || target_video.height() > max_video_height)
+        {
+            target_video.scale(max_video_width, max_video_height, Qt::KeepAspectRatio);
+        }
+    }
 
-    LOGI("调整窗口大小: " << total_width << "x" << total_height << ", 视频: " << video_width_ << "x" << video_height_);
+    ui->openGLWidget->setMinimumSize(240, 135);
+    ui->openGLWidget->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
+    ui->openGLWidget->updateGeometry();
+    resize(target_video.width(), target_video.height() + control_height);
+    updateResponsiveControls(width());
+
+    LOGI("调整回放窗口初始大小: " << width() << "x" << height() << ", 视频: " << video_width_ << "x"
+                                  << video_height_ << ", 显示: " << target_video.width() << "x"
+                                  << target_video.height());
 }
 
 void XPlayVideo::setFile(const std::string& filepath, int camera_id, const QString& camera_name)
@@ -179,6 +202,24 @@ void XPlayVideo::closeEvent(QCloseEvent* event)
 void XPlayVideo::resizeEvent(QResizeEvent* event)
 {
     QWidget::resizeEvent(event);
+    updateResponsiveControls(event->size().width());
+    ui->openGLWidget->update();
+}
+
+void XPlayVideo::updateResponsiveControls(int window_width)
+{
+    const bool compact      = window_width < 640;
+    const bool very_compact = window_width < 520;
+    const bool tiny         = window_width < 440;
+
+    ui->volume_label->setVisible(!very_compact);
+    ui->volume_slider->setVisible(!very_compact);
+    ui->speed_combo->setVisible(!tiny);
+    ui->total_time_label->setVisible(!tiny);
+
+    ui->seek_slider->setMinimumWidth(tiny ? 80 : (compact ? 120 : 180));
+    ui->current_time_label->setFixedWidth(compact ? 62 : 70);
+    ui->total_time_label->setFixedWidth(compact ? 62 : 70);
 }
 
 void XPlayVideo::onPlayPauseClicked()

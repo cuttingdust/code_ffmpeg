@@ -41,6 +41,7 @@ private slots:
 
 private:
     void adjustWindowSize();
+    void updateResponsiveControls(int window_width);
 
 private:
     Ui::XPlayVideo *ui;
