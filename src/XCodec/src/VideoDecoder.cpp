@@ -386,12 +386,11 @@ auto VideoDecoder::decode_packet(const AVPacket* pkt, std::vector<AVFrame*>& out
         /// 如果是硬件帧且需要转换
         if (is_hw && impl_->config_.hardware.transfer_to_software)
         {
-            /// 设置软件帧格式
+            impl_->sw_frame_.unref();
             impl_->sw_frame_->format = HardwareFrameTransfer::get_sw_format(impl_->frame_);
             impl_->sw_frame_->width  = impl_->frame_->width;
             impl_->sw_frame_->height = impl_->frame_->height;
 
-            /// 分配缓冲区
             if (av_frame_get_buffer(impl_->sw_frame_, 0) >= 0)
             {
                 if (HardwareFrameTransfer::transfer_to_software(impl_->frame_, impl_->sw_frame_))
@@ -435,10 +434,10 @@ auto VideoDecoder::decode_packet(const AVPacket* pkt, std::vector<AVFrame*>& out
         int64_t end_time    = av_gettime_relative();
         double  decode_time = (end_time - start_time) / 1000.0;
         impl_->update_stats(decode_time);
-    }
 
-    impl_->frame_.unref();
-    impl_->sw_frame_.unref();
+        impl_->frame_.unref();
+        impl_->sw_frame_.unref();
+    }
 
     return frame_count;
 }
@@ -485,9 +484,12 @@ auto VideoDecoder::flush(std::vector<AVFrame*>& out_frames) -> int
             if (!impl_->ctx_ || !impl_->ctx_->get()->hw_device_ctx)
             {
                 LOGW("硬件上下文无效，跳过硬件帧转换");
+                impl_->frame_.unref();
+                impl_->sw_frame_.unref();
                 continue;
             }
 
+            impl_->sw_frame_.unref();
             impl_->sw_frame_->format = HardwareFrameTransfer::get_sw_format(impl_->frame_);
             impl_->sw_frame_->width  = impl_->frame_->width;
             impl_->sw_frame_->height = impl_->frame_->height;
@@ -495,6 +497,8 @@ auto VideoDecoder::flush(std::vector<AVFrame*>& out_frames) -> int
             if (av_frame_get_buffer(impl_->sw_frame_, 0) < 0)
             {
                 LOGW("无法分配软件帧缓冲区");
+                impl_->frame_.unref();
+                impl_->sw_frame_.unref();
                 continue;
             }
 
@@ -507,17 +511,23 @@ auto VideoDecoder::flush(std::vector<AVFrame*>& out_frames) -> int
                 else
                 {
                     LOGW("硬件帧转换失败");
+                    impl_->frame_.unref();
+                    impl_->sw_frame_.unref();
                     continue;
                 }
             }
             catch (const std::exception& e)
             {
                 LOGE("硬件帧转换异常: " << e.what());
+                impl_->frame_.unref();
+                impl_->sw_frame_.unref();
                 continue;
             }
             catch (...)
             {
                 LOGE("硬件帧转换未知异常");
+                impl_->frame_.unref();
+                impl_->sw_frame_.unref();
                 continue;
             }
         }

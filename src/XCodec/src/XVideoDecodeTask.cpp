@@ -5,6 +5,18 @@
 #include "AVLog.h"
 #include "FrameWrapper.h"
 
+namespace
+{
+auto freeRawFrames(std::vector<AVFrame*>& frames) -> void
+{
+    for (AVFrame* frame : frames)
+    {
+        av_frame_free(&frame);
+    }
+    frames.clear();
+}
+} // namespace
+
 XVideoDecodeTask::XVideoDecodeTask()
 {
     setName("VideoDecodeTask");
@@ -202,6 +214,7 @@ void XVideoDecodeTask::process()
         }
         catch (const AVException& e)
         {
+            freeRawFrames(raw_frames);
             LOGE("解码异常: " << e.what());
 
             if (std::string(e.what()).find("解码器状态损坏") != std::string::npos)
@@ -216,6 +229,7 @@ void XVideoDecodeTask::process()
         }
         catch (const std::exception& e)
         {
+            freeRawFrames(raw_frames);
             LOGE("标准异常: " << e.what());
             handleError(std::string("异常: ") + e.what());
             break;
@@ -242,9 +256,11 @@ void XVideoDecodeTask::process()
                     next_->pushFrame(frame.release());
                 }
             }
+            raw_frames.clear();
         }
         catch (const std::exception& e)
         {
+            freeRawFrames(raw_frames);
             LOGE("刷新解码器异常: " << e.what());
         }
     }
@@ -252,6 +268,8 @@ void XVideoDecodeTask::process()
     {
         LOGW("解码器已损坏，跳过刷新");
     }
+
+    freeRawFrames(raw_frames);
 
     if (next_)
     {
