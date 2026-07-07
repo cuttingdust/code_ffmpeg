@@ -8,7 +8,10 @@
 
 #include <QtWidgets/QSizePolicy>
 #include <QtGui/QCloseEvent>
+#include <QtCore/QEvent>
 #include <QtGui/QGuiApplication>
+#include <QtGui/QKeyEvent>
+#include <QtGui/QMouseEvent>
 #include <QtGui/QResizeEvent>
 #include <QtGui/QScreen>
 
@@ -22,6 +25,8 @@ XPlayVideo::XPlayVideo(QWidget* parent) : QWidget(parent), ui(new Ui::XPlayVideo
     ui->openGLWidget->setMinimumSize(240, 135);
     ui->openGLWidget->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
     ui->openGLWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    ui->openGLWidget->installEventFilter(this);
+    control_layout_margins_ = ui->controlLayout->contentsMargins();
 
     progress_timer_ = new QTimer(this);
     connect(progress_timer_, &QTimer::timeout, this, &XPlayVideo::updateProgress);
@@ -193,10 +198,38 @@ bool XPlayVideo::isPlaying() const
     return player_ ? player_->isPlaying() : false;
 }
 
+bool XPlayVideo::eventFilter(QObject* watched, QEvent* event)
+{
+    if (watched == ui->openGLWidget && event->type() == QEvent::MouseButtonDblClick)
+    {
+        auto* mouse_event = static_cast<QMouseEvent*>(event);
+        if (mouse_event->button() == Qt::LeftButton)
+        {
+            toggleFullScreen();
+            event->accept();
+            return true;
+        }
+    }
+
+    return QWidget::eventFilter(watched, event);
+}
+
 void XPlayVideo::closeEvent(QCloseEvent* event)
 {
     stop();
     event->accept();
+}
+
+void XPlayVideo::keyPressEvent(QKeyEvent* event)
+{
+    if (event->key() == Qt::Key_Escape && isFullScreen())
+    {
+        toggleFullScreen();
+        event->accept();
+        return;
+    }
+
+    QWidget::keyPressEvent(event);
 }
 
 void XPlayVideo::resizeEvent(QResizeEvent* event)
@@ -206,8 +239,44 @@ void XPlayVideo::resizeEvent(QResizeEvent* event)
     ui->openGLWidget->update();
 }
 
+void XPlayVideo::toggleFullScreen()
+{
+    if (isFullScreen())
+    {
+        showNormal();
+        setWindowState(normal_window_state_);
+        setControlBarVisible(true);
+        updateResponsiveControls(width());
+        LOGI("回放窗口退出全屏");
+        return;
+    }
+
+    normal_window_state_ = windowState() & ~Qt::WindowFullScreen;
+    setControlBarVisible(false);
+    showFullScreen();
+    LOGI("回放窗口进入全屏");
+}
+
+void XPlayVideo::setControlBarVisible(bool visible)
+{
+    ui->controlLayout->setContentsMargins(visible ? control_layout_margins_ : QMargins());
+
+    for (int i = 0; i < ui->controlLayout->count(); ++i)
+    {
+        if (QWidget* widget = ui->controlLayout->itemAt(i)->widget())
+        {
+            widget->setVisible(visible);
+        }
+    }
+}
+
 void XPlayVideo::updateResponsiveControls(int window_width)
 {
+    if (isFullScreen())
+    {
+        return;
+    }
+
     const bool compact      = window_width < 640;
     const bool very_compact = window_width < 520;
     const bool tiny         = window_width < 440;
