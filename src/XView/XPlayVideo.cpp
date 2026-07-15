@@ -19,10 +19,13 @@
 #include <QtGui/QShortcut>
 
 #include <algorithm>
+#include <utility>
 
 namespace
 {
-constexpr double kKeyboardSeekStepSeconds = 5.0;
+constexpr double kFineSeekStepSeconds   = 5.0;
+constexpr double kCoarseSeekStepSeconds = 30.0;
+constexpr int    kVolumeStep            = 5;
 } // namespace
 
 XPlayVideo::XPlayVideo(QWidget* parent) : QWidget(parent), ui(new Ui::XPlayVideo)
@@ -38,20 +41,7 @@ XPlayVideo::XPlayVideo(QWidget* parent) : QWidget(parent), ui(new Ui::XPlayVideo
 
     progress_timer_ = new QTimer(this);
     connect(progress_timer_, &QTimer::timeout, this, &XPlayVideo::updateProgress);
-    auto* play_pause_shortcut = new QShortcut(QKeySequence(Qt::Key_Space), this);
-    play_pause_shortcut->setContext(Qt::WindowShortcut);
-    play_pause_shortcut->setAutoRepeat(false);
-    connect(play_pause_shortcut, &QShortcut::activated, this, &XPlayVideo::onPlayPauseClicked);
-    auto* seek_backward_shortcut = new QShortcut(QKeySequence(Qt::Key_Left), this);
-    seek_backward_shortcut->setContext(Qt::WindowShortcut);
-    seek_backward_shortcut->setAutoRepeat(false);
-    connect(seek_backward_shortcut, &QShortcut::activated, this,
-            [this]() { seekBySeconds(-kKeyboardSeekStepSeconds); });
-    auto* seek_forward_shortcut = new QShortcut(QKeySequence(Qt::Key_Right), this);
-    seek_forward_shortcut->setContext(Qt::WindowShortcut);
-    seek_forward_shortcut->setAutoRepeat(false);
-    connect(seek_forward_shortcut, &QShortcut::activated, this,
-            [this]() { seekBySeconds(kKeyboardSeekStepSeconds); });
+    installShortcuts();
     connect(ui->seek_slider, &XSeekSlider::jumpRequested, this,
             [this](int value)
             {
@@ -266,6 +256,57 @@ void XPlayVideo::resizeEvent(QResizeEvent* event)
     ui->openGLWidget->update();
 }
 
+void XPlayVideo::adjustVolume(int offset)
+{
+    if (!player_ || !player_->hasAudio())
+    {
+        return;
+    }
+
+    const int value = std::clamp(ui->volume_slider->value() + offset, ui->volume_slider->minimum(),
+                                 ui->volume_slider->maximum());
+    ui->volume_slider->setValue(value);
+    if (value > 0)
+    {
+        volume_before_mute_ = value;
+        ui->volume_label->setText(QStringLiteral("🔊"));
+    }
+    else
+    {
+        ui->volume_label->setText(QStringLiteral("🔇"));
+    }
+}
+
+void XPlayVideo::installShortcuts()
+{
+    auto add_shortcut = [this](const QKeySequence& key, auto&& callback)
+    {
+        auto* shortcut = new QShortcut(key, this);
+        shortcut->setContext(Qt::WindowShortcut);
+        shortcut->setAutoRepeat(false);
+        connect(shortcut, &QShortcut::activated, this, std::forward<decltype(callback)>(callback));
+    };
+
+    add_shortcut(QKeySequence(Qt::Key_Space), [this]() { onPlayPauseClicked(); });
+    add_shortcut(QKeySequence(Qt::Key_F), [this]() { toggleFullScreen(); });
+    add_shortcut(QKeySequence(Qt::Key_Left), [this]() { seekBySeconds(-kFineSeekStepSeconds); });
+    add_shortcut(QKeySequence(Qt::Key_Right), [this]() { seekBySeconds(kFineSeekStepSeconds); });
+    add_shortcut(QKeySequence(Qt::SHIFT | Qt::Key_Left), [this]() { seekBySeconds(-kCoarseSeekStepSeconds); });
+    add_shortcut(QKeySequence(Qt::SHIFT | Qt::Key_Right), [this]() { seekBySeconds(kCoarseSeekStepSeconds); });
+    add_shortcut(QKeySequence(Qt::Key_Home), [this]() { seekToTime(0.0); });
+    add_shortcut(QKeySequence(Qt::Key_End),
+                 [this]()
+                 {
+                     if (player_)
+                     {
+                         seekToTime(player_->getDuration());
+                     }
+                 });
+    add_shortcut(QKeySequence(Qt::Key_Up), [this]() { adjustVolume(kVolumeStep); });
+    add_shortcut(QKeySequence(Qt::Key_Down), [this]() { adjustVolume(-kVolumeStep); });
+    add_shortcut(QKeySequence(Qt::Key_M), [this]() { toggleMute(); });
+}
+
 void XPlayVideo::seekBySeconds(double offset_seconds)
 {
     if (!player_)
@@ -280,7 +321,23 @@ void XPlayVideo::seekBySeconds(double offset_seconds)
     }
 
     const double current      = player_->getCurrentTime();
-    const double target       = std::clamp(current + offset_seconds, 0.0, duration);
+    seekToTime(current + offset_seconds);
+}
+
+void XPlayVideo::seekToTime(double seconds)
+{
+    if (!player_)
+    {
+        return;
+    }
+
+    const double duration = player_->getDuration();
+    if (duration <= 0.0)
+    {
+        return;
+    }
+
+    const double target       = std::clamp(seconds, 0.0, duration);
     const int    slider_value = static_cast<int>(target / duration * 1000.0);
     const bool   was_playing  = player_->isPlaying() && !player_->isPaused();
     seekToSliderValue(slider_value, was_playing);
@@ -361,6 +418,25 @@ void XPlayVideo::setControlBarVisible(bool visible)
             widget->setVisible(visible);
         }
     }
+}
+
+void XPlayVideo::toggleMute()
+{
+    if (!player_ || !player_->hasAudio())
+    {
+        return;
+    }
+
+    if (ui->volume_slider->value() > 0)
+    {
+        volume_before_mute_ = ui->volume_slider->value();
+        ui->volume_slider->setValue(0);
+        ui->volume_label->setText(QStringLiteral("🔇"));
+        return;
+    }
+
+    ui->volume_slider->setValue(std::clamp(volume_before_mute_, 1, ui->volume_slider->maximum()));
+    ui->volume_label->setText(QStringLiteral("🔊"));
 }
 
 void XPlayVideo::updateResponsiveControls(int window_width)
@@ -498,6 +574,15 @@ void XPlayVideo::onVolumeChanged(int value)
         return;
 
     player_->setVolume(value / 100.0);
+    if (value > 0)
+    {
+        volume_before_mute_ = value;
+        ui->volume_label->setText(QStringLiteral("🔊"));
+    }
+    else
+    {
+        ui->volume_label->setText(QStringLiteral("🔇"));
+    }
 }
 
 void XPlayVideo::updateProgress()

@@ -45,9 +45,13 @@ private slots:
 
 private:
     void adjustWindowSize();
+    void adjustVolume(int offset);
+    void installShortcuts();
     void seekBySeconds(double offset_seconds);
+    void seekToTime(double seconds);
     void seekToSliderValue(int value, bool resume_after_seek);
     void setControlBarVisible(bool visible);
+    void toggleMute();
     void toggleFullScreen();
     void updateResponsiveControls(int window_width);
 
@@ -62,6 +66,7 @@ private:
     int                          video_height_ = 0;
     Qt::WindowStates             normal_window_state_ = Qt::WindowNoState;
     QMargins                     control_layout_margins_;
+    int                          volume_before_mute_ = 100;
 
     QTimer *progress_timer_ = nullptr;
     bool    is_seeking_     = false;
