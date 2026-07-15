@@ -1,6 +1,8 @@
 #include "XPlayVideo.h"
 #include "ui_xplayvideo.h"
 
+#include "XSeekSlider.h"
+
 #include <AVLog.h>
 #include <LocalPlayer.h>
 #include <XOpenGLVideoWidget.h>
@@ -30,6 +32,12 @@ XPlayVideo::XPlayVideo(QWidget* parent) : QWidget(parent), ui(new Ui::XPlayVideo
 
     progress_timer_ = new QTimer(this);
     connect(progress_timer_, &QTimer::timeout, this, &XPlayVideo::updateProgress);
+    connect(ui->seek_slider, &XSeekSlider::jumpRequested, this,
+            [this](int value)
+            {
+                const bool was_playing = player_ && player_->isPlaying() && !player_->isPaused();
+                seekToSliderValue(value, was_playing);
+            });
 
     // 初始化速度下拉框
     ui->speed_combo->clear();
@@ -210,7 +218,6 @@ bool XPlayVideo::eventFilter(QObject* watched, QEvent* event)
             return true;
         }
     }
-
     return QWidget::eventFilter(watched, event);
 }
 
@@ -237,6 +244,52 @@ void XPlayVideo::resizeEvent(QResizeEvent* event)
     QWidget::resizeEvent(event);
     updateResponsiveControls(event->size().width());
     ui->openGLWidget->update();
+}
+
+void XPlayVideo::seekToSliderValue(int value, bool resume_after_seek)
+{
+    if (!player_)
+    {
+        return;
+    }
+
+    value = std::clamp(value, ui->seek_slider->minimum(), ui->seek_slider->maximum());
+
+    if (seek_timer_)
+    {
+        seek_timer_->stop();
+    }
+    pending_seek_value_ = -1;
+    is_seeking_         = false;
+    resume_after_seek_  = false;
+
+    if (player_->isPlaying() && !player_->isPaused())
+    {
+        player_->pause();
+        ui->play_pause_btn->setText("▶");
+        progress_timer_->stop();
+    }
+
+    ui->seek_slider->setValue(value);
+
+    const double duration  = player_->getDuration();
+    const double seek_time = duration * value / 1000.0;
+    player_->seek(seek_time);
+    int hours   = int(seek_time) / 3600;
+    int minutes = (int(seek_time) % 3600) / 60;
+    int seconds = int(seek_time) % 60;
+    ui->current_time_label->setText(QString("%1:%2:%3")
+                                            .arg(hours, 2, 10, QChar('0'))
+                                            .arg(minutes, 2, 10, QChar('0'))
+                                            .arg(seconds, 2, 10, QChar('0')));
+    LOGI("点击进度条 Seek: " << seek_time << "秒");
+
+    if (resume_after_seek)
+    {
+        player_->resume();
+        ui->play_pause_btn->setText("⏸");
+        progress_timer_->start(500);
+    }
 }
 
 void XPlayVideo::toggleFullScreen()

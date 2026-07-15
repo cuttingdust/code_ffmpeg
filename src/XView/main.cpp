@@ -4,6 +4,8 @@
 #include <AVLog.h>
 #include <AVLogQt.h>
 
+#include <QtCore/QCoreApplication>
+#include <QtCore/QObject>
 #include <QtWidgets/QApplication>
 
 #include <iostream>
@@ -23,6 +25,7 @@ int main(int argc, char *argv[])
 
     avLogInit();
     avLogInstallQtMessageHandler();
+    QObject::connect(&a, &QCoreApplication::aboutToQuit, []() { avLogUninstallQtMessageHandler(); });
 
     // auto *xc = XCameraConfig::instance();
     // xc->load(TEST_CAM_PATH);
@@ -92,5 +95,7 @@ int main(int argc, char *argv[])
 
     XViewer w;
     w.show();
-    return a.exec();
+    const int ret = a.exec();
+    avLogUninstallQtMessageHandler();
+    return ret;
 }

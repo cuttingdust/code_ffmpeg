@@ -138,7 +138,7 @@
       </widget>
      </item>
      <item>
-      <widget class="QSlider" name="seek_slider">
+      <widget class="XSeekSlider" name="seek_slider">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
          <horstretch>1</horstretch>
@@ -262,6 +262,11 @@
    <class>XOpenGLVideoWidget</class>
    <extends>QOpenGLWidget</extends>
    <header>XOpenGLVideoWidget.h</header>
+  </customwidget>
+  <customwidget>
+   <class>XSeekSlider</class>
+   <extends>QSlider</extends>
+   <header>XSeekSlider.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

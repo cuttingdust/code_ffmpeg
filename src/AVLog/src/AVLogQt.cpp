@@ -8,6 +8,7 @@ namespace
 {
 
 QtMessageHandler g_prev_qt_handler = nullptr;
+bool             g_qt_handler_installed = false;
 
 auto shouldSkipQtMessage(const QString& msg) -> bool
 {
@@ -62,11 +63,23 @@ void avQtMessageHandler(QtMsgType type, const QMessageLogContext& context, const
 
 void avLogInstallQtMessageHandler()
 {
+    if (g_qt_handler_installed)
+    {
+        return;
+    }
+
     g_prev_qt_handler = qInstallMessageHandler(avQtMessageHandler);
+    g_qt_handler_installed = true;
 }
 
 void avLogUninstallQtMessageHandler()
 {
+    if (!g_qt_handler_installed)
+    {
+        return;
+    }
+
     qInstallMessageHandler(g_prev_qt_handler);
     g_prev_qt_handler = nullptr;
+    g_qt_handler_installed = false;
 }

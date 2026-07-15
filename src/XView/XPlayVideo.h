@@ -45,6 +45,7 @@ private slots:
 
 private:
     void adjustWindowSize();
+    void seekToSliderValue(int value, bool resume_after_seek);
     void setControlBarVisible(bool visible);
     void toggleFullScreen();
     void updateResponsiveControls(int window_width);
