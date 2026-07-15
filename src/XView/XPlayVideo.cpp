@@ -16,6 +16,7 @@
 #include <QtGui/QMouseEvent>
 #include <QtGui/QResizeEvent>
 #include <QtGui/QScreen>
+#include <QtGui/QShortcut>
 
 #include <algorithm>
 
@@ -32,6 +33,10 @@ XPlayVideo::XPlayVideo(QWidget* parent) : QWidget(parent), ui(new Ui::XPlayVideo
 
     progress_timer_ = new QTimer(this);
     connect(progress_timer_, &QTimer::timeout, this, &XPlayVideo::updateProgress);
+    auto* play_pause_shortcut = new QShortcut(QKeySequence(Qt::Key_Space), this);
+    play_pause_shortcut->setContext(Qt::WindowShortcut);
+    play_pause_shortcut->setAutoRepeat(false);
+    connect(play_pause_shortcut, &QShortcut::activated, this, &XPlayVideo::onPlayPauseClicked);
     connect(ui->seek_slider, &XSeekSlider::jumpRequested, this,
             [this](int value)
             {
