@@ -20,6 +20,11 @@
 
 #include <algorithm>
 
+namespace
+{
+constexpr double kKeyboardSeekStepSeconds = 5.0;
+} // namespace
+
 XPlayVideo::XPlayVideo(QWidget* parent) : QWidget(parent), ui(new Ui::XPlayVideo)
 {
     ui->setupUi(this);
@@ -37,6 +42,16 @@ XPlayVideo::XPlayVideo(QWidget* parent) : QWidget(parent), ui(new Ui::XPlayVideo
     play_pause_shortcut->setContext(Qt::WindowShortcut);
     play_pause_shortcut->setAutoRepeat(false);
     connect(play_pause_shortcut, &QShortcut::activated, this, &XPlayVideo::onPlayPauseClicked);
+    auto* seek_backward_shortcut = new QShortcut(QKeySequence(Qt::Key_Left), this);
+    seek_backward_shortcut->setContext(Qt::WindowShortcut);
+    seek_backward_shortcut->setAutoRepeat(false);
+    connect(seek_backward_shortcut, &QShortcut::activated, this,
+            [this]() { seekBySeconds(-kKeyboardSeekStepSeconds); });
+    auto* seek_forward_shortcut = new QShortcut(QKeySequence(Qt::Key_Right), this);
+    seek_forward_shortcut->setContext(Qt::WindowShortcut);
+    seek_forward_shortcut->setAutoRepeat(false);
+    connect(seek_forward_shortcut, &QShortcut::activated, this,
+            [this]() { seekBySeconds(kKeyboardSeekStepSeconds); });
     connect(ui->seek_slider, &XSeekSlider::jumpRequested, this,
             [this](int value)
             {
@@ -249,6 +264,26 @@ void XPlayVideo::resizeEvent(QResizeEvent* event)
     QWidget::resizeEvent(event);
     updateResponsiveControls(event->size().width());
     ui->openGLWidget->update();
+}
+
+void XPlayVideo::seekBySeconds(double offset_seconds)
+{
+    if (!player_)
+    {
+        return;
+    }
+
+    const double duration = player_->getDuration();
+    if (duration <= 0.0)
+    {
+        return;
+    }
+
+    const double current      = player_->getCurrentTime();
+    const double target       = std::clamp(current + offset_seconds, 0.0, duration);
+    const int    slider_value = static_cast<int>(target / duration * 1000.0);
+    const bool   was_playing  = player_->isPlaying() && !player_->isPaused();
+    seekToSliderValue(slider_value, was_playing);
 }
 
 void XPlayVideo::seekToSliderValue(int value, bool resume_after_seek)

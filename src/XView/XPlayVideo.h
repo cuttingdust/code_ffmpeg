@@ -45,6 +45,7 @@ private slots:
 
 private:
     void adjustWindowSize();
+    void seekBySeconds(double offset_seconds);
     void seekToSliderValue(int value, bool resume_after_seek);
     void setControlBarVisible(bool visible);
     void toggleFullScreen();
