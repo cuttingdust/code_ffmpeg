@@ -487,6 +487,20 @@ void XViewer::closeActivePlayback()
     active_playback_ = nullptr;
 }
 
+void XViewer::restorePlaybackListFocus()
+{
+    if (!ui || !ui->time_list)
+    {
+        return;
+    }
+
+    if (ui->time_list->currentRow() < 0 && ui->time_list->count() > 0)
+    {
+        ui->time_list->setCurrentRow(0);
+    }
+    ui->time_list->setFocus(Qt::OtherFocusReason);
+}
+
 void XViewer::SelectCamera(QModelIndex index)
 {
     int camera_id = index.row();
@@ -593,6 +607,7 @@ void XViewer::PlayVideo(QModelIndex index)
     XPlayVideo *playWidget = new XPlayVideo();
     active_playback_       = playWidget;
     connect(playWidget, &QObject::destroyed, this, [this]() { active_playback_ = nullptr; });
+    connect(playWidget, &XPlayVideo::playbackClosed, this, &XViewer::restorePlaybackListFocus);
 
     playWidget->setFile(filepath, playback_selected_camera_, camera_name);
     playWidget->play();

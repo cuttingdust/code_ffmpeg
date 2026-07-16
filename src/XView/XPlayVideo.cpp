@@ -8,6 +8,7 @@
 #include <XOpenGLVideoWidget.h>
 #include <XOverlayUtil.h>
 
+#include <QtWidgets/QLabel>
 #include <QtWidgets/QSizePolicy>
 #include <QtGui/QCloseEvent>
 #include <QtCore/QEvent>
@@ -25,6 +26,7 @@ namespace
 {
 constexpr double kFineSeekStepSeconds   = 5.0;
 constexpr double kCoarseSeekStepSeconds = 30.0;
+constexpr int    kOverlayDurationMs     = 900;
 constexpr int    kVolumeStep            = 5;
 } // namespace
 
@@ -39,8 +41,25 @@ XPlayVideo::XPlayVideo(QWidget* parent) : QWidget(parent), ui(new Ui::XPlayVideo
     ui->openGLWidget->installEventFilter(this);
     control_layout_margins_ = ui->controlLayout->contentsMargins();
 
+    overlay_label_ = new QLabel(ui->openGLWidget);
+    overlay_label_->setAttribute(Qt::WA_TransparentForMouseEvents);
+    overlay_label_->setAlignment(Qt::AlignCenter);
+    overlay_label_->setStyleSheet(QStringLiteral(
+            "QLabel {"
+            "background-color: rgba(0, 0, 0, 170);"
+            "color: white;"
+            "border-radius: 8px;"
+            "padding: 10px 18px;"
+            "font-size: 20px;"
+            "font-weight: 600;"
+            "}"));
+    overlay_label_->hide();
+
     progress_timer_ = new QTimer(this);
     connect(progress_timer_, &QTimer::timeout, this, &XPlayVideo::updateProgress);
+    overlay_timer_ = new QTimer(this);
+    overlay_timer_->setSingleShot(true);
+    connect(overlay_timer_, &QTimer::timeout, overlay_label_, &QLabel::hide);
     installShortcuts();
     connect(ui->seek_slider, &XSeekSlider::jumpRequested, this,
             [this](int value)
@@ -93,6 +112,10 @@ XPlayVideo::~XPlayVideo()
     if (seek_timer_)
     {
         seek_timer_->stop();
+    }
+    if (overlay_timer_)
+    {
+        overlay_timer_->stop();
     }
     if (player_)
     {
@@ -234,6 +257,7 @@ bool XPlayVideo::eventFilter(QObject* watched, QEvent* event)
 void XPlayVideo::closeEvent(QCloseEvent* event)
 {
     stop();
+    emit playbackClosed();
     event->accept();
 }
 
@@ -246,6 +270,13 @@ void XPlayVideo::keyPressEvent(QKeyEvent* event)
         return;
     }
 
+    if (event->key() == Qt::Key_Escape)
+    {
+        close();
+        event->accept();
+        return;
+    }
+
     QWidget::keyPressEvent(event);
 }
 
@@ -253,6 +284,7 @@ void XPlayVideo::resizeEvent(QResizeEvent* event)
 {
     QWidget::resizeEvent(event);
     updateResponsiveControls(event->size().width());
+    positionOverlay();
     ui->openGLWidget->update();
 }
 
@@ -275,6 +307,7 @@ void XPlayVideo::adjustVolume(int offset)
     {
         ui->volume_label->setText(QStringLiteral("🔇"));
     }
+    showOverlayText(tr("音量 %1%").arg(value));
 }
 
 void XPlayVideo::installShortcuts()
@@ -287,24 +320,57 @@ void XPlayVideo::installShortcuts()
         connect(shortcut, &QShortcut::activated, this, std::forward<decltype(callback)>(callback));
     };
 
-    add_shortcut(QKeySequence(Qt::Key_Space), [this]() { onPlayPauseClicked(); });
-    add_shortcut(QKeySequence(Qt::Key_F), [this]() { toggleFullScreen(); });
+    add_shortcut(QKeySequence(Qt::Key_Space),
+                 [this]()
+                 {
+                     onPlayPauseClicked();
+                     if (player_)
+                     {
+                         showOverlayText(player_->isPaused() ? tr("暂停") : tr("播放"));
+                     }
+                 });
+    add_shortcut(QKeySequence(Qt::Key_F),
+                 [this]()
+                 {
+                     toggleFullScreen();
+                     showOverlayText(isFullScreen() ? tr("全屏") : tr("退出全屏"));
+                 });
     add_shortcut(QKeySequence(Qt::Key_Left), [this]() { seekBySeconds(-kFineSeekStepSeconds); });
     add_shortcut(QKeySequence(Qt::Key_Right), [this]() { seekBySeconds(kFineSeekStepSeconds); });
     add_shortcut(QKeySequence(Qt::SHIFT | Qt::Key_Left), [this]() { seekBySeconds(-kCoarseSeekStepSeconds); });
     add_shortcut(QKeySequence(Qt::SHIFT | Qt::Key_Right), [this]() { seekBySeconds(kCoarseSeekStepSeconds); });
-    add_shortcut(QKeySequence(Qt::Key_Home), [this]() { seekToTime(0.0); });
+    add_shortcut(QKeySequence(Qt::Key_Home),
+                 [this]()
+                 {
+                     seekToTime(0.0);
+                     showOverlayText(tr("00:00:00"));
+                 });
     add_shortcut(QKeySequence(Qt::Key_End),
                  [this]()
                  {
                      if (player_)
                      {
                          seekToTime(player_->getDuration());
+                         showOverlayText(tr("结尾"));
                      }
                  });
     add_shortcut(QKeySequence(Qt::Key_Up), [this]() { adjustVolume(kVolumeStep); });
     add_shortcut(QKeySequence(Qt::Key_Down), [this]() { adjustVolume(-kVolumeStep); });
     add_shortcut(QKeySequence(Qt::Key_M), [this]() { toggleMute(); });
+}
+
+void XPlayVideo::positionOverlay()
+{
+    if (!overlay_label_)
+    {
+        return;
+    }
+
+    overlay_label_->adjustSize();
+    const QSize overlay_size = overlay_label_->sizeHint();
+    const int   x            = (ui->openGLWidget->width() - overlay_size.width()) / 2;
+    const int   y            = (ui->openGLWidget->height() - overlay_size.height()) / 2;
+    overlay_label_->setGeometry(std::max(0, x), std::max(0, y), overlay_size.width(), overlay_size.height());
 }
 
 void XPlayVideo::seekBySeconds(double offset_seconds)
@@ -322,6 +388,7 @@ void XPlayVideo::seekBySeconds(double offset_seconds)
 
     const double current      = player_->getCurrentTime();
     seekToTime(current + offset_seconds);
+    showOverlayText(QString("%1%2s").arg(offset_seconds > 0.0 ? "+" : "").arg(static_cast<int>(offset_seconds)));
 }
 
 void XPlayVideo::seekToTime(double seconds)
@@ -420,6 +487,23 @@ void XPlayVideo::setControlBarVisible(bool visible)
     }
 }
 
+void XPlayVideo::showOverlayText(const QString& text)
+{
+    if (!overlay_label_ || text.isEmpty())
+    {
+        return;
+    }
+
+    overlay_label_->setText(text);
+    positionOverlay();
+    overlay_label_->raise();
+    overlay_label_->show();
+    if (overlay_timer_)
+    {
+        overlay_timer_->start(kOverlayDurationMs);
+    }
+}
+
 void XPlayVideo::toggleMute()
 {
     if (!player_ || !player_->hasAudio())
@@ -432,11 +516,14 @@ void XPlayVideo::toggleMute()
         volume_before_mute_ = ui->volume_slider->value();
         ui->volume_slider->setValue(0);
         ui->volume_label->setText(QStringLiteral("🔇"));
+        showOverlayText(tr("静音"));
         return;
     }
 
-    ui->volume_slider->setValue(std::clamp(volume_before_mute_, 1, ui->volume_slider->maximum()));
+    const int restored_volume = std::clamp(volume_before_mute_, 1, ui->volume_slider->maximum());
+    ui->volume_slider->setValue(restored_volume);
     ui->volume_label->setText(QStringLiteral("🔊"));
+    showOverlayText(tr("音量 %1%").arg(restored_volume));
 }
 
 void XPlayVideo::updateResponsiveControls(int window_width)

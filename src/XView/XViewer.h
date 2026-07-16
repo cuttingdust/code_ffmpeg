@@ -68,6 +68,9 @@ private:
     /// 关闭当前回放窗口，避免与预览/新回放争用音频
     void closeActivePlayback();
 
+    /// 回放窗口关闭后恢复录像条目焦点
+    void restorePlaybackListFocus();
+
     /// 从 camera_to_widgets_ 移除窗口映射
     void removeCameraWidgetMapping(XCameraWidget *widget, int camera_id);
 

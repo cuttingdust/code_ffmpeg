@@ -8,6 +8,7 @@
 
 class LocalPlayer;
 class QKeyEvent;
+class QLabel;
 
 namespace Ui
 {
@@ -26,6 +27,9 @@ public:
     void play();
     void stop();
     bool isPlaying() const;
+
+signals:
+    void playbackClosed();
 
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
@@ -47,10 +51,12 @@ private:
     void adjustWindowSize();
     void adjustVolume(int offset);
     void installShortcuts();
+    void positionOverlay();
     void seekBySeconds(double offset_seconds);
     void seekToTime(double seconds);
     void seekToSliderValue(int value, bool resume_after_seek);
     void setControlBarVisible(bool visible);
+    void showOverlayText(const QString& text);
     void toggleMute();
     void toggleFullScreen();
     void updateResponsiveControls(int window_width);
@@ -67,8 +73,10 @@ private:
     Qt::WindowStates             normal_window_state_ = Qt::WindowNoState;
     QMargins                     control_layout_margins_;
     int                          volume_before_mute_ = 100;
+    QLabel*                      overlay_label_      = nullptr;
 
     QTimer *progress_timer_ = nullptr;
+    QTimer *overlay_timer_  = nullptr;
     bool    is_seeking_     = false;
     bool    resume_after_seek_ = false;
 
