@@ -1,5 +1,18 @@
-@echo off
+﻿@echo off
 chcp 65001 > nul
+REM ============================================================================
+REM 仅供历史参考，本文件不参与项目的正常构建流程。
+REM
+REM 当前项目已经通过 vcpkg.json 获取 FFmpeg 和编解码依赖，请改用
+REM vcpkg_install.bat。下方旧笔记混合了 CMD 与 MSYS2/Bash 语法，
+REM 包含特定机器路径以及具有破坏性的 Git 示例，因此双击时不会执行。
+REM ============================================================================
+echo 本文件是已归档的 FFmpeg 手动编译笔记。
+echo 请使用 vcpkg_install.bat 安装项目依赖。
+echo 文件下方内容不会执行，仅用于查询过去的手动编译步骤。
+exit /b 0
+
+REM 以下内容仅保留作历史参考，不会被执行。
 REM MSVC 工具链 怎么编译FFMepg
 ::（一） 环境准备
 %comspec% /k "D:\MyApp\VS2022IDE\Common7\Tools\VsDevCmd.bat -arch=x64 -host_arch=x64"
