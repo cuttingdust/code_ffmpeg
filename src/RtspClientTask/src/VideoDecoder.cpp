@@ -595,13 +595,18 @@ auto VideoDecoder::get_supported_pixel_formats() const -> std::vector<AVPixelFor
     }
 
 
-    if (const AVPixelFormat* p = impl_->codec_->pix_fmts)
+    const void* pixel_format_config = nullptr;
+    int         pixel_format_count  = 0;
+    const int result = avcodec_get_supported_config(nullptr,
+                                                    impl_->codec_,
+                                                    AV_CODEC_CONFIG_PIX_FORMAT,
+                                                    0,
+                                                    &pixel_format_config,
+                                                    &pixel_format_count);
+    if (result >= 0 && pixel_format_config)
     {
-        while (*p != AV_PIX_FMT_NONE)
-        {
-            formats.push_back(*p);
-            p++;
-        }
+        const auto* pixel_formats = static_cast<const AVPixelFormat*>(pixel_format_config);
+        formats.assign(pixel_formats, pixel_formats + pixel_format_count);
     }
 
     return formats;
