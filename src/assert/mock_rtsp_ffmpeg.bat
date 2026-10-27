@@ -1,4 +1,4 @@
-﻿@echo off
+@echo off
 chcp 65001 >nul
 cd /d "%~dp0"
 
@@ -12,10 +12,12 @@ set "RTSP_URL=rtsp://127.0.0.1:8554/main"
 
 where ffmpeg >nul 2>&1 || (
     echo [mock_rtsp_ffmpeg] 未找到 ffmpeg，请确认已安装并加入 PATH。
+    pause
     exit /b 1
 )
 if not exist "%INPUT_FILE%" (
     echo [mock_rtsp_ffmpeg] 未找到输入文件：%CD%\%INPUT_FILE%
+    pause
     exit /b 1
 )
 
@@ -27,4 +29,5 @@ echo ============================================================
 ffmpeg -re -stream_loop -1 -i output.mp4 -c copy -f rtsp rtsp://127.0.0.1:8554/main
 set "EXIT_CODE=%ERRORLEVEL%"
 echo [mock_rtsp_ffmpeg] FFmpeg 已结束，退出码：%EXIT_CODE%
+pause
 exit /b %EXIT_CODE%

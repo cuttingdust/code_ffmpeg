@@ -1,4 +1,4 @@
-﻿@echo off
+@echo off
 setlocal EnableExtensions EnableDelayedExpansion
 chcp 65001 >nul
 
@@ -29,39 +29,47 @@ goto :usage
 git config --global --add safe.directory "!GIT_PATH!"
 if errorlevel 1 goto :error
 echo [git.directory] 已添加安全目录：!GIT_PATH!
+pause
 exit /b 0
 
 :del
 git config --global --unset-all safe.directory "!GIT_PATH!" 2>nul
 if errorlevel 1 (
     echo [git.directory] 当前目录不在安全目录列表中：!GIT_PATH!
+    pause
     exit /b 0
 )
 echo [git.directory] 已移除安全目录：!GIT_PATH!
+pause
 exit /b 0
 
 :list
 echo [git.directory] 当前全局安全目录：
 git config --global --get-all safe.directory
 if errorlevel 1 echo [git.directory] 尚未配置安全目录。
+pause
 exit /b 0
 
 :clean
 if /I not "%~2"=="--force" (
     echo [git.directory] clean 会清空全部全局安全目录。
     echo [git.directory] 如确认执行，请使用：git.directory.bat clean --force
+    pause
     exit /b 2
 )
 git config --global --unset-all safe.directory 2>nul
 echo [git.directory] 已清空全部全局安全目录。
+pause
 exit /b 0
 
 :usage
 echo [git.directory] 用于管理 Git 全局 safe.directory，不会修改仓库内容。
 echo 用法：git.directory.bat add^|del^|list^|clean --force
+pause
 exit /b 2
 
 :error
 set "EXIT_CODE=%ERRORLEVEL%"
 echo [git.directory] Git 配置操作失败，退出码：%EXIT_CODE%
+pause
 exit /b %EXIT_CODE%

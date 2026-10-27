@@ -1,4 +1,4 @@
-﻿@echo off
+@echo off
 chcp 65001 > nul
 REM ============================================================================
 REM 仅供历史参考，本文件不参与项目的正常构建流程。
@@ -10,11 +10,12 @@ REM ============================================================================
 echo 本文件是已归档的 FFmpeg 手动编译笔记。
 echo 请使用 vcpkg_install.bat 安装项目依赖。
 echo 文件下方内容不会执行，仅用于查询过去的手动编译步骤。
+pause
 exit /b 0
 
 REM 以下内容仅保留作历史参考，不会被执行。
 REM MSVC 工具链 怎么编译FFMepg
-::（一） 环境准备
+REM （一） 环境准备
 %comspec% /k "D:\MyApp\VS2022IDE\Common7\Tools\VsDevCmd.bat -arch=x64 -host_arch=x64"
 cmd.exe //c "call \"D:\MyApp\VS2022IDE\VC\Auxiliary\Build\vcvars64.bat\" && bash"
 echo %LIB% %INCLUDE%
@@ -31,7 +32,7 @@ export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig
 export PKG_CONFIG_SYSTEM_INCLUDE_PATH=/usr/local/include
 export PKG_CONFIG_SYSTEM_LIBRARY_PATH=/usr/local/lib
 
-::########################################################################################
+REM ########################################################################################
 where nasm yasm
 where automake autoconf diffutils
 where pkg-config
@@ -60,22 +61,22 @@ pkg-config --cflags --libs SDL2
 
 pkg-config --modversion sdl2
 
-::#########################################################################################
+REM #########################################################################################
 
 which cl link yasm cpp  ::确认使用cl link
 
-::（二）编译SDL2
+REM （二）编译SDL2
 git clone --branch SDL2 "https://github.com/libsdl-org/SDL.git" --progress --recursive
 cd SDL
 cmake -S . -B build
 cmake --build build
 cmake --install build --config=Deubug --prefix /usr/local
-::Debug 版本注意改名
+REM Debug 版本注意改名
 pkg-config --list-all
 cd ..
 
 
-::（三）编译x264
+REM （三）编译x264
 git clone "https://code.videolan.org/videolan/x264.git" --progress --recursive
 cd x264
 CC=cl ./configure --enable-shared --enable-debug
@@ -83,11 +84,11 @@ make clean
 make -j$(nproc)
 make install
 cp  /usr/local/lib/libx264.dll.lib /usr/local/lib/libx264.lib 
-::修改x264.pc的编码位UTF8 windows 兼容
+REM 修改x264.pc的编码位UTF8 windows 兼容
 cd ..
 
 
-::（四）编译x265
+REM （四）编译x265
 git clone "https://github.com/videolan/x265.git" --progress --recursive
 cd x265/source
 cmake -S . -B build -DENABLE_SHARED=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5
@@ -97,7 +98,7 @@ cp /usr/local/lib/libx265.lib /usr/local/lib/x265.lib
 cd ../../
 
 
-::（五）编译fdk-acc
+REM （五）编译fdk-acc
 git clone "https://github.com/mstorsjo/fdk-aac.git" --progress --recursive
 cd  fdk-aac
 cmake -S . -B build -DBUILD_SHARED_LIBS=ON -DCMAKE_INSTALL_PREFIX=/usr/local
@@ -105,7 +106,7 @@ cmake --build build
 cmake --install build --config=Deubug
 cd ..
 
-::（六）编译ffmepg
+REM （六）编译ffmepg
 git clone --branch "release/8.0" "https://github.com/FFmpeg/FFmpeg.git" --progress --recursive
 cd FFmpeg
 
@@ -138,7 +139,7 @@ git checkout -b main --track origin/main
 # 这会丢弃所有本地修改和提交，确保和远程完全同步
 git fetch origin
 git reset --hard origin/main
-::===> next  和SDL2一样
+REM ===> next  和SDL2一样
 ###################################################
 CC=cl ./configure --toolchain=msvc --enable-shared \
   --enable-libx264 --enable-gpl \
@@ -153,7 +154,7 @@ CC=cl ./configure --prefix=./install --toolchain=msvc --enable-shared --disable-
 ###################################################
 
 
-::########################################################################################
+REM ########################################################################################
 REM mingw 工具链 怎么编译FFMepg
 REM pacman -S mingw-w64-x86_64-toolchain 
 REM pacman -S mingw-w64-x86_64-yasm 

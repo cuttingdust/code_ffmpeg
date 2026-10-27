@@ -1,4 +1,4 @@
-﻿@echo off
+@echo off
 chcp 65001 >nul
 cd /d "%~dp0"
 
@@ -9,6 +9,7 @@ REM MediaMTX 默认读取当前目录的 mediamtx.yml；关闭本窗口不一定
 
 if not exist "mediamtx.exe" (
     echo [mock_rtsp_mediamtx] 未找到：%CD%\mediamtx.exe
+    pause
     exit /b 1
 )
 

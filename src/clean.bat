@@ -1,4 +1,4 @@
-﻿@echo off
+@echo off
 setlocal EnableExtensions
 chcp 65001 >nul
 
@@ -20,6 +20,7 @@ if exist "%BUILD_DIR%\" (
     rmdir /s /q "%BUILD_DIR%"
     if exist "%BUILD_DIR%\" (
         echo [clean] 删除失败，目录可能正被 Visual Studio 或其他程序占用。
+        pause
         exit /b 1
     )
     echo [clean] 旧构建目录已删除。
@@ -34,9 +35,10 @@ cmake -S . -B build
 if errorlevel 1 goto :error
 
 echo [clean] 正在同步 ReSharper 团队配置...
-call "%SCRIPT_DIR%sync_dotsettings.bat" build
+call "%SCRIPT_DIR%sync_dotsettings.bat" build --no-pause
 if errorlevel 1 goto :error
 echo [clean] 构建目录重新创建完成。
+pause
 popd
 endlocal
 exit /b 0
@@ -44,5 +46,6 @@ exit /b 0
 :error
 set "EXIT_CODE=%ERRORLEVEL%"
 echo [clean] 执行失败，退出码：%EXIT_CODE%
+pause
 popd
 endlocal & exit /b %EXIT_CODE%

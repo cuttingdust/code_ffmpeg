@@ -1,4 +1,4 @@
-﻿@echo off
+@echo off
 setlocal EnableExtensions
 chcp 65001 >nul
 
@@ -27,12 +27,14 @@ goto :usage
 git config --local http.proxy "%PROXY_URL%" || goto :error
 git config --local https.proxy "%PROXY_URL%" || goto :error
 echo [git.proxy] 已开启当前仓库代理：%PROXY_URL%
+pause
 exit /b 0
 
 :local_off
 git config --local --unset-all http.proxy 2>nul
 git config --local --unset-all https.proxy 2>nul
 echo [git.proxy] 已关闭当前仓库代理。
+pause
 exit /b 0
 
 :global
@@ -44,12 +46,14 @@ goto :usage
 git config --global http.proxy "%PROXY_URL%" || goto :error
 git config --global https.proxy "%PROXY_URL%" || goto :error
 echo [git.proxy] 已开启全局代理：%PROXY_URL%
+pause
 exit /b 0
 
 :global_off
 git config --global --unset-all http.proxy 2>nul
 git config --global --unset-all https.proxy 2>nul
 echo [git.proxy] 已关闭全局代理。
+pause
 exit /b 0
 
 :status
@@ -61,14 +65,17 @@ echo [git.proxy] 全局 HTTP 代理：
 git config --global --get http.proxy 2>nul || echo   未配置
 echo [git.proxy] 全局 HTTPS 代理：
 git config --global --get https.proxy 2>nul || echo   未配置
+pause
 exit /b 0
 
 :usage
 echo [git.proxy] on/off 只影响当前仓库，global 操作影响当前用户的全部仓库。
 echo 用法：git.proxy.bat on^|off^|status^|global on^|global off
+pause
 exit /b 2
 
 :error
 set "EXIT_CODE=%ERRORLEVEL%"
 echo [git.proxy] Git 配置操作失败，退出码：%EXIT_CODE%
+pause
 exit /b %EXIT_CODE%

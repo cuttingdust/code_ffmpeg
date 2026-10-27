@@ -1,16 +1,16 @@
-﻿@echo off
+@echo off
 setlocal EnableExtensions
 chcp 65001 >nul
 
-rem 用途：根据 src\vcpkg.json 安装项目依赖。
-rem 安装目录固定为 CMake 实际使用的 src\build\vcpkg_installed。
-rem
-rem 使用方式：
-rem   vcpkg_install.bat                    安装当前基线锁定的依赖版本。
-rem   vcpkg_install.bat --update-baseline  先更新注册表基线，再安装依赖。
-rem
-rem 更新基线可能导致大量库重新编译，也可能带来 API 兼容性变化。
-rem 因此默认不自动更新基线，保证普通依赖恢复过程可重复。
+REM 用途：根据 src\vcpkg.json 安装项目依赖。
+REM 安装目录固定为 CMake 实际使用的 src\build\vcpkg_installed。
+REM
+REM 使用方式：
+REM   vcpkg_install.bat                    安装当前基线锁定的依赖版本。
+REM   vcpkg_install.bat --update-baseline  先更新注册表基线，再安装依赖。
+REM
+REM 更新基线可能导致大量库重新编译，也可能带来 API 兼容性变化。
+REM 因此默认不自动更新基线，保证普通依赖恢复过程可重复。
 
 set "SCRIPT_DIR=%~dp0"
 set "INSTALL_ROOT=%SCRIPT_DIR%build\vcpkg_installed"
@@ -20,18 +20,21 @@ if /I "%~1"=="--update-baseline" set "UPDATE_BASELINE=1"
 if not "%~1"=="" if not defined UPDATE_BASELINE (
     echo [vcpkg] 不支持的参数：%~1
     echo [vcpkg] 用法：vcpkg_install.bat [--update-baseline]
+    pause
     exit /b 2
 )
 
 if not defined VCPKG_ROOT (
     echo [vcpkg] 未设置环境变量 VCPKG_ROOT。
     echo [vcpkg] 请将其设置为 vcpkg 仓库目录，例如 F:\tools\vcpkg。
+    pause
     exit /b 1
 )
 
 set "VCPKG_EXE=%VCPKG_ROOT%\vcpkg.exe"
 if not exist "%VCPKG_EXE%" (
     echo [vcpkg] 未找到可执行文件：%VCPKG_EXE%
+    pause
     exit /b 1
 )
 
@@ -70,10 +73,12 @@ echo [vcpkg] 正在解析并安装依赖，此过程可能持续较长时间...
 if errorlevel 1 goto :error
 
 echo [vcpkg] 所有依赖均已安装完成。
+pause
 endlocal
 exit /b 0
 
 :error
 set "EXIT_CODE=%ERRORLEVEL%"
 echo [vcpkg] 操作失败，退出码：%EXIT_CODE%
+pause
 endlocal & exit /b %EXIT_CODE%

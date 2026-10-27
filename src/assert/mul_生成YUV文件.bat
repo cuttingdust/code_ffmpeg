@@ -1,4 +1,4 @@
-﻿@echo off
+@echo off
 chcp 65001 >nul
 cd /d "%~dp0"
 
@@ -12,10 +12,12 @@ set "OUTPUT_FILE=2.yuv"
 
 where ffmpeg >nul 2>&1 || (
     echo [生成YUV] 未找到 ffmpeg，请确认已安装并加入 PATH。
+    pause
     exit /b 1
 )
 if not exist "%INPUT_FILE%" (
     echo [生成YUV] 未找到输入文件：%CD%\%INPUT_FILE%
+    pause
     exit /b 1
 )
 
@@ -27,6 +29,9 @@ echo ============================================================
 ffmpeg -i v1080.mp4 -s 600x300  2.yuv
 if errorlevel 1 (
     echo [生成YUV] 转换失败，退出码：%ERRORLEVEL%
+    pause
     exit /b %ERRORLEVEL%
 )
 echo [生成YUV] 转换完成。
+pause
+exit /b 0

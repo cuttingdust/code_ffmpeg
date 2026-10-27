@@ -1,4 +1,4 @@
-﻿@echo off
+@echo off
 setlocal EnableExtensions
 chcp 65001 >nul
 
@@ -27,6 +27,7 @@ cmake --open build
 if errorlevel 1 goto :error
 echo [open] 已向系统发送打开解决方案的请求。
 
+pause
 popd
 endlocal
 exit /b 0
@@ -34,5 +35,6 @@ exit /b 0
 :error
 set "EXIT_CODE=%ERRORLEVEL%"
 echo [open] 执行失败，退出码：%EXIT_CODE%
+pause
 popd
 endlocal & exit /b %EXIT_CODE%
