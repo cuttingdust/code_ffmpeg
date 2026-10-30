@@ -1,4 +1,4 @@
-param(
+﻿param(
     [switch]$PullVcpkg,
     [switch]$DefaultFromRemote
 )
@@ -91,6 +91,23 @@ function Write-VcpkgConfiguration {
 
 	$lines = New-Object System.Collections.Generic.List[string]
 	$lines.Add("{")
+
+	# Overlay 配置属于项目构建的一部分，更新 baseline 时必须原样保留。
+	foreach ($propertyName in @("overlay-ports", "overlay-triplets")) {
+		$property = $Config.PSObject.Properties[$propertyName]
+		if (-not $property) {
+			continue
+		}
+
+		$values = @($property.Value)
+		$lines.Add("`t`"$propertyName`": [")
+		for ($i = 0; $i -lt $values.Count; $i++) {
+			$comma = if ($i -lt $values.Count - 1) { "," } else { "" }
+			$lines.Add("`t`t$(Quote-Json ([string]$values[$i]))$comma")
+		}
+		$lines.Add("`t],")
+	}
+
 	$lines.Add("`t""default-registry"": {")
 	$defaultKind = [string]$Config.'default-registry'.kind
 	$defaultRepository = [string]$Config.'default-registry'.repository
