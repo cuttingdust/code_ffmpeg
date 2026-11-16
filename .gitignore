@@ -1,6 +1,11 @@
 # User ================================
 # 用户自定义的其他忽略文件
 src/deploy_qt.bat
+# 本地 macOS 测试程序，与 *.exe 一样不跟踪二进制。
+/src/assert/mediamtx
+/src/assert/ffmpeg
+/src/assert/toxiproxy-server
+/src/assert/toxiproxy-cli
 
 # Clion ================================
 # Covers JetBrains IDEs: IntelliJ, RubyMine, PhpStorm, AppCode, PyCharm, CLion, Android Studio and WebStorm

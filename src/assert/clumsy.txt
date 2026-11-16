@@ -1,1 +1,95 @@
+Windows：Clumsy 过滤规则
+============================================================
 tcp and (tcp.DstPort == 8554 or tcp.SrcPort == 8554)
+
+macOS：Toxiproxy 2.13.0 使用方式（Bash）
+============================================================
+以下命令均在 src/assert 目录执行；每个新终端先进入该目录：
+cd src/assert
+
+一、启动测试服务
+------------------------------------------------------------
+终端 1：启动 MediaMTX，监听原来的 8554 端口。
+bash mock_rtsp_mediamtx.sh
+
+终端 2：循环推送项目已有的视频到 MediaMTX。
+bash mock_rtsp_ffmpeg.sh
+
+终端 3：启动 Toxiproxy 管理服务，保持前台运行，Ctrl+C 停止。
+./toxiproxy-server -host 127.0.0.1 -port 8474
+
+终端 4：执行下面的代理管理与弱网命令。
+CLI 默认连接 http://localhost:8474。
+如修改管理地址，在子命令前指定：
+./toxiproxy-cli --host http://127.0.0.1:8474 list
+
+二、创建并检查 RTSP 代理
+------------------------------------------------------------
+./toxiproxy-cli create -l 127.0.0.1:18554 -u 127.0.0.1:8554 rtsp
+./toxiproxy-cli list
+./toxiproxy-cli inspect rtsp
+
+连接关系：播放器 -> 127.0.0.1:18554 -> MediaMTX 127.0.0.1:8554
+播放器改连 rtsp://127.0.0.1:18554/main，并明确使用 RTSP-over-TCP。
+MediaMTX 和 FFmpeg 推流仍使用 8554，避免把发布流也送进弱网代理。
+
+也可使用同目录 FFmpeg 测试拉流解码（Ctrl+C 停止）：
+./ffmpeg -rtsp_transport tcp -i rtsp://127.0.0.1:18554/main -f null -
+
+三、添加弱网规则（每条规则都有名称，方便单独修改和删除）
+------------------------------------------------------------
+增加下行延迟 200ms，并附加 50ms 抖动：
+./toxiproxy-cli toxic add -t latency -n rtsp_latency --downstream -a latency=200 -a jitter=50 rtsp
+
+下行限速为 128 KB/s（约 1 Mbit/s，注意不是 128 kbit/s）：
+./toxiproxy-cli toxic add -t bandwidth -n rtsp_bandwidth --downstream -a rate=128 rtsp
+
+阻断下行数据，并在 3000ms 后关闭连接，测试超时和重连：
+./toxiproxy-cli toxic add -t timeout -n rtsp_timeout --downstream -a timeout=3000 rtsp
+
+--downstream 指 MediaMTX -> 播放器；--upstream 指播放器 -> MediaMTX。
+多个规则可以叠加；建议先单独测试一种，恢复后再测试下一种。
+重复添加同名规则会报错，应使用 update，或者先 remove 再 add。
+
+四、修改、取消弱网与恢复连接
+------------------------------------------------------------
+将已有延迟改成 500ms、抖动改成 100ms：
+./toxiproxy-cli toxic update -n rtsp_latency -a latency=500 -a jitter=100 rtsp
+
+删除已添加的规则，恢复对应的正常网络行为：
+./toxiproxy-cli toxic remove -n rtsp_latency rtsp
+./toxiproxy-cli toxic remove -n rtsp_bandwidth rtsp
+./toxiproxy-cli toxic remove -n rtsp_timeout rtsp
+
+只删除实际添加过的规则；规则不存在时会提示错误。
+规则取消后，已断开的播放器可能需要重连，缓冲中的数据也不会立即消失。
+
+临时切断整个代理（toggle 是切换状态，先用 inspect 确认当前 enabled）：
+./toxiproxy-cli inspect rtsp
+./toxiproxy-cli toggle rtsp
+
+如果原来为 enabled=true，上面的 toggle 会禁用代理；再执行一次可重新启用：
+./toxiproxy-cli toggle rtsp
+
+删除整个代理，包括它的弱网规则（18554 端口随后不再接受该代理的连接）：
+./toxiproxy-cli delete rtsp
+
+要重新使用，执行第二节的 create 命令。普通 CLI 操作保存在服务内存中，
+服务重启后需要重新创建；需要固定启动配置可使用服务端的 -config 参数。
+
+五、适用范围与排错
+------------------------------------------------------------
+Toxiproxy 是 TCP 代理，不会透明捕获所有流量；必须连接代理端口才会生效。
+它不能模拟 RTP-over-UDP 的逐包丢失或乱序，也不能直接沿用 Clumsy 的过滤表达式。
+RTSP 客户端必须强制使用 TCP 承载媒体，否则 UDP 媒体可能绕过代理。
+CLI 提示连接失败：检查 toxiproxy-server 是否运行，以及管理端口 8474 是否一致。
+提示代理已存在：先 inspect，使用现有代理，或 delete 后重新 create。
+端口占用：检查现有服务；不要直接批量结束所有同名进程。
+未找到路径或媒体：确认 MediaMTX 已启动，FFmpeg 正在向 /main 发布视频。
+
+帮助：
+./toxiproxy-cli --help
+./toxiproxy-cli toxic --help
+./toxiproxy-server -help
+
+官方文档：https://github.com/Shopify/toxiproxy
