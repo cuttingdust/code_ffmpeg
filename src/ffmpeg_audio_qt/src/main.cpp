@@ -1,4 +1,6 @@
 #include <QtCore/QCoreApplication>
+
+#include <QDebug>
 #include <QtMultimedia/QAudioFormat>
 #include <QtMultimedia/QAudioSink>
 #include <QtMultimedia/QMediaDevices>

@@ -1,5 +1,10 @@
 ﻿#include "XVideoView.h"
 
+#include <utility>
+
+#include <thread>
+#include <chrono>
+
 #include "XSDL.h"
 
 #include <iostream>

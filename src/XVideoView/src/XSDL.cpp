@@ -4,6 +4,7 @@
 #include <SDL.h>
 
 #include <iostream>
+#include <atomic>
 #include <mutex>
 
 

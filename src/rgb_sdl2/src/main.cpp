@@ -1,6 +1,7 @@
 ﻿#include <SDL2/SDL.h>
 
 #include <iostream>
+#include <memory>
 
 int main(int argc, char *argv[])
 {
@@ -46,7 +47,7 @@ int main(int argc, char *argv[])
     }
 
     /// 存放图像的数据
-    std::shared_ptr<unsigned char> rgb(new unsigned char[w * h * 4]);
+    std::shared_ptr<unsigned char[]> rgb(new unsigned char[w * h * 4]);
     auto                           r   = rgb.get();
     unsigned char                  tmp = 255;
 

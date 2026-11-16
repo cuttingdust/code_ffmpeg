@@ -1,5 +1,7 @@
 ﻿#include "BaseAVFormat.h"
 
+#include <utility>
+
 #include <mutex>
 
 auto BaseAVFormat::isTimeout() const -> bool

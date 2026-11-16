@@ -1,5 +1,7 @@
 ﻿#include "BaseAVFormat.h"
 
+#include <utility>
+
 auto BaseAVFormat::isTimeout() const -> bool
 {
     if (timeout_ms_ <= 0)

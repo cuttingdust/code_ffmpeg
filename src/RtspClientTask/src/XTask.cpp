@@ -1,4 +1,6 @@
 ﻿#include "XTask.h"
+
+#include <algorithm>
 #include "AVLog.h"
 
 XTask::~XTask()

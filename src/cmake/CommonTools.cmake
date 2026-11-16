@@ -34,8 +34,25 @@ if(CMAKE_GENERATOR_PLATFORM)
         set(ARCH_SUFFIX ".${CMAKE_GENERATOR_PLATFORM}")
     endif()
 else()
-    # 默认架构
-    set(ARCH_SUFFIX ".x64")
+    # 单架构构建按目标 CPU 命名；macOS 显式指定架构时优先采用它。
+    set(OUTPUT_PROCESSOR "${CMAKE_SYSTEM_PROCESSOR}")
+    if(APPLE AND CMAKE_OSX_ARCHITECTURES)
+        list(LENGTH CMAKE_OSX_ARCHITECTURES OUTPUT_ARCH_COUNT)
+        if(OUTPUT_ARCH_COUNT GREATER 1)
+            set(OUTPUT_PROCESSOR universal)
+        else()
+            set(OUTPUT_PROCESSOR "${CMAKE_OSX_ARCHITECTURES}")
+        endif()
+    endif()
+    if(OUTPUT_PROCESSOR MATCHES "^(arm64|aarch64|ARM64)$")
+        set(ARCH_SUFFIX ".arm64")
+    elseif(OUTPUT_PROCESSOR MATCHES "^(x86_64|AMD64|amd64)$")
+        set(ARCH_SUFFIX ".x64")
+    elseif(OUTPUT_PROCESSOR MATCHES "^(i.86|x86)$")
+        set(ARCH_SUFFIX ".x86")
+    else()
+        set(ARCH_SUFFIX ".${OUTPUT_PROCESSOR}")
+    endif()
 endif()
 
 # 输出路径
@@ -110,15 +127,9 @@ set(Opencv_MOUDLES
 )
 
 #ffmpeg
-set(FFMEPG_MOUDLES
-    avcodec
-	avdevice
-	avfilter
-	avformat
-	avutil
-	swresample
-	swscale
-)
+# 使用查找模块给出的完整依赖列表，包含静态库依赖和 macOS frameworks。
+# 仅列 avcodec 等裸库名会丢失这些传递依赖，也无法正确区分 Debug/Release。
+set(FFMEPG_MOUDLES ${FFMPEG_LIBRARIES})
 
 #fmt
 set(FMT_MOUDLES
@@ -375,9 +386,10 @@ macro(set_cpp name)
         cxx_std_23
     )
 
-    target_link_options(${name} PRIVATE
-        -D2:-AllowCompatibleILVersions
-    )
+    # 此选项属于 MSVC 链接器，Apple Clang/GNU 链接器不接受。
+    if(MSVC)
+        target_link_options(${name} PRIVATE -D2:-AllowCompatibleILVersions)
+    endif()
 
     target_compile_definitions(${name} PUBLIC
         -DUNICODE
@@ -485,6 +497,10 @@ macro(register_qt_deploy_target name)
 endmacro()
 
 function(generate_qt_deploy_script)
+    # 下方生成的是 windeployqt.exe 批处理；macOS/Linux 不生成此部署入口。
+    if(NOT WIN32)
+        return()
+    endif()
 	get_property(QT_DEPLOY_TARGETS GLOBAL PROPERTY QT_DEPLOY_TARGETS)
 	if(NOT QT_DEPLOY_TARGETS)
 		return()

@@ -5,7 +5,7 @@
 #include <QDateTime>
 #include <regex>
 
-#include <ppl.h>
+#include <algorithm>
 
 namespace fs = std::filesystem;
 
@@ -282,7 +282,7 @@ std::vector<RecordFileInfo> XRecorderManager::getRecordFilesByDate(int camera_id
     /// 按时间排序（最新的在前）
     // std::ranges::sort(result, [](const RecordFileInfo& a, const RecordFileInfo& b) { return a.datetime > b.datetime; });
 
-    concurrency::parallel_sort(result.begin(), result.end(), [](const RecordFileInfo& a, const RecordFileInfo& b)
+    std::sort(result.begin(), result.end(), [](const RecordFileInfo& a, const RecordFileInfo& b)
                                { return a.datetime > b.datetime; });
 
     return result;

@@ -1,5 +1,7 @@
 ﻿#include "BaseAVFormat.h"
 
+#include <utility>
+
 BaseAVFormat::BaseAVFormat(std::string url) : url_(std::move(url))
 {
 }

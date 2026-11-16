@@ -3,6 +3,7 @@
 #include <iostream>
 #include <SDL.h>
 
+#include <atomic>
 #include <mutex>
 
 

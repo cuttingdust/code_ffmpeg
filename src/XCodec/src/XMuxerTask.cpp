@@ -1,4 +1,6 @@
 ﻿#include "XMuxerTask.h"
+
+#include <utility>
 #include "AVLog.h"
 
 XMuxerTask::XMuxerTask()
