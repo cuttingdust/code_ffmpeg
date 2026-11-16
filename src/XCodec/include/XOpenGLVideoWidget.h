@@ -134,7 +134,7 @@ private:
     };
 
     void initGlResources();
-    void initShaders();
+    bool initShaders();
     void initGeometry();
     void ensureTextures(int width, int height, FramePixelFormat format);
     void destroyTextures();

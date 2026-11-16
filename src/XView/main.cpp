@@ -7,6 +7,7 @@
 #include <QtCore/QCoreApplication>
 #include <QtCore/QObject>
 #include <QtWidgets/QApplication>
+#include <QtGui/QSurfaceFormat>
 
 #include <iostream>
 
@@ -21,6 +22,14 @@ int main(int argc, char *argv[])
             "qt.gui.imageio=false\n"
             "qt.css.*=false");
 
+#ifdef Q_OS_MACOS
+    // macOS 默认上下文是旧版 2.1；视频纹理使用 R8/RG8，需要 Core Profile。
+    // 必须在 QApplication 之前设置，使 Qt 内部共享上下文使用相同配置。
+    QSurfaceFormat format;
+    format.setVersion(4, 1);
+    format.setProfile(QSurfaceFormat::CoreProfile);
+    QSurfaceFormat::setDefaultFormat(format);
+#endif
     QApplication a(argc, argv);
 
     avLogInit();

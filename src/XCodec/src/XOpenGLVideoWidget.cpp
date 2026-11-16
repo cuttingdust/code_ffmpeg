@@ -7,6 +7,8 @@
 #include <cstring>
 
 #include <QtGui/QPainter>
+#include <QtGui/QOpenGLContext>
+#include <QtCore/QDebug>
 #include <QtGui/QPen>
 #include <QtOpenGL/QOpenGLShader>
 #include <QtOpenGL/QOpenGLShaderProgram>
@@ -331,15 +333,21 @@ void XOpenGLVideoWidget::submitFrame(const AVFrame* frame)
 
 void XOpenGLVideoWidget::initGlResources()
 {
-    bool expected = false;
-    if (!gl_initialized_.compare_exchange_strong(expected, true, std::memory_order_acq_rel))
+    if (gl_initialized_.load(std::memory_order_acquire))
     {
         return;
     }
 
     initializeOpenGLFunctions();
-    initShaders();
+    if (!initShaders())
+    {
+        qCritical() << "视频 OpenGL 初始化失败:" << context()->format();
+        overlay_message_ = tr("视频渲染初始化失败，请查看 OpenGL 日志");
+        return;
+    }
     initGeometry();
+    gl_initialized_.store(true, std::memory_order_release);
+    qInfo() << "视频 OpenGL 初始化成功:" << context()->format();
 }
 
 void XOpenGLVideoWidget::initializeGL()
@@ -351,7 +359,7 @@ void XOpenGLVideoWidget::resizeGL(int w, int h)
 {
     Q_UNUSED(w)
     Q_UNUSED(h)
-    glViewport(0, 0, width(), height());
+    glViewport(0, 0, qRound(width() * devicePixelRatioF()), qRound(height() * devicePixelRatioF()));
     last_vertex_widget_width_  = 0;
     last_vertex_widget_height_ = 0;
     last_vertex_scale_w_       = 0;
@@ -406,20 +414,44 @@ void XOpenGLVideoWidget::paintGL()
     drawOverlays();
 }
 
-void XOpenGLVideoWidget::initShaders()
+bool XOpenGLVideoWidget::initShaders()
 {
-    auto linkProgram = [](QOpenGLShaderProgram& program, const char* fragment_shader)
+    const bool core = context()->format().profile() == QSurfaceFormat::CoreProfile;
+    auto linkProgram = [core](QOpenGLShaderProgram& program, const char* fragment_shader)
     {
-        program.addShaderFromSourceCode(QOpenGLShader::Vertex, kVertexShader);
-        program.addShaderFromSourceCode(QOpenGLShader::Fragment, fragment_shader);
+        QByteArray vertex(kVertexShader);
+        QByteArray fragment(fragment_shader);
+        if (core)
+        {
+            // GLSL 150 可用于 OpenGL 3.2+ Core；保留旧上下文的原有语法分支。
+            vertex.replace("attribute ", "in ").replace("varying ", "out ");
+            fragment.replace("varying ", "in ").replace("texture2D(", "texture(")
+                    .replace("gl_FragColor", "fragmentColor");
+            vertex.prepend("#version 150\n");
+            fragment.prepend("#version 150\nout vec4 fragmentColor;\n");
+        }
+        if (!program.addShaderFromSourceCode(QOpenGLShader::Vertex, vertex)
+            || !program.addShaderFromSourceCode(QOpenGLShader::Fragment, fragment))
+        {
+            qCritical() << "视频着色器编译失败:" << program.log();
+            return false;
+        }
         program.bindAttributeLocation("vertexIn", kVertexAttrLocation);
         program.bindAttributeLocation("textureIn", kTexCoordAttrLocation);
-        program.link();
+        if (!program.link())
+        {
+            qCritical() << "视频着色器链接失败:" << program.log();
+            return false;
+        }
+        return true;
     };
 
-    linkProgram(program_yuv420p_, kFragmentShaderYuv420p);
-    linkProgram(program_nv12_, kFragmentShaderNv12);
-    linkProgram(program_rgba_, kFragmentShaderRgba);
+    if (!linkProgram(program_yuv420p_, kFragmentShaderYuv420p)
+        || !linkProgram(program_nv12_, kFragmentShaderNv12)
+        || !linkProgram(program_rgba_, kFragmentShaderRgba))
+    {
+        return false;
+    }
 
     yuv420p_uniforms_[0] = program_yuv420p_.uniformLocation("tex_y");
     yuv420p_uniforms_[1] = program_yuv420p_.uniformLocation("tex_u");
@@ -430,6 +462,7 @@ void XOpenGLVideoWidget::initShaders()
 
     rgba_uniform_tex_    = program_rgba_.uniformLocation("tex_rgba");
     rgba_uniform_layout_ = program_rgba_.uniformLocation("pixel_layout");
+    return true;
 }
 
 void XOpenGLVideoWidget::initGeometry()
