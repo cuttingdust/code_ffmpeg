@@ -3,6 +3,9 @@
     [switch]$DefaultFromRemote
 )
 
+# 只更新注册表基线，不安装依赖；需要 Git 和指向 vcpkg 仓库的 VCPKG_ROOT。
+# 默认使用本地 HEAD；PullVcpkg 先快进拉取，DefaultFromRemote 查询默认远端。
+# 两个开关可以组合；外部 Git 退出码仍需显式检查。
 $ErrorActionPreference = "Stop"
 $Root = $PSScriptRoot
 $ConfigPath = Join-Path $Root "vcpkg-configuration.json"
@@ -18,6 +21,7 @@ function Write-Detail {
     Write-Host ("      {0,-18}: {1}" -f $Name, $Value)
 }
 
+# 临时切换目录执行 Git，返回第一行；finally 确保失败时也恢复原目录。
 function Invoke-GitText {
     param(
         [string]$WorkingDirectory,
@@ -48,6 +52,7 @@ function Get-RemoteHead {
 	return (($line | Select-Object -First 1) -split "\s+")[0]
 }
 
+# 网络失败保留已有基线并告警；若旧基线也为空则抛错终止。
 function Get-RemoteHeadOrCurrent {
 	param(
 		[string]$Repository,
@@ -83,6 +88,8 @@ function Quote-Json {
     return ($Value | ConvertTo-Json -Compress)
 }
 
+# 按项目现有结构重建 JSON，保留 overlay 与注册表配置，输出 UTF-8 无 BOM。
+# 新增其他配置字段时需同步扩展此写入器，它不是任意 JSON 字段的无损编辑器。
 function Write-VcpkgConfiguration {
     param(
         [string]$Path,
@@ -227,10 +234,12 @@ if ($config.registries) {
     }
 }
 
+# 基线全部解析完再写回；此前失败不会覆盖配置。
 Write-Section "[5/6] Writing vcpkg-configuration.json"
 Write-VcpkgConfiguration -Path $ConfigPath -Config $config
 Write-Detail "Written" $ConfigPath
 
+# 展示差异供检查，不自动暂存、提交或推送。
 Write-Section "[6/6] Final diff"
 $repoRoot = Invoke-GitText -WorkingDirectory $Root -Arguments @("rev-parse", "--show-toplevel")
 Set-Location $repoRoot

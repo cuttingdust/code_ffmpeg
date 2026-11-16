@@ -1,4 +1,5 @@
 @echo off
+REM 切换 UTF-8 后重启自身；环境标记避免循环启动，退出码原样返回。
 if defined VCPKG_INSTALL_UTF8_READY goto :utf8_ready
 chcp 65001 >nul
 setlocal
@@ -20,6 +21,7 @@ REM
 REM 更新基线可能导致大量库重新编译，也可能带来 API 兼容性变化。
 REM 因此默认不自动更新基线，保证普通依赖恢复过程可重复。
 
+REM 从脚本位置定位 src，不依赖当前工作目录；VCPKG_ROOT 指向已初始化的工具仓库。
 set "SCRIPT_DIR=%~dp0"
 for %%I in ("%SCRIPT_DIR%.") do set "PROJECT_ROOT=%%~fI"
 set "INSTALL_ROOT=%PROJECT_ROOT%\build\vcpkg_installed"
@@ -75,6 +77,8 @@ if defined UPDATE_BASELINE (
 
 echo [vcpkg] 正在解析并安装依赖，此过程可能持续较长时间...
 
+REM 清单目录与安装目录分别显式指定；此入口固定安装 x64-windows 依赖。
+REM 首次构建大型依赖可能需要联网并耗时较长，本脚本不编译项目本身。
 "%VCPKG_EXE%" install ^
     --x-manifest-root="%PROJECT_ROOT%" ^
     --x-install-root="%INSTALL_ROOT%" ^
@@ -86,6 +90,7 @@ pause
 endlocal
 exit /b 0
 
+REM 立即保存失败码，防止日志与暂停操作覆盖原始状态。
 :error
 set "EXIT_CODE=%ERRORLEVEL%"
 echo [vcpkg] 操作失败，退出码：%EXIT_CODE%

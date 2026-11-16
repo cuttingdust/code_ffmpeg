@@ -1,4 +1,5 @@
 @echo off
+REM UTF-8 重启包装用于正确显示中文；标记防止重复启动。
 if defined UPDATE_VCPKG_CONFIG_UTF8_READY goto :utf8_ready
 chcp 65001 >nul
 setlocal
@@ -27,6 +28,7 @@ set "SCRIPT_DIR=%~dp0"
 set "NO_PAUSE="
 set "POWERSHELL_ARGS="
 
+REM 逐个解析参数；两个 PowerShell 开关可以组合，--no-pause 只在本入口处理。
 :parse_args
 if "%~1"=="" goto :run
 if /I "%~1"=="--no-pause" (
@@ -53,6 +55,8 @@ if defined POWERSHELL_ARGS (
     echo [vcpkg-config] PowerShell 参数：无，使用本地 VCPKG_ROOT 当前提交
 )
 echo ============================================================
+REM 实际 Git 和 JSON 操作由同名 ps1 完成，需要 Git 与 VCPKG_ROOT。
+REM NoProfile 避免用户配置干扰；Bypass 仅用于本次进程，随后立即保存退出码。
 powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT_DIR%update_vcpkg_configuration.ps1" %POWERSHELL_ARGS%
 set "EXIT_CODE=%ERRORLEVEL%"
 if "%EXIT_CODE%"=="0" (
